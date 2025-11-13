@@ -30,21 +30,12 @@ type Schema struct {
 	Title            string             `json:"title,omitempty" yaml:"title,omitempty"`
 	Type             string             `json:"type,omitempty" yaml:"type,omitempty"`
 	XPhase           *int               `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
-}
-
-func (s Schema) GetMaxPhase() int {
-	p := -1
-	for _, v := range s.Properties {
-		if v.XPhase != nil {
-			p = max(p, *v.XPhase)
-		}
-	}
-	return p
+	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
 }
 
 func (s Schema) GetPhase(phase int) (Schema, error) {
-	if s.GetMaxPhase() < phase {
-		return s, errors.New("phase out of bound")
+	if !slices.Contains(s.GetPhaseIndexes(), phase) {
+		return s, errors.New("phase not found")
 	}
 	px := make(map[string]*Schema)
 	req := make([]string, 0)
@@ -72,4 +63,35 @@ func (s Schema) GetPhaseIndexes() []int {
 	}
 	sort.Ints(idx)
 	return idx
+}
+
+func (s Schema) GetSessions() []string {
+	sessions := make([]string, 0)
+	for _, v := range s.Properties {
+		if v.XSession != nil {
+			if !slices.Contains(sessions, *v.XSession) {
+				sessions = append(sessions, *v.XSession)
+			}
+		}
+	}
+	return sessions
+}
+
+func (s Schema) GetSession(sessionID string) (Schema, error) {
+	if !slices.Contains(s.GetSessions(), sessionID) {
+		return s, errors.New("sessionID not found")
+	}
+	px := make(map[string]*Schema)
+	req := make([]string, 0)
+	for k, v := range s.Properties {
+		if v.XSession != nil && *v.XSession == sessionID {
+			px[k] = v
+			if slices.Contains(s.Required, k) {
+				req = append(req, k)
+			}
+		}
+	}
+	s.Properties = px
+	s.Required = req
+	return s, nil
 }
