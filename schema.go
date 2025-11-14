@@ -4,8 +4,11 @@ import (
 	"errors"
 	"slices"
 	"sort"
+
+	"gopkg.in/yaml.v3"
 )
 
+// Schema represents a JSON schema with x-phase and x-session extensions.
 type Schema struct {
 	AnyOf            []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
 	Default          any                `json:"default,omitempty" yaml:"default,omitempty"`
@@ -30,38 +33,42 @@ type Schema struct {
 	Title            string             `json:"title,omitempty" yaml:"title,omitempty"`
 	Type             string             `json:"type,omitempty" yaml:"type,omitempty"`
 	XPhase           *int               `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
+	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
 }
 
-func (s Schema) GetMaxPhase() int {
-	p := -1
-	for _, v := range s.Properties {
-		if v.XPhase != nil {
-			p = max(p, *v.XPhase)
-		}
-	}
-	return p
+// NewSchema creates a new Schema.
+func NewSchema() Schema {
+	return Schema{}
 }
 
-func (s Schema) GetPhase(phase int) (Schema, error) {
-	if s.GetMaxPhase() < phase {
-		return s, errors.New("phase out of bound")
+// FromYAML unmarshals a YAML document into the Schema.
+func (s *Schema) FromYAML(data []byte) error {
+	return yaml.Unmarshal(data, s)
+}
+
+// GetPhase returns a Schema for a specific phase.
+func (s *Schema) GetPhase(phase int) (Schema, error) {
+	clonedSchema := *s
+	if !slices.Contains(s.GetPhaseIndexes(), phase) {
+		return clonedSchema, errors.New("phase not found")
 	}
 	px := make(map[string]*Schema)
 	req := make([]string, 0)
-	for k, v := range s.Properties {
+	for k, v := range clonedSchema.Properties {
 		if v.XPhase != nil && *v.XPhase == phase {
 			px[k] = v
-			if slices.Contains(s.Required, k) {
+			if slices.Contains(clonedSchema.Required, k) {
 				req = append(req, k)
 			}
 		}
 	}
-	s.Properties = px
-	s.Required = req
-	return s, nil
+	clonedSchema.Properties = px
+	clonedSchema.Required = req
+	return clonedSchema, nil
 }
 
-func (s Schema) GetPhaseIndexes() []int {
+// GetPhaseIndexes returns the indexes of all phases in the schema.
+func (s *Schema) GetPhaseIndexes() []int {
 	idx := make([]int, 0)
 	for _, v := range s.Properties {
 		if v.XPhase != nil {
@@ -72,4 +79,38 @@ func (s Schema) GetPhaseIndexes() []int {
 	}
 	sort.Ints(idx)
 	return idx
+}
+
+// GetSessionsIDs returns the IDs of all sessions in the schema.
+func (s *Schema) GetSessionsIDs() []string {
+	sessions := make([]string, 0)
+	for _, v := range s.Properties {
+		if v.XSession != nil {
+			if !slices.Contains(sessions, *v.XSession) {
+				sessions = append(sessions, *v.XSession)
+			}
+		}
+	}
+	return sessions
+}
+
+// GetSession returns a Schema for a specific session.
+func (s *Schema) GetSession(sessionID string) (Schema, error) {
+	clonedSchema := *s
+	if !slices.Contains(s.GetSessionsIDs(), sessionID) {
+		return clonedSchema, errors.New("sessionID not found")
+	}
+	px := make(map[string]*Schema)
+	req := make([]string, 0)
+	for k, v := range clonedSchema.Properties {
+		if v.XSession != nil && *v.XSession == sessionID {
+			px[k] = v
+			if slices.Contains(clonedSchema.Required, k) {
+				req = append(req, k)
+			}
+		}
+	}
+	clonedSchema.Properties = px
+	clonedSchema.Required = req
+	return clonedSchema, nil
 }

@@ -1,0 +1,34 @@
+sessions:
+  session_one:
+    prompt: extract these pieces of information
+    nextPhasePrompt: also these
+    resources:
+      - doc.pdf
+  session_two:
+    prompt: extract these images data
+    nextPhasePrompt: also these
+    resources:
+      - img.pdf
+schema:
+  required:
+    - p1
+    - p2
+    - p3
+    - p4
+  properties:
+    p1:
+      x-session: session_one
+      x-phase: 0
+      type: string
+    p2:
+      x-session: session_one
+      x-phase: 1
+      type: string
+    p3:
+      x-session: session_two
+      x-phase: 0
+      type: string
+    p4:
+      x-session: session_two
+      x-phase: 1
+      type: string
