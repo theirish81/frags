@@ -6,6 +6,7 @@ type Session struct {
 	Prompt          string   `json:"prompt" yaml:"prompt"`
 	NextPhasePrompt string   `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
 	Resources       []string `json:"resources" yaml:"resources"`
+	Timeout         *string  `json:"timeout" yaml:"timeout"`
 }
 
 type Sessions map[string]Session

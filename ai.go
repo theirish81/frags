@@ -1,13 +1,14 @@
 package frags
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 )
 
 type Ai interface {
-	Ask(text string, schema Schema, resources ...Resource) ([]byte, error)
+	Ask(ctx context.Context, text string, schema Schema, resources ...Resource) ([]byte, error)
 }
 
 type dummyHistoryItem struct {
@@ -20,7 +21,7 @@ type DummyAi struct {
 	History []dummyHistoryItem
 }
 
-func (d *DummyAi) Ask(text string, schema Schema, resources ...Resource) ([]byte, error) {
+func (d *DummyAi) Ask(_ context.Context, text string, schema Schema, resources ...Resource) ([]byte, error) {
 	d.History = append(d.History, dummyHistoryItem{Text: text, Schema: schema, Resources: resources})
 	out := map[string]string{}
 	for k, _ := range schema.Properties {

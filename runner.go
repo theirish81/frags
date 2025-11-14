@@ -1,11 +1,13 @@
 package frags
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
 	"sync"
+	"time"
 )
 
 type Runner[T any] struct {
@@ -24,6 +26,7 @@ type Runner[T any] struct {
 type sessionTask struct {
 	id      string
 	session Session
+	timeout time.Duration
 }
 
 type RunnerOptions struct {
@@ -79,9 +82,18 @@ func (r *Runner[T]) Run() (*T, error) {
 	for k, s := range r.sessionManager.Sessions {
 		r.wg.Add(1)
 		r.logger.Debug("sending message to workers for session", "session", k)
+		timeout := 10 * time.Minute
+		if s.Timeout != nil {
+			var err error
+			timeout, err = time.ParseDuration(*s.Timeout)
+			if err != nil {
+				return nil, err
+			}
+		}
 		r.sessionChan <- sessionTask{
 			id:      k,
 			session: s,
+			timeout: timeout,
 		}
 	}
 	r.wg.Wait()
@@ -90,7 +102,7 @@ func (r *Runner[T]) Run() (*T, error) {
 	return r.dataStructure, nil
 }
 
-func (r *Runner[T]) runSession(sessionID string, session Session) error {
+func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Session) error {
 	resources, err := r.loadSessionResources(session)
 	if err != nil {
 		return err
@@ -100,18 +112,22 @@ func (r *Runner[T]) runSession(sessionID string, session Session) error {
 		return err
 	}
 	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
+		deadline, _ := ctx.Deadline()
+		if time.Now().After(deadline) {
+			return ctx.Err()
+		}
 		phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
 		if err != nil {
 			return err
 		}
 		var data []byte
 		if idx == 0 {
-			data, err = r.ai.Ask(session.Prompt, phaseSchema, resources...)
+			data, err = r.ai.Ask(ctx, session.Prompt, phaseSchema, resources...)
 			if err != nil {
 				return err
 			}
 		} else {
-			data, err = r.ai.Ask(session.NextPhasePrompt, phaseSchema, resources...)
+			data, err = r.ai.Ask(ctx, session.NextPhasePrompt, phaseSchema, resources...)
 		}
 		if err := r.safeUnmarshal(data); err != nil {
 			return err
@@ -143,11 +159,14 @@ func (r *Runner[T]) runSessionWorker(index int) {
 	for t := range r.sessionChan {
 		r.logger.Debug("worker consuming message", "workerID", index, "sessionID", t.id)
 		func() {
+			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(ctx, t.timeout)
 			defer func() {
+				cancel()
 				r.logger.Debug("worker finished consuming message", "workerID", index, "sessionID", t.id)
 				r.wg.Done()
 			}()
-			if err := r.runSession(t.id, t.session); err != nil {
+			if err := r.runSession(ctx, t.id, t.session); err != nil {
 				r.logger.Error("worked failed at running session", "workerID", index, "sessionID", t.id, "err", err)
 				return
 			}
