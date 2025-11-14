@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// Runner is a struct that runs a session manager.
 type Runner[T any] struct {
 	sessionManager SessionManager
 	resourceLoader ResourceLoader
@@ -23,12 +24,14 @@ type Runner[T any] struct {
 	logger         *slog.Logger
 }
 
+// sessionTask is a message to run a session.
 type sessionTask struct {
 	id      string
 	session Session
 	timeout time.Duration
 }
 
+// RunnerOptions are options for the runner.
 type RunnerOptions struct {
 	sessionWorkers int
 	logger         *slog.Logger
@@ -36,17 +39,21 @@ type RunnerOptions struct {
 
 type RunnerOption func(*RunnerOptions)
 
+// WithLogger sets the logger for the runner.
 func WithLogger(logger *slog.Logger) RunnerOption {
 	return func(o *RunnerOptions) {
 		o.logger = logger
 	}
 }
 
+// WithSessionWorkers sets the number of workers for the runner.
 func WithSessionWorkers(sessionWorkers int) RunnerOption {
 	return func(o *RunnerOptions) {
 		o.sessionWorkers = sessionWorkers
 	}
 }
+
+// NewRunner creates a new runner.
 func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoader, ai Ai, options ...RunnerOption) Runner[T] {
 	opts := RunnerOptions{
 		sessionWorkers: 1,
@@ -67,6 +74,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 	}
 }
 
+// Run runs the runner.
 func (r *Runner[T]) Run() (*T, error) {
 	if r.running {
 		return nil, errors.New("this frags instance is running")
@@ -102,6 +110,7 @@ func (r *Runner[T]) Run() (*T, error) {
 	return r.dataStructure, nil
 }
 
+// runSession runs a session.
 func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Session) error {
 	resources, err := r.loadSessionResources(session)
 	if err != nil {
@@ -136,6 +145,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	return nil
 }
 
+// loadSessionResources loads resources for a session.
 func (r *Runner[T]) loadSessionResources(session Session) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	for _, resourceID := range session.Resources {
@@ -148,6 +158,7 @@ func (r *Runner[T]) loadSessionResources(session Session) ([]Resource, error) {
 	return resources, nil
 }
 
+// safeUnmarshal is a thread safe version of json.Unmarshal.
 func (r *Runner[T]) safeUnmarshal(data []byte) error {
 	r.unmarshalMutex.Lock()
 	defer r.unmarshalMutex.Unlock()
@@ -155,6 +166,7 @@ func (r *Runner[T]) safeUnmarshal(data []byte) error {
 	return err
 }
 
+// runSessionWorker runs a session worker.
 func (r *Runner[T]) runSessionWorker(index int) {
 	for t := range r.sessionChan {
 		r.logger.Debug("worker consuming message", "workerID", index, "sessionID", t.id)
@@ -171,6 +183,5 @@ func (r *Runner[T]) runSessionWorker(index int) {
 				return
 			}
 		}()
-
 	}
 }

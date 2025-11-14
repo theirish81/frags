@@ -10,6 +10,7 @@ const MediaPDF = "application/pdf"
 const MediaText = "text/plain"
 const MediaMarkdown = "text/plain"
 
+// GetMediaType returns the media type for a given file extension
 func GetMediaType(filename string) string {
 	switch filepath.Ext(filename) {
 	case ExtensionPDF:

@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Schema represents a JSON schema with x-phase and x-session extensions.
 type Schema struct {
 	AnyOf            []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
 	Default          any                `json:"default,omitempty" yaml:"default,omitempty"`
@@ -35,14 +36,17 @@ type Schema struct {
 	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
 }
 
+// NewSchema creates a new Schema.
 func NewSchema() Schema {
 	return Schema{}
 }
 
+// FromYAML unmarshals a YAML document into the Schema.
 func (s *Schema) FromYAML(data []byte) error {
 	return yaml.Unmarshal(data, s)
 }
 
+// GetPhase returns a Schema for a specific phase.
 func (s *Schema) GetPhase(phase int) (Schema, error) {
 	clonedSchema := *s
 	if !slices.Contains(s.GetPhaseIndexes(), phase) {
@@ -63,6 +67,7 @@ func (s *Schema) GetPhase(phase int) (Schema, error) {
 	return clonedSchema, nil
 }
 
+// GetPhaseIndexes returns the indexes of all phases in the schema.
 func (s *Schema) GetPhaseIndexes() []int {
 	idx := make([]int, 0)
 	for _, v := range s.Properties {
@@ -76,6 +81,7 @@ func (s *Schema) GetPhaseIndexes() []int {
 	return idx
 }
 
+// GetSessionsIDs returns the IDs of all sessions in the schema.
 func (s *Schema) GetSessionsIDs() []string {
 	sessions := make([]string, 0)
 	for _, v := range s.Properties {
@@ -88,6 +94,7 @@ func (s *Schema) GetSessionsIDs() []string {
 	return sessions
 }
 
+// GetSession returns a Schema for a specific session.
 func (s *Schema) GetSession(sessionID string) (Schema, error) {
 	clonedSchema := *s
 	if !slices.Contains(s.GetSessionsIDs(), sessionID) {
