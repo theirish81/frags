@@ -1,4 +1,4 @@
-# Frags
+# Frags (WORK IN PROGRESS!)
 
 A Go library for fragmenting JSON Schema documents into sessions and phases to optimize AI API interactions.
 
