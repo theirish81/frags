@@ -4,6 +4,8 @@ import (
 	"errors"
 	"slices"
 	"sort"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Schema struct {
@@ -33,26 +35,35 @@ type Schema struct {
 	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
 }
 
-func (s Schema) GetPhase(phase int) (Schema, error) {
+func NewSchema() Schema {
+	return Schema{}
+}
+
+func (s *Schema) FromYAML(data []byte) error {
+	return yaml.Unmarshal(data, s)
+}
+
+func (s *Schema) GetPhase(phase int) (Schema, error) {
+	clonedSchema := *s
 	if !slices.Contains(s.GetPhaseIndexes(), phase) {
-		return s, errors.New("phase not found")
+		return clonedSchema, errors.New("phase not found")
 	}
 	px := make(map[string]*Schema)
 	req := make([]string, 0)
-	for k, v := range s.Properties {
+	for k, v := range clonedSchema.Properties {
 		if v.XPhase != nil && *v.XPhase == phase {
 			px[k] = v
-			if slices.Contains(s.Required, k) {
+			if slices.Contains(clonedSchema.Required, k) {
 				req = append(req, k)
 			}
 		}
 	}
-	s.Properties = px
-	s.Required = req
-	return s, nil
+	clonedSchema.Properties = px
+	clonedSchema.Required = req
+	return clonedSchema, nil
 }
 
-func (s Schema) GetPhaseIndexes() []int {
+func (s *Schema) GetPhaseIndexes() []int {
 	idx := make([]int, 0)
 	for _, v := range s.Properties {
 		if v.XPhase != nil {
@@ -65,7 +76,7 @@ func (s Schema) GetPhaseIndexes() []int {
 	return idx
 }
 
-func (s Schema) GetSessions() []string {
+func (s *Schema) GetSessionsIDs() []string {
 	sessions := make([]string, 0)
 	for _, v := range s.Properties {
 		if v.XSession != nil {
@@ -77,21 +88,22 @@ func (s Schema) GetSessions() []string {
 	return sessions
 }
 
-func (s Schema) GetSession(sessionID string) (Schema, error) {
-	if !slices.Contains(s.GetSessions(), sessionID) {
-		return s, errors.New("sessionID not found")
+func (s *Schema) GetSession(sessionID string) (Schema, error) {
+	clonedSchema := *s
+	if !slices.Contains(s.GetSessionsIDs(), sessionID) {
+		return clonedSchema, errors.New("sessionID not found")
 	}
 	px := make(map[string]*Schema)
 	req := make([]string, 0)
-	for k, v := range s.Properties {
+	for k, v := range clonedSchema.Properties {
 		if v.XSession != nil && *v.XSession == sessionID {
 			px[k] = v
-			if slices.Contains(s.Required, k) {
+			if slices.Contains(clonedSchema.Required, k) {
 				req = append(req, k)
 			}
 		}
 	}
-	s.Properties = px
-	s.Required = req
-	return s, nil
+	clonedSchema.Properties = px
+	clonedSchema.Required = req
+	return clonedSchema, nil
 }
