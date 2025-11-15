@@ -10,6 +10,7 @@ import (
 // Ai is an interface for AI models.
 type Ai interface {
 	Ask(ctx context.Context, text string, schema Schema, resources ...Resource) ([]byte, error)
+	New() Ai
 }
 
 // dummyHistoryItem is a history item for testing purposes, to use with DummyAi.
@@ -33,6 +34,10 @@ func (d *DummyAi) Ask(_ context.Context, text string, schema Schema, resources .
 	}
 	time.Sleep(1 * time.Second)
 	return json.Marshal(out)
+}
+
+func (d *DummyAi) New() Ai {
+	return &DummyAi{History: make([]dummyHistoryItem, 0)}
 }
 
 // NewDummyAi returns a new DummyAi instance.
