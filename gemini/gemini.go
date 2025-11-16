@@ -39,7 +39,7 @@ func (d *Ai) New() frags.Ai {
 }
 
 // Ask performs a query against the Gemini API, according to the Frags interface
-func (d *Ai) Ask(ctx context.Context, text string, schema frags.Schema, resources ...frags.Resource) ([]byte, error) {
+func (d *Ai) Ask(ctx context.Context, text string, schema frags.Schema, resources ...frags.ResourceData) ([]byte, error) {
 	parts := make([]*genai.Part, 0)
 	for _, resource := range resources {
 		parts = append(parts, genai.NewPartFromBytes(resource.Data, resource.MediaType))

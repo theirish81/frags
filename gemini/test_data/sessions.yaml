@@ -9,7 +9,7 @@ sessions:
     prompt: given the provided document, extract these pieces of information. Respond in JSON using the provided JSON schema
     nextPhasePrompt: also these pieces of information. Respond in JSON using the provided JSON schema
     resources:
-      - story.txt
+      - identifier: story.txt
 schema:
   type: object
   required:
