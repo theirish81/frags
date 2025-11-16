@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/auth v0.9.3
 	github.com/jinzhu/copier v0.4.0
 	github.com/stretchr/testify v1.11.1
-	github.com/theirish81/frags v0.0.0-20251114172944-3a0abdd2c42a
+	github.com/theirish81/frags v0.0.0-20251116090339-c9674e1b5f07
 	google.golang.org/genai v1.35.0
 )
 
