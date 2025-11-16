@@ -38,6 +38,10 @@ func (l *FileResourceLoader) LoadResource(identifier string, _ []string) (Resour
 	return resource, nil
 }
 
+type MultiResourceLoader struct {
+	loaders []ResourceLoader
+}
+
 // DummyResourceLoader is a dummy resource loader that returns empty resources, for testing purposes.
 type DummyResourceLoader struct{}
 
