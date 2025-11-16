@@ -1,6 +1,7 @@
 package frags
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 )
@@ -38,8 +39,50 @@ func (l *FileResourceLoader) LoadResource(identifier string, _ map[string]string
 	return resource, nil
 }
 
+type BytesLoader struct {
+	resources map[string]ResourceData
+}
+
+func NewBytesLoader() *BytesLoader {
+	return &BytesLoader{resources: make(map[string]ResourceData)}
+}
+
+func (l *BytesLoader) SetResource(resourceData ResourceData) {
+	l.resources[resourceData.Identifier] = resourceData
+}
+
+func (l *BytesLoader) LoadResource(identifier string, _ map[string]string) (ResourceData, error) {
+	if resource, ok := l.resources[identifier]; ok {
+		return resource, nil
+	} else {
+		return ResourceData{}, errors.New("resource not found: " + identifier)
+	}
+}
+
+// MultiResourceLoader loads resources from multiple loaders, based on a selector parameter.
 type MultiResourceLoader struct {
-	loaders []ResourceLoader
+	loaders map[string]ResourceLoader
+}
+
+func NewMultiResourceLoader() *MultiResourceLoader {
+	return &MultiResourceLoader{loaders: make(map[string]ResourceLoader)}
+}
+
+// SetLoader sets a loader for a specific identifier.
+func (l *MultiResourceLoader) SetLoader(identifier string, loader ResourceLoader) {
+	l.loaders[identifier] = loader
+}
+
+// LoadResource loads a resource from a specific loader, based on a selector parameter.
+func (l *MultiResourceLoader) LoadResource(identifier string, params map[string]string) (ResourceData, error) {
+	loaderSelector, ok := params["loader"]
+	if !ok {
+		return ResourceData{Identifier: identifier}, errors.New("no loader selector provided")
+	}
+	if loader, ok := l.loaders[loaderSelector]; ok {
+		return loader.LoadResource(identifier, params)
+	}
+	return ResourceData{Identifier: identifier}, errors.New("no loader found for resource")
 }
 
 // DummyResourceLoader is a dummy resource loader that returns empty resources, for testing purposes.
