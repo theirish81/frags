@@ -1,15 +1,23 @@
 # Frags (WORK IN PROGRESS!)
 
-A Go library for fragmenting JSON Schema documents into sessions and phases to optimize AI API interactions.
+**Frags** is a Go library that allows you to define and execute complex, multi-step data extraction plans using AI.
+It works by fragmenting a large JSON Schema into smaller, sequential "sessions" and "phases." This enables you to build
+robust, iterative interactions with AI models, making it ideal for tasks like structured data extraction from documents,
+progressive data collection from users, or any scenario where you need to manage a complex, stateful conversation with
+an AI.
 
 ## Overview
 
-Frags enables you to break down complex JSON Schema structures into smaller, sequential fragments (phases and sessions). This is particularly useful when working with AI APIs that have output token limits, allowing you to process large schemas iteratively while maintaining a single source of truth.
+Frags enables you to break down complex JSON Schema structures into smaller, sequential fragments (phases and sessions).
+This is particularly useful when working with AI APIs that have output token limits, allowing you to process large
+schemas iteratively while maintaining a single source of truth.
 
 The library is designed to be used in three ways, each building on the last:
 1. **Standalone Schema**: Use the `Schema` type to manually fragment a schema by phase.
-2. **Schema + SessionManager**: Use the `SessionManager` to define and manage multiple "sessions" against a single schema, loaded from a file (e.g. YAML).
-3. **Schema + SessionManager + Runner**: Use the `Runner` to automate the entire process of running sessions and phases, including loading resources and calling an AI API.
+2. **Schema + SessionManager**: Use the `SessionManager` to define and manage multiple "sessions" against a single
+3. schema, loaded from a file (e.g. YAML).
+3. **Schema + SessionManager + Runner**: Use the `Runner` to automate the entire process of running sessions and phases,
+4. including loading resources and calling an AI API.
 
 ## The Problem
 
@@ -17,7 +25,8 @@ When interacting with AI APIs that support structured JSON output, you may encou
 
 - The complete output schema is too large, potentially hitting output token limits in a single response
 - You want to process information incrementally without maintaining multiple separate schemas
-- You want to define multiple, distinct AI interactions that operate on the same overall data model, but without polluting a single global context.
+- You want to define multiple, distinct AI interactions that operate on the same overall data model, but without
+  polluting a single global context.
 - Sequential data collection makes more sense than requesting everything at once
 
 ## The Solution
@@ -187,12 +196,12 @@ sessions:
     prompt: "Extract the user's primary details form the provided document"
     nextPhasePrompt: "Also these secondary details"
     resources:
-      - user_text.txt
+      - identifier: user_text.txt
   product_review:
     prompt: "Extract the required information from the provided document"
     nextPhasePrompt: "Also extract these items"
     resources:
-      - product_details.pdf
+      - identifier: product_details.pdf
 ```
 
 ### Usage
@@ -262,8 +271,36 @@ The same instance of a runner can be used multiple times, however, it can work o
 an error if you call `Run` before the previous task has completed.
 
 ### Implementing the missing bits
-* **ResourceLoader:** loading resources can take various forms based on the needs. The system implements a simple
-  FileResourceLoader, but you can implement your own to load resources from any source.
-* **Ai:** the runner calls your AI API using the `Call` method. You can implement your own AI API client here. The
-  implementation should be stateful to allow the progressive conversation of phases. Ideally the AI implementation
-  supports files uploads and JSON schema response formats
+#### ResourceLoader
+loading resources can take various forms based on the needs. The system implements a simple  FileResourceLoader, but
+you can implement your own to load resources from any source.
+
+Example:
+```go
+type FileResourceLoader struct {
+	basePath string
+}
+
+// NewFileResourceLoader creates a new FileResourceLoader.
+func NewFileResourceLoader(basePath string) *FileResourceLoader {
+	return &FileResourceLoader{basePath: basePath}
+}
+
+// LoadResource loads a resource from the file system.
+func (l *FileResourceLoader) LoadResource(identifier string, _ []string) (ResourceData, error) {
+	resource := ResourceData{Identifier: identifier, MediaType: GetMediaType(identifier)}
+	fileData, err := os.ReadFile(filepath.Join(l.basePath, identifier))
+	if err != nil {
+		return ResourceData{}, err
+	}
+	resource.Data = fileData
+	return resource, nil
+}
+```
+
+#### AI
+The runner calls your AI API using the `Call` method. You can implement your own AI API client here. The implementation
+should be stateful to allow the progressive conversation of phases. Ideally the AI implementation  supports files
+uploads and JSON schema response formats.
+
+Example: refer to the [Gemini implementation](https://github.com/theirish81/frags/blob/main/gemini/gemini.go).
