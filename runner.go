@@ -147,14 +147,14 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 }
 
 // loadSessionResources loads resources for a session.
-func (r *Runner[T]) loadSessionResources(session Session) ([]Resource, error) {
-	resources := make([]Resource, 0)
-	for _, resourceID := range session.Resources {
-		resource, err := r.resourceLoader.LoadResource(resourceID)
+func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error) {
+	resources := make([]ResourceData, 0)
+	for _, resource := range session.Resources {
+		resourceData, err := r.resourceLoader.LoadResource(resource.Identifier, resource.Params)
 		if err != nil {
 			return resources, err
 		}
-		resources = append(resources, resource)
+		resources = append(resources, resourceData)
 	}
 	return resources, nil
 }

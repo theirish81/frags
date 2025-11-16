@@ -5,10 +5,15 @@ import "gopkg.in/yaml.v3"
 // Session defines an LLM session, with its own context.
 // Each session has a Prompt, a NextPhasePrompt for the phases after the first, and a list of resources to load.
 type Session struct {
-	Prompt          string   `json:"prompt" yaml:"prompt"`
-	NextPhasePrompt string   `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
-	Resources       []string `json:"resources" yaml:"resources"`
-	Timeout         *string  `json:"timeout" yaml:"timeout"`
+	Prompt          string     `json:"prompt" yaml:"prompt"`
+	NextPhasePrompt string     `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
+	Resources       []Resource `json:"resources" yaml:"resources"`
+	Timeout         *string    `json:"timeout" yaml:"timeout"`
+}
+
+type Resource struct {
+	Identifier string            `json:"identifier" yaml:"identifier"`
+	Params     map[string]string `json:"params" yaml:"params"`
 }
 
 // Sessions is a map of session IDs to sessions.
