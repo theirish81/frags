@@ -3,12 +3,12 @@ sessions:
     prompt: extract these pieces of information
     nextPhasePrompt: also these
     resources:
-      - doc.pdf
+      - identifier: doc.pdf
   session_two:
     prompt: extract these images data
     nextPhasePrompt: also these
     resources:
-      - img.pdf
+      - identifier: img.pdf
 schema:
   required:
     - p1

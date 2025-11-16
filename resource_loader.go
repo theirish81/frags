@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 )
 
-// Resource is a piece of data the LLM can use.
-type Resource struct {
+// ResourceData is a piece of data the LLM can use.
+type ResourceData struct {
 	Identifier string
 	Data       []byte
 	MediaType  string
@@ -14,7 +14,7 @@ type Resource struct {
 
 // ResourceLoader is a generic interface for loading resources.
 type ResourceLoader interface {
-	LoadResource(identifier string) (Resource, error)
+	LoadResource(identifier string, params map[string]string) (ResourceData, error)
 }
 
 // FileResourceLoader loads resources from the file system.
@@ -28,11 +28,11 @@ func NewFileResourceLoader(basePath string) *FileResourceLoader {
 }
 
 // LoadResource loads a resource from the file system.
-func (l *FileResourceLoader) LoadResource(identifier string) (Resource, error) {
-	resource := Resource{Identifier: identifier, MediaType: GetMediaType(identifier)}
+func (l *FileResourceLoader) LoadResource(identifier string, _ []string) (ResourceData, error) {
+	resource := ResourceData{Identifier: identifier, MediaType: GetMediaType(identifier)}
 	fileData, err := os.ReadFile(filepath.Join(l.basePath, identifier))
 	if err != nil {
-		return Resource{}, err
+		return ResourceData{}, err
 	}
 	resource.Data = fileData
 	return resource, nil
@@ -47,8 +47,8 @@ func NewDummyResourceLoader() *DummyResourceLoader {
 }
 
 // LoadResource returns an empty resource.
-func (l *DummyResourceLoader) LoadResource(identifier string) (Resource, error) {
-	return Resource{
+func (l *DummyResourceLoader) LoadResource(identifier string, params map[string]string) (ResourceData, error) {
+	return ResourceData{
 		Identifier: identifier,
 		MediaType:  GetMediaType(identifier),
 		Data:       make([]byte, 0),

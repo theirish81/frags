@@ -120,6 +120,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	if err != nil {
 		return err
 	}
+	ai := r.ai.New()
 	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
 		deadline, _ := ctx.Deadline()
 		if time.Now().After(deadline) {
@@ -131,12 +132,12 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 		}
 		var data []byte
 		if idx == 0 {
-			data, err = r.ai.Ask(ctx, session.Prompt, phaseSchema, resources...)
+			data, err = ai.Ask(ctx, session.Prompt, phaseSchema, resources...)
 			if err != nil {
 				return err
 			}
 		} else {
-			data, err = r.ai.Ask(ctx, session.NextPhasePrompt, phaseSchema, resources...)
+			data, err = ai.Ask(ctx, session.NextPhasePrompt, phaseSchema)
 		}
 		if err := r.safeUnmarshal(data); err != nil {
 			return err
@@ -146,14 +147,14 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 }
 
 // loadSessionResources loads resources for a session.
-func (r *Runner[T]) loadSessionResources(session Session) ([]Resource, error) {
-	resources := make([]Resource, 0)
-	for _, resourceID := range session.Resources {
-		resource, err := r.resourceLoader.LoadResource(resourceID)
+func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error) {
+	resources := make([]ResourceData, 0)
+	for _, resource := range session.Resources {
+		resourceData, err := r.resourceLoader.LoadResource(resource.Identifier, resource.Params)
 		if err != nil {
 			return resources, err
 		}
-		resources = append(resources, resource)
+		resources = append(resources, resourceData)
 	}
 	return resources, nil
 }
