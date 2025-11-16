@@ -28,7 +28,7 @@ func NewFileResourceLoader(basePath string) *FileResourceLoader {
 }
 
 // LoadResource loads a resource from the file system.
-func (l *FileResourceLoader) LoadResource(identifier string, _ []string) (ResourceData, error) {
+func (l *FileResourceLoader) LoadResource(identifier string, _ map[string]string) (ResourceData, error) {
 	resource := ResourceData{Identifier: identifier, MediaType: GetMediaType(identifier)}
 	fileData, err := os.ReadFile(filepath.Join(l.basePath, identifier))
 	if err != nil {
