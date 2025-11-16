@@ -1,0 +1,94 @@
+sessions:
+  session_one:
+    prompt: retrieve these pieces of information about butterflies. Respond in JSON using the provided JSON schema
+    nextPhasePrompt: retrieve also these pieces of information.  Respond in JSON using the provided JSON schema
+  session_two:
+    prompt: retrieve these pieces of information about sparrows. Respond in JSON using the provided JSON schema
+    nextPhasePrompt: retrieve also these pieces of information. Respond in JSON using the provided JSON schema
+  session_three:
+    prompt: given the provided document, extract these pieces of information. Respond in JSON using the provided JSON schema
+    nextPhasePrompt: also these pieces of information. Respond in JSON using the provided JSON schema
+    resources:
+      - story.txt
+schema:
+  type: object
+  required:
+    - butterfly_base_data
+    - butterfly_text_data
+    - sparrow_base_data
+    - sparrow_text_data
+  properties:
+    butterfly_base_data:
+      type: object
+      x-session: session_one
+      x-phase: 0
+      required:
+        - kingdom
+        - class
+        - order
+      properties:
+        kingdom:
+          type: string
+          description: the scientific kingdom of the butterfly
+        class:
+          type: string
+          description: the scientific class of butterfly
+        order:
+          type: string
+          description: the scientific order of butterfly
+    butterfly_text_data:
+      type: object
+      x-session: session_one
+      x-phase: 1
+      required:
+        - etymology
+        - taxonomy
+      properties:
+        etymology:
+          type: string
+          description: the etymology of the butterfly
+        taxonomy:
+          type: string
+          description: the taxonomy of the butterfly
+    sparrow_base_data:
+      type: object
+      x-session: session_two
+      x-phase: 0
+      required:
+        - kingdom
+        - class
+        - order
+      properties:
+        kingdom:
+          type: string
+          description: the scientific kingdom of the sparrow
+        class:
+          type: string
+          description: the scientific class of sparrow
+        order:
+          type: string
+          description: the scientific order of sparrow
+    sparrow_text_data:
+      type: object
+      x-session: session_two
+      x-phase: 1
+      required:
+        - etymology
+        - taxonomy
+      properties:
+        etymology:
+          type: string
+          description: the etymology of the sparrow
+        taxonomy:
+          type: string
+          description: the taxonomy of the sparrow
+    story_summary:
+      type: string
+      x-session: session_three
+      x-phase: 0
+      description: the summary of the story
+    story_moral:
+      type: string
+      x-session: session_three
+      x-phase: 1
+      description: the moral of the story
