@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -81,7 +82,14 @@ func (r *Runner[T]) Run() (*T, error) {
 	}
 	r.running = true
 	r.sessionChan = make(chan sessionTask)
-	r.dataStructure = new(T)
+	var v T
+	val := reflect.ValueOf(&v).Elem()
+	if val.Kind() == reflect.Map {
+		val.Set(reflect.MakeMap(val.Type()))
+		r.dataStructure = &v
+	} else {
+		r.dataStructure = new(T)
+	}
 	for i := 0; i < r.sessionWorkers; i++ {
 		r.logger.Debug("starting session worker", "index", i)
 		go r.runSessionWorker(i)
@@ -138,6 +146,9 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			}
 		} else {
 			data, err = ai.Ask(ctx, session.NextPhasePrompt, phaseSchema)
+			if err != nil {
+				return err
+			}
 		}
 		if err := r.safeUnmarshal(data); err != nil {
 			return err
