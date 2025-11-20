@@ -1,6 +1,12 @@
 package frags
 
-import "gopkg.in/yaml.v3"
+import (
+	"bytes"
+	"strings"
+	"text/template"
+
+	"gopkg.in/yaml.v3"
+)
 
 // Session defines an LLM session, with its own context.
 // Each session has a Prompt, a NextPhasePrompt for the phases after the first, and a list of resources to load.
@@ -11,6 +17,41 @@ type Session struct {
 	Timeout         *string    `json:"timeout" yaml:"timeout"`
 }
 
+func (s *Session) RenderPrompt(scope any) (string, error) {
+	if scope == nil || !strings.Contains(s.Prompt, "{{") {
+		return s.Prompt, nil
+	}
+	tmpl := template.New("tpl")
+	parsedTmpl, err := tmpl.Parse(s.Prompt)
+	if err != nil {
+		return s.Prompt, err
+	}
+	writer := bytes.NewBufferString("")
+	err = parsedTmpl.Execute(writer, scope)
+	return writer.String(), err
+}
+
+func (s *Session) RenderNextPhasePrompt(scope any) (string, error) {
+	if !strings.Contains(s.NextPhasePrompt, "{{") {
+		return s.Prompt, nil
+	}
+	tmpl := template.New("tpl")
+	parsedTmpl, err := tmpl.Parse(s.NextPhasePrompt)
+	if err != nil {
+		return s.Prompt, err
+	}
+	writer := bytes.NewBufferString("")
+	err = parsedTmpl.Execute(writer, scope)
+	return writer.String(), err
+}
+
+func (s *Session) ListVariables() []string {
+	vars := make([]string, 0)
+	vars = append(vars, extractTemplateVariables(s.Prompt)...)
+	vars = append(vars, extractTemplateVariables(s.NextPhasePrompt)...)
+	return vars
+}
+
 type Resource struct {
 	Identifier string            `json:"identifier" yaml:"identifier"`
 	Params     map[string]string `json:"params" yaml:"params"`
@@ -18,6 +59,14 @@ type Resource struct {
 
 // Sessions is a map of session IDs to sessions.
 type Sessions map[string]Session
+
+func (s *Sessions) ListVariables() []string {
+	vars := make([]string, 0)
+	for _, v := range *s {
+		vars = append(vars, v.ListVariables()...)
+	}
+	return vars
+}
 
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {

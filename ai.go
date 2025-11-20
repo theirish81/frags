@@ -3,7 +3,6 @@ package frags
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 )
 
@@ -30,7 +29,7 @@ func (d *DummyAi) Ask(_ context.Context, text string, schema Schema, resources .
 	d.History = append(d.History, dummyHistoryItem{Text: text, Schema: schema, Resources: resources})
 	out := map[string]string{}
 	for k, _ := range schema.Properties {
-		out[k] = fmt.Sprintf("%s-%v", k, time.Now())
+		out[k] = text
 	}
 	time.Sleep(1 * time.Second)
 	return json.Marshal(out)

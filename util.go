@@ -1,6 +1,10 @@
 package frags
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"regexp"
+	"strings"
+)
 
 // ProgMap is a custom map type that allows for incremental unmarshaling of JSON data.
 // Instead of replacing the entire map contents during unmarshaling, it merges new key-value
@@ -19,4 +23,17 @@ func (p *ProgMap) UnmarshalJSON(data []byte) error {
 		(*p)[k] = v
 	}
 	return nil
+}
+
+func extractTemplateVariables(templateStr string) []string {
+	re := regexp.MustCompile(`{{\s*\.([\w.]+)\s*}}`)
+	matches := re.FindAllStringSubmatch(templateStr, -1)
+	var variables []string
+	for _, match := range matches {
+		if len(match) > 1 {
+			cleanVar := strings.TrimSpace(match[1])
+			variables = append(variables, cleanVar)
+		}
+	}
+	return variables
 }

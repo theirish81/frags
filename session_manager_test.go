@@ -16,3 +16,10 @@ func TestNewSessionManager(t *testing.T) {
 	assert.Len(t, mgr.Sessions, 2)
 	assert.Equal(t, len(mgr.Sessions), len(mgr.Schema.GetSessionsIDs()))
 }
+
+func TestSession_RenderPrompt(t *testing.T) {
+	session := Session{Prompt: "animal is {{ .animal }}"}
+	p, err := session.RenderPrompt(map[string]string{"animal": "dog"})
+	assert.Nil(t, err)
+	assert.Equal(t, "animal is dog", p)
+}

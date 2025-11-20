@@ -204,6 +204,11 @@ sessions:
       - identifier: product_details.pdf
 ```
 
+### Session Parameters
+Sessions `prompt` and `nextPhrasePrompt` also support [Go template](https://pkg.go.dev/text/template) syntax, allowing
+for dynamic prompts. Each session has  `RenderPrompt(scope any) (string, error)` and `RenderNextPhasePrompt(scope any) (string, error)`
+methods to render the final text.
+
 ### Usage
 
 ```go
