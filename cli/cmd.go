@@ -17,12 +17,22 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var format string
-var output string
-var templatePath string
+// supported output formats
+const (
+	formatTemplate = "template"
+	formatYAML     = "yaml"
+	formatJSON     = "json"
+)
+
+var (
+	format       string
+	output       string
+	templatePath string
+)
 
 var rootCmd = cobra.Command{
-	Use: filepath.Base(os.Args[0]),
+	Use:   filepath.Base(os.Args[0]),
+	Short: "CLI for Frags. Run a Frags session from a YAML file.",
 }
 
 var runCmd = &cobra.Command{
@@ -30,97 +40,126 @@ var runCmd = &cobra.Command{
 	Short: "Run a session",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if format == "template" && len(templatePath) == 0 {
-			fmt.Println("template path file must be specified")
+		// validate flags and input
+		if err := validateRunArgs(args); err != nil {
+			cmd.PrintErrln(err)
 			return
 		}
-		if _, err := os.Stat(args[0]); err != nil {
-			fmt.Println(err.Error())
-			return
-		}
+
+		// read session YAML
 		data, err := os.ReadFile(args[0])
 		if err != nil {
-			fmt.Println(err.Error())
+			cmd.PrintErrln(err)
 			return
 		}
+
+		// build session manager from YAML
 		sm := frags.NewSessionManager()
 		if err := sm.FromYAML(data); err != nil {
-			fmt.Println(err.Error())
+			cmd.PrintErrln(err)
 			return
 		}
+
+		// create AI client
 		client, err := newGeminiClient()
 		if err != nil {
-			fmt.Println(err.Error())
+			cmd.PrintErrln(err)
 			return
 		}
+
 		dir := filepath.Dir(args[0])
 		workers := cfg.ParallelWorkers
-		if workers == 0 {
+		if workers <= 0 {
 			workers = 1
 		}
-		runner := frags.NewRunner[frags.ProgMap](sm, frags.NewFileResourceLoader(dir), gemini.NewAI(client), frags.WithSessionWorkers(workers))
-		out, err := runner.Run()
+
+		runner := frags.NewRunner[frags.ProgMap](
+			sm,
+			frags.NewFileResourceLoader(dir),
+			gemini.NewAI(client),
+			frags.WithSessionWorkers(workers),
+		)
+
+		// execute
+		result, err := runner.Run()
 		if err != nil {
-			fmt.Println(err.Error())
+			cmd.PrintErrln(err)
 			return
 		}
-		text := make([]byte, 0)
-		switch format {
-		case "json":
-			text, err = json.MarshalIndent(out, "", " ")
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-		case "template":
-			if _, err := os.Stat(templatePath); err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			templateText, err := os.ReadFile(templatePath)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			tpl, err := template.New("template").Parse(string(templateText))
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			writer := bytes.NewBuffer(text)
-			if err := tpl.Execute(writer, out); err != nil {
-				fmt.Println(err.Error())
-				return
-			}
-			text = writer.Bytes()
 
-		default:
-			text, err = yaml.Marshal(out)
-			if err != nil {
-				fmt.Println(err.Error())
-				return
-			}
+		// render output according to chosen format
+		text, err := renderResult(result)
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
 		}
+
+		// write to file or stdout
 		if output != "" {
-			err = os.WriteFile(output, text, 0644)
-			if err != nil {
-				fmt.Println(err.Error())
+			if err := os.WriteFile(output, text, 0o644); err != nil {
+				cmd.PrintErrln(err)
 			}
-		} else {
-			fmt.Println(string(text))
+			return
 		}
+
+		fmt.Print(string(text))
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-	runCmd.Flags().StringVarP(&format, "format", "f", "yaml", "Output format (yaml or json)")
+	runCmd.Flags().StringVarP(&format, "format", "f", formatYAML, "Output format (yaml, json or template)")
 	runCmd.Flags().StringVarP(&output, "output", "o", "", "Output file")
-	runCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Template file")
+	runCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Template file (used with -f template)")
 }
 
+// validateRunArgs checks basic flag constraints and file existence.
+func validateRunArgs(args []string) error {
+	if format == formatTemplate && templatePath == "" {
+		return fmt.Errorf("template path must be specified when using format=template")
+	}
+	if _, err := os.Stat(args[0]); err != nil {
+		return fmt.Errorf("input file error: %w", err)
+	}
+	if format != formatYAML && format != formatJSON && format != formatTemplate {
+		return fmt.Errorf("unsupported format %q", format)
+	}
+	return nil
+}
+
+// renderResult serializes the runner result according to the chosen format.
+func renderResult(out any) ([]byte, error) {
+	switch format {
+	case formatJSON:
+		return json.MarshalIndent(out, "", " ")
+	case formatTemplate:
+		if _, err := os.Stat(templatePath); err != nil {
+			return nil, err
+		}
+		tplText, err := os.ReadFile(templatePath)
+		if err != nil {
+			return nil, err
+		}
+		tpl, err := template.New("template").Parse(string(tplText))
+		if err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := tpl.Execute(&buf, out); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	default: // yaml
+		return yaml.Marshal(out)
+	}
+}
+
+// newGeminiClient constructs a genai client using the configured service account.
 func newGeminiClient() (*genai.Client, error) {
 	credsBytes, err := os.ReadFile(cfg.GeminiServiceAccountPath)
+	if err != nil {
+		return nil, err
+	}
 	creds, err := credentials.DetectDefault(&credentials.DetectOptions{
 		Scopes:          []string{"https://www.googleapis.com/auth/cloud-platform"},
 		CredentialsJSON: credsBytes,
