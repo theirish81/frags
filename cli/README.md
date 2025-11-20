@@ -36,9 +36,10 @@ go build .
 
 ### Flags
 
--   `--format, -f`: Specifies the output format. Options are `yaml` (default), `json`, or `template`.
+-   `--format, -f`: Specifies the output format. Options are `yaml` (default), `json`), or `template`.
 -   `--output, -o`: Specifies a file to write the output to. If omitted, the output is printed to the console.
 -   `--template, -t`: If `format` is `template`, this flag is required. It specifies the path to the Go template file to use for formatting the output.
+-   `--param, -p`: Can be used multiple times. Pass key-value pairs (`key=value`) to be used as dynamic variables in your session prompts. These variables will replace placeholders like `{{.key}}` in your prompt.
 
 ### Examples
 
@@ -58,4 +59,12 @@ go build .
 
 ```sh
 ./cli run session.yaml -f template -t story_template.md -o story.md
+```
+
+**4. Run a session with dynamic variables:**
+
+Assume `session.yaml` contains a prompt like: `Generate a story about {{.character}} in a {{.setting}}.`
+
+```sh
+./cli run session.yaml -p character="a brave knight" -p setting="mystical forest"
 ```
