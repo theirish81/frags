@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"text/template"
 
 	"cloud.google.com/go/auth/credentials"
@@ -28,6 +31,7 @@ var (
 	format       string
 	output       string
 	templatePath string
+	params       []string
 )
 
 var rootCmd = cobra.Command{
@@ -80,8 +84,20 @@ var runCmd = &cobra.Command{
 			frags.WithSessionWorkers(workers),
 		)
 
+		paramsMap, err := sliceToMap(params)
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		for _, v := range sm.Sessions.ListVariables() {
+			if _, ok := paramsMap[v]; !ok {
+				fmt.Println("Error: the variable " + v + " is not set, but is required by the session.")
+				return
+			}
+		}
+
 		// execute
-		result, err := runner.Run()
+		result, err := runner.Run(paramsMap)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
@@ -110,7 +126,8 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	runCmd.Flags().StringVarP(&format, "format", "f", formatYAML, "Output format (yaml, json or template)")
 	runCmd.Flags().StringVarP(&output, "output", "o", "", "Output file")
-	runCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Template file (used with -f template)")
+	runCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file (used with -f template)")
+	runCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "Parameters to pass to the template (used with -f template) in key=value format")
 }
 
 // validateRunArgs checks basic flag constraints and file existence.
@@ -173,4 +190,16 @@ func newGeminiClient() (*genai.Client, error) {
 		Credentials: creds,
 		Backend:     genai.BackendVertexAI,
 	})
+}
+
+func sliceToMap(s []string) (map[string]string, error) {
+	m := make(map[string]string, len(s))
+	for _, v := range s {
+		if matched, _ := regexp.Match("^[^=]+=[^=]+$", []byte(v)); !matched {
+			return m, errors.New("invalid parameter format: " + v)
+		}
+		kv := strings.SplitN(v, "=", 2)
+		m[kv[0]] = kv[1]
+	}
+	return m, nil
 }
