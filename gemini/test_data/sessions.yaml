@@ -1,9 +1,9 @@
 sessions:
   session_one:
-    prompt: retrieve these pieces of information about butterflies. Respond in JSON using the provided JSON schema
+    prompt: retrieve these pieces of information about {{ .butterfly_type }} butterflies. Respond in JSON using the provided JSON schema
     nextPhasePrompt: retrieve also these pieces of information.  Respond in JSON using the provided JSON schema
   session_two:
-    prompt: retrieve these pieces of information about sparrows. Respond in JSON using the provided JSON schema
+    prompt: retrieve these pieces of information about {{ .sparrow_type }} sparrows. Respond in JSON using the provided JSON schema
     nextPhasePrompt: retrieve also these pieces of information. Respond in JSON using the provided JSON schema
   session_three:
     prompt: given the provided document, extract these pieces of information. Respond in JSON using the provided JSON schema

@@ -45,6 +45,13 @@ func (s *Session) RenderNextPhasePrompt(scope any) (string, error) {
 	return writer.String(), err
 }
 
+func (s *Session) ListVariables() []string {
+	vars := make([]string, 0)
+	vars = append(vars, extractTemplateVariables(s.Prompt)...)
+	vars = append(vars, extractTemplateVariables(s.NextPhasePrompt)...)
+	return vars
+}
+
 type Resource struct {
 	Identifier string            `json:"identifier" yaml:"identifier"`
 	Params     map[string]string `json:"params" yaml:"params"`
@@ -52,6 +59,14 @@ type Resource struct {
 
 // Sessions is a map of session IDs to sessions.
 type Sessions map[string]Session
+
+func (s *Sessions) ListVariables() []string {
+	vars := make([]string, 0)
+	for _, v := range *s {
+		vars = append(vars, v.ListVariables()...)
+	}
+	return vars
+}
 
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {
