@@ -17,6 +17,7 @@ type Runner[T any] struct {
 	resourceLoader ResourceLoader
 	ai             Ai
 	dataStructure  *T
+	params         any
 	unmarshalMutex sync.Mutex
 	sessionChan    chan sessionTask
 	sessionWorkers int
@@ -76,10 +77,11 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 }
 
 // Run runs the runner.
-func (r *Runner[T]) Run() (*T, error) {
+func (r *Runner[T]) Run(params any) (*T, error) {
 	if r.running {
 		return nil, errors.New("this frags instance is running")
 	}
+	r.params = params
 	r.running = true
 	r.sessionChan = make(chan sessionTask)
 	var v T
@@ -140,12 +142,20 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 		}
 		var data []byte
 		if idx == 0 {
-			data, err = ai.Ask(ctx, session.Prompt, phaseSchema, resources...)
+			prompt, err := session.RenderPrompt(r.params)
+			if err != nil {
+				return err
+			}
+			data, err = ai.Ask(ctx, prompt, phaseSchema, resources...)
 			if err != nil {
 				return err
 			}
 		} else {
-			data, err = ai.Ask(ctx, session.NextPhasePrompt, phaseSchema)
+			prompt, err := session.RenderNextPhasePrompt(r.params)
+			if err != nil {
+				return err
+			}
+			data, err = ai.Ask(ctx, prompt, phaseSchema)
 			if err != nil {
 				return err
 			}

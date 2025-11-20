@@ -21,12 +21,15 @@ func TestRunner_Run(t *testing.T) {
 	assert.Nil(t, err)
 	ai := NewDummyAi()
 	runner := NewRunner[T](mgr, NewDummyResourceLoader(), ai)
-	out, err := runner.Run()
+	out, err := runner.Run(map[string]string{"animal": "dog", "animals": "giraffes"})
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, out.P1)
 	assert.NotEmpty(t, out.P2)
 	assert.NotEmpty(t, out.P3)
 	assert.NotEmpty(t, out.P4)
+
+	assert.Equal(t, "extract these images data. Make sure they contain dog", out.P3)
+	assert.Equal(t, "also these giraffes", out.P4)
 
 }

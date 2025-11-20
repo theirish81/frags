@@ -1,6 +1,12 @@
 package frags
 
-import "gopkg.in/yaml.v3"
+import (
+	"bytes"
+	"strings"
+	"text/template"
+
+	"gopkg.in/yaml.v3"
+)
 
 // Session defines an LLM session, with its own context.
 // Each session has a Prompt, a NextPhasePrompt for the phases after the first, and a list of resources to load.
@@ -9,6 +15,34 @@ type Session struct {
 	NextPhasePrompt string     `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
 	Resources       []Resource `json:"resources" yaml:"resources"`
 	Timeout         *string    `json:"timeout" yaml:"timeout"`
+}
+
+func (s *Session) RenderPrompt(scope any) (string, error) {
+	if scope == nil || !strings.Contains(s.Prompt, "{{") {
+		return s.Prompt, nil
+	}
+	tmpl := template.New("tpl")
+	parsedTmpl, err := tmpl.Parse(s.Prompt)
+	if err != nil {
+		return s.Prompt, err
+	}
+	writer := bytes.NewBufferString("")
+	err = parsedTmpl.Execute(writer, scope)
+	return writer.String(), err
+}
+
+func (s *Session) RenderNextPhasePrompt(scope any) (string, error) {
+	if !strings.Contains(s.NextPhasePrompt, "{{") {
+		return s.Prompt, nil
+	}
+	tmpl := template.New("tpl")
+	parsedTmpl, err := tmpl.Parse(s.NextPhasePrompt)
+	if err != nil {
+		return s.Prompt, err
+	}
+	writer := bytes.NewBufferString("")
+	err = parsedTmpl.Execute(writer, scope)
+	return writer.String(), err
 }
 
 type Resource struct {

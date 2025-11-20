@@ -5,8 +5,8 @@ sessions:
     resources:
       - identifier: doc.pdf
   session_two:
-    prompt: extract these images data
-    nextPhasePrompt: also these
+    prompt: extract these images data. Make sure they contain {{ .animal }}
+    nextPhasePrompt: also these {{ .animals }}
     resources:
       - identifier: img.pdf
 schema:
