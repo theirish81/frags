@@ -13,17 +13,18 @@ import (
 
 // Runner is a struct that runs a session manager.
 type Runner[T any] struct {
-	sessionManager SessionManager
-	resourceLoader ResourceLoader
-	ai             Ai
-	dataStructure  *T
-	params         any
-	unmarshalMutex sync.Mutex
-	sessionChan    chan sessionTask
-	sessionWorkers int
-	wg             sync.WaitGroup
-	running        bool
-	logger         *slog.Logger
+	sessionManager  SessionManager
+	resourceLoader  ResourceLoader
+	ai              Ai
+	dataStructure   *T
+	params          any
+	unmarshalMutex  sync.Mutex
+	sessionChan     chan sessionTask
+	sessionWorkers  int
+	wg              sync.WaitGroup
+	running         bool
+	logger          *slog.Logger
+	progressChannel chan ProgressMessage
 }
 
 // sessionTask is a message to run a session.
@@ -33,10 +34,18 @@ type sessionTask struct {
 	timeout time.Duration
 }
 
+type ProgressMessage struct {
+	Action  string
+	Session string
+	Phase   int
+	Error   error
+}
+
 // RunnerOptions are options for the runner.
 type RunnerOptions struct {
-	sessionWorkers int
-	logger         *slog.Logger
+	sessionWorkers  int
+	logger          *slog.Logger
+	progressChannel chan ProgressMessage
 }
 
 type RunnerOption func(*RunnerOptions)
@@ -55,6 +64,12 @@ func WithSessionWorkers(sessionWorkers int) RunnerOption {
 	}
 }
 
+func WithProgressChannel(progressChannel chan ProgressMessage) RunnerOption {
+	return func(o *RunnerOptions) {
+		o.progressChannel = progressChannel
+	}
+}
+
 // NewRunner creates a new runner.
 func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoader, ai Ai, options ...RunnerOption) Runner[T] {
 	opts := RunnerOptions{
@@ -67,12 +82,13 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 		opt(&opts)
 	}
 	return Runner[T]{
-		sessionManager: sessionManager,
-		resourceLoader: resourceLoader,
-		ai:             ai,
-		unmarshalMutex: sync.Mutex{},
-		sessionWorkers: opts.sessionWorkers,
-		logger:         opts.logger,
+		sessionManager:  sessionManager,
+		resourceLoader:  resourceLoader,
+		ai:              ai,
+		unmarshalMutex:  sync.Mutex{},
+		sessionWorkers:  opts.sessionWorkers,
+		logger:          opts.logger,
+		progressChannel: opts.progressChannel,
 	}
 }
 
@@ -132,39 +148,59 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	}
 	ai := r.ai.New()
 	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
+		r.sendProgress("START", sessionID, phaseIndex, nil)
 		deadline, _ := ctx.Deadline()
 		if time.Now().After(deadline) {
+			r.sendProgress("END", sessionID, phaseIndex, ctx.Err())
 			return ctx.Err()
 		}
 		phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
 		if err != nil {
+			r.sendProgress("END", sessionID, phaseIndex, err)
 			return err
 		}
 		var data []byte
 		if idx == 0 {
 			prompt, err := session.RenderPrompt(r.params)
 			if err != nil {
+				r.sendProgress("END", sessionID, phaseIndex, err)
 				return err
 			}
 			data, err = ai.Ask(ctx, prompt, phaseSchema, resources...)
 			if err != nil {
+				r.sendProgress("END", sessionID, phaseIndex, err)
 				return err
 			}
 		} else {
 			prompt, err := session.RenderNextPhasePrompt(r.params)
 			if err != nil {
+				r.sendProgress("END", sessionID, phaseIndex, err)
 				return err
 			}
 			data, err = ai.Ask(ctx, prompt, phaseSchema)
 			if err != nil {
+				r.sendProgress("END", sessionID, phaseIndex, err)
 				return err
 			}
 		}
 		if err := r.safeUnmarshal(data); err != nil {
+			r.sendProgress("END", sessionID, phaseIndex, err)
 			return err
 		}
+		r.sendProgress("END", sessionID, phaseIndex, nil)
 	}
 	return nil
+}
+
+func (r *Runner[T]) sendProgress(action string, sessionID string, phaseIndex int, err error) {
+	if r.progressChannel != nil {
+		r.progressChannel <- ProgressMessage{
+			Action:  action,
+			Session: sessionID,
+			Phase:   phaseIndex,
+			Error:   err,
+		}
+	}
 }
 
 // loadSessionResources loads resources for a session.
