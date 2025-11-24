@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
 	"github.com/theirish81/frags/gemini"
+	"github.com/theirish81/frags/ollama"
 	"google.golang.org/genai"
 	"gopkg.in/yaml.v3"
 )
@@ -76,12 +78,33 @@ var runCmd = &cobra.Command{
 		if workers <= 0 {
 			workers = 1
 		}
-
+		var ai frags.Ai
+		switch cfg.guessAi() {
+		case engineGemini:
+			ai = gemini.NewAI(client)
+		case engineOllama:
+			ai = ollama.NewAI(cfg.OllamaBaseURL, cfg.OllamaModel)
+		default:
+			cmd.PrintErrln("No AI is fully configured. Check your .env file")
+			return
+		}
+		ch := make(chan frags.ProgressMessage)
+		go func() {
+			for msg := range ch {
+				fmt.Print(msg.Action, ":\t", msg.Session, "/", msg.Phase)
+				if msg.Error != nil {
+					fmt.Print("\tERROR: ", msg.Error.Error())
+				}
+				fmt.Println()
+			}
+		}()
 		runner := frags.NewRunner[frags.ProgMap](
 			sm,
 			frags.NewFileResourceLoader(dir),
-			gemini.NewAI(client),
+			ai,
 			frags.WithSessionWorkers(workers),
+			frags.WithLogger(slog.Default()),
+			frags.WithProgressChannel(ch),
 		)
 
 		paramsMap, err := sliceToMap(params)
