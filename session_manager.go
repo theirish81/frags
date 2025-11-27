@@ -10,21 +10,32 @@ import (
 
 // Session defines an LLM session, with its own context.
 // Each session has a Prompt, a NextPhasePrompt for the phases after the first, and a list of resources to load.
+// Resources configure resource loaders to load files for the session.
+// Timeout defines the maximum time the session can run for.
+// DependsOn defines a list of sessions that must be completed before this session can start, and expressions defining
+// code evaluations against the already extracted data, to determine whether the session can start.
+// Context defines whether the partially extracted data should be passed to the session
 type Session struct {
 	Prompt          string       `json:"prompt" yaml:"prompt"`
 	NextPhasePrompt string       `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
 	Resources       []Resource   `json:"resources" yaml:"resources"`
 	Timeout         *string      `json:"timeout" yaml:"timeout"`
 	DependsOn       Dependencies `json:"depends_on" yaml:"dependsOn"`
+	Context         bool         `json:"context" yaml:"context"`
 }
 
+// Dependency defines whether this session can run or should:
+// * wait on another Session to complete
+// * run at all, based on an Expression
 type Dependency struct {
 	Session    *string `json:"session" yaml:"session"`
 	Expression *string `json:"expression" yaml:"expression"`
 }
 
+// Dependencies is a list of Dependencies
 type Dependencies []Dependency
 
+// RenderPrompt renders the prompt (which may contain Go templat es), with the given scope
 func (s *Session) RenderPrompt(scope any) (string, error) {
 	if scope == nil || !strings.Contains(s.Prompt, "{{") {
 		return s.Prompt, nil
@@ -39,6 +50,7 @@ func (s *Session) RenderPrompt(scope any) (string, error) {
 	return writer.String(), err
 }
 
+// RenderNextPhasePrompt renders the next phase prompt (which may contain Go templat es), with the given scope
 func (s *Session) RenderNextPhasePrompt(scope any) (string, error) {
 	if !strings.Contains(s.NextPhasePrompt, "{{") {
 		return s.Prompt, nil
@@ -53,6 +65,7 @@ func (s *Session) RenderNextPhasePrompt(scope any) (string, error) {
 	return writer.String(), err
 }
 
+// ListVariables returns a list of all variables used in the prompt and next phase prompt
 func (s *Session) ListVariables() []string {
 	vars := make([]string, 0)
 	vars = append(vars, extractTemplateVariables(s.Prompt)...)
@@ -60,6 +73,7 @@ func (s *Session) ListVariables() []string {
 	return vars
 }
 
+// Resource defines a resource to load, with an identifier and a map of parameters
 type Resource struct {
 	Identifier string            `json:"identifier" yaml:"identifier"`
 	Params     map[string]string `json:"params" yaml:"params"`
@@ -68,6 +82,7 @@ type Resource struct {
 // Sessions is a map of session IDs to sessions.
 type Sessions map[string]Session
 
+// ListVariables returns a list of all variables used in the sessions
 func (s *Sessions) ListVariables() []string {
 	vars := make([]string, 0)
 	for _, v := range *s {

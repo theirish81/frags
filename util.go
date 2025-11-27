@@ -25,6 +25,7 @@ func (p *ProgMap) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// extractTemplateVariables extracts all template variables from a given string.
 func extractTemplateVariables(templateStr string) []string {
 	re := regexp.MustCompile(`{{\s*\.([\w.]+)\s*}}`)
 	matches := re.FindAllStringSubmatch(templateStr, -1)

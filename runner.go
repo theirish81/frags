@@ -32,8 +32,10 @@ type Runner[T any] struct {
 	progressChannel chan ProgressMessage
 }
 
+// SessionStatus is the status of a session.
 type SessionStatus string
 
+// Session statuses.
 var queuedSessionStatus = SessionStatus("queued")
 var committedSessionStatus = SessionStatus("committed")
 var runningSessionStatus = SessionStatus("running")
@@ -48,6 +50,7 @@ type sessionTask struct {
 	timeout time.Duration
 }
 
+// ProgressMessage is a message sent to the progress channel.
 type ProgressMessage struct {
 	Action  string
 	Session string
@@ -62,6 +65,7 @@ type RunnerOptions struct {
 	progressChannel chan ProgressMessage
 }
 
+// RunnerOption is an option for the runner.
 type RunnerOption func(*RunnerOptions)
 
 // WithLogger sets the logger for the runner.
@@ -78,6 +82,7 @@ func WithSessionWorkers(sessionWorkers int) RunnerOption {
 	}
 }
 
+// WithProgressChannel sets the progress channel for the runner.
 func WithProgressChannel(progressChannel chan ProgressMessage) RunnerOption {
 	return func(o *RunnerOptions) {
 		o.progressChannel = progressChannel
@@ -112,7 +117,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 	}
 }
 
-// Run runs the runner.
+// Run runs the runner against an optional collection fo parameters
 func (r *Runner[T]) Run(params any) (*T, error) {
 	if r.running {
 		return nil, errors.New("this frags instance is running")
@@ -142,6 +147,8 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	return r.dataStructure, nil
 }
 
+// scanSessions keeps scanning sessions until completion, sending tasks to workers and orchestrating priority and
+// concurrency
 func (r *Runner[T]) scanSessions() error {
 	r.wg = sync.WaitGroup{}
 	for k, s := range r.ListQueued() {
@@ -235,6 +242,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	return nil
 }
 
+// ListQueued returns a list of queued sessions
 func (r *Runner[T]) ListQueued() Sessions {
 	sessions := make(Sessions)
 	for k, v := range r.status {
@@ -245,6 +253,7 @@ func (r *Runner[T]) ListQueued() Sessions {
 	return sessions
 }
 
+// sendProgress sends a progress message to the progress channel
 func (r *Runner[T]) sendProgress(action string, sessionID string, phaseIndex int, err error) {
 	if r.progressChannel != nil {
 		r.progressChannel <- ProgressMessage{
@@ -304,12 +313,14 @@ func (r *Runner[T]) runSessionWorker(index int) {
 	}
 }
 
+// SetStatus sets the status of a session (thread-safe)
 func (r *Runner[T]) SetStatus(sessionID string, status SessionStatus) {
 	r.statusMutex.Lock()
 	defer r.statusMutex.Unlock()
 	r.status[sessionID] = status
 }
 
+// IsCompleted returns true if all sessions are completed
 func (r *Runner[T]) IsCompleted() bool {
 	for _, s := range r.status {
 		if s == queuedSessionStatus {
@@ -319,6 +330,7 @@ func (r *Runner[T]) IsCompleted() bool {
 	return true
 }
 
+// DependencyCheckResult is the result of a dependency check.
 type DependencyCheckResult string
 
 const (
@@ -327,6 +339,7 @@ const (
 	DependencyCheckUnsolvable DependencyCheckResult = "unsolvable"
 )
 
+// CheckDependencies checks whether a session can start, cannot start yet, or will never start
 func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyCheckResult, error) {
 	if dependencies == nil {
 		return DependencyCheckPassed, nil
