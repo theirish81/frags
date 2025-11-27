@@ -7,18 +7,23 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
+	"slices"
 	"sync"
 	"time"
+
+	"github.com/expr-lang/expr"
 )
 
 // Runner is a struct that runs a session manager.
 type Runner[T any] struct {
 	sessionManager  SessionManager
+	status          map[string]SessionStatus
 	resourceLoader  ResourceLoader
 	ai              Ai
 	dataStructure   *T
 	params          any
 	unmarshalMutex  sync.Mutex
+	statusMutex     sync.Mutex
 	sessionChan     chan sessionTask
 	sessionWorkers  int
 	wg              sync.WaitGroup
@@ -26,6 +31,15 @@ type Runner[T any] struct {
 	logger          *slog.Logger
 	progressChannel chan ProgressMessage
 }
+
+type SessionStatus string
+
+var queuedSessionStatus = SessionStatus("queued")
+var committedSessionStatus = SessionStatus("committed")
+var runningSessionStatus = SessionStatus("running")
+var finishedSessionStatus = SessionStatus("finished")
+var failedSessionStatus = SessionStatus("failed")
+var noOpSessionStatus = SessionStatus("noop")
 
 // sessionTask is a message to run a session.
 type sessionTask struct {
@@ -81,11 +95,17 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 	for _, opt := range options {
 		opt(&opts)
 	}
+	status := make(map[string]SessionStatus)
+	for k, _ := range sessionManager.Sessions {
+		status[k] = queuedSessionStatus
+	}
 	return Runner[T]{
 		sessionManager:  sessionManager,
+		status:          status,
 		resourceLoader:  resourceLoader,
 		ai:              ai,
 		unmarshalMutex:  sync.Mutex{},
+		statusMutex:     sync.Mutex{},
 		sessionWorkers:  opts.sessionWorkers,
 		logger:          opts.logger,
 		progressChannel: opts.progressChannel,
@@ -112,8 +132,31 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 		r.logger.Debug("starting session worker", "index", i)
 		go r.runSessionWorker(i)
 	}
+	for !r.IsCompleted() {
+		if err := r.scanSessions(); err != nil {
+			r.logger.Error("failed to scan sessions", "err", err)
+		}
+	}
+	close(r.sessionChan)
+	r.running = false
+	return r.dataStructure, nil
+}
+
+func (r *Runner[T]) scanSessions() error {
 	r.wg = sync.WaitGroup{}
-	for k, s := range r.sessionManager.Sessions {
+	for k, s := range r.ListQueued() {
+		depCheck, err := r.CheckDependencies(s.DependsOn)
+		if err != nil {
+			return err
+		}
+		switch depCheck {
+		case DependencyCheckFailed:
+			continue
+		case DependencyCheckUnsolvable:
+			r.SetStatus(k, noOpSessionStatus)
+			continue
+		}
+
 		r.wg.Add(1)
 		r.logger.Debug("sending message to workers for session", "session", k)
 		timeout := 10 * time.Minute
@@ -121,9 +164,10 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 			var err error
 			timeout, err = time.ParseDuration(*s.Timeout)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
+		r.SetStatus(k, committedSessionStatus)
 		r.sessionChan <- sessionTask{
 			id:      k,
 			session: s,
@@ -131,13 +175,12 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 		}
 	}
 	r.wg.Wait()
-	close(r.sessionChan)
-	r.running = false
-	return r.dataStructure, nil
+	return nil
 }
 
 // runSession runs a session.
 func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Session) error {
+	r.SetStatus(sessionID, runningSessionStatus)
 	resources, err := r.loadSessionResources(session)
 	if err != nil {
 		return err
@@ -192,6 +235,16 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	return nil
 }
 
+func (r *Runner[T]) ListQueued() Sessions {
+	sessions := make(Sessions)
+	for k, v := range r.status {
+		if v == queuedSessionStatus {
+			sessions[k] = r.sessionManager.Sessions[k]
+		}
+	}
+	return sessions
+}
+
 func (r *Runner[T]) sendProgress(action string, sessionID string, phaseIndex int, err error) {
 	if r.progressChannel != nil {
 		r.progressChannel <- ProgressMessage{
@@ -229,17 +282,78 @@ func (r *Runner[T]) runSessionWorker(index int) {
 	for t := range r.sessionChan {
 		r.logger.Debug("worker consuming message", "workerID", index, "sessionID", t.id)
 		func() {
+			success := true
 			ctx := context.Background()
 			ctx, cancel := context.WithTimeout(ctx, t.timeout)
 			defer func() {
 				cancel()
+				if success {
+					r.SetStatus(t.id, finishedSessionStatus)
+				} else {
+					r.SetStatus(t.id, failedSessionStatus)
+				}
 				r.logger.Debug("worker finished consuming message", "workerID", index, "sessionID", t.id)
 				r.wg.Done()
 			}()
 			if err := r.runSession(ctx, t.id, t.session); err != nil {
+				success = false
 				r.logger.Error("worked failed at running session", "workerID", index, "sessionID", t.id, "err", err)
 				return
 			}
 		}()
 	}
+}
+
+func (r *Runner[T]) SetStatus(sessionID string, status SessionStatus) {
+	r.statusMutex.Lock()
+	defer r.statusMutex.Unlock()
+	r.status[sessionID] = status
+}
+
+func (r *Runner[T]) IsCompleted() bool {
+	for _, s := range r.status {
+		if s == queuedSessionStatus {
+			return false
+		}
+	}
+	return true
+}
+
+type DependencyCheckResult string
+
+const (
+	DependencyCheckPassed     DependencyCheckResult = "passed"
+	DependencyCheckFailed     DependencyCheckResult = "failed"
+	DependencyCheckUnsolvable DependencyCheckResult = "unsolvable"
+)
+
+func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyCheckResult, error) {
+	if dependencies == nil {
+		return DependencyCheckPassed, nil
+	}
+	for _, dep := range dependencies {
+		if dep.Session != nil {
+			dependencyStatus := r.status[*dep.Session]
+			if slices.Contains([]SessionStatus{failedSessionStatus, noOpSessionStatus}, dependencyStatus) {
+				return DependencyCheckUnsolvable, nil
+			}
+			if slices.Contains([]SessionStatus{queuedSessionStatus, committedSessionStatus, runningSessionStatus}, dependencyStatus) {
+				return DependencyCheckFailed, nil
+			}
+		}
+		if dep.Expression != nil {
+			c, err := expr.Compile(*dep.Expression, expr.Env(*r.dataStructure))
+			if err != nil {
+				return DependencyCheckUnsolvable, err
+			}
+			res, err := expr.Run(c, *r.dataStructure)
+			if err != nil {
+				return DependencyCheckUnsolvable, err
+			}
+			if !res.(bool) {
+				return DependencyCheckUnsolvable, nil
+			}
+		}
+	}
+	return DependencyCheckPassed, nil
 }

@@ -11,11 +11,19 @@ import (
 // Session defines an LLM session, with its own context.
 // Each session has a Prompt, a NextPhasePrompt for the phases after the first, and a list of resources to load.
 type Session struct {
-	Prompt          string     `json:"prompt" yaml:"prompt"`
-	NextPhasePrompt string     `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
-	Resources       []Resource `json:"resources" yaml:"resources"`
-	Timeout         *string    `json:"timeout" yaml:"timeout"`
+	Prompt          string       `json:"prompt" yaml:"prompt"`
+	NextPhasePrompt string       `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
+	Resources       []Resource   `json:"resources" yaml:"resources"`
+	Timeout         *string      `json:"timeout" yaml:"timeout"`
+	DependsOn       Dependencies `json:"depends_on" yaml:"dependsOn"`
 }
+
+type Dependency struct {
+	Session    *string `json:"session" yaml:"session"`
+	Expression *string `json:"expression" yaml:"expression"`
+}
+
+type Dependencies []Dependency
 
 func (s *Session) RenderPrompt(scope any) (string, error) {
 	if scope == nil || !strings.Contains(s.Prompt, "{{") {

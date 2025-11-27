@@ -1,6 +1,7 @@
 package frags
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -32,4 +33,15 @@ func TestRunner_Run(t *testing.T) {
 	assert.Equal(t, "extract these images data. Make sure they contain dog", out.P3)
 	assert.Equal(t, "also these giraffes", out.P4)
 
+}
+
+func TestRunner_RunDependencies(t *testing.T) {
+	sessionData, _ := os.ReadFile("test_data/dependant_sessions.yaml")
+	mgr := NewSessionManager()
+	err := mgr.FromYAML(sessionData)
+	assert.Nil(t, err)
+	ai := NewDummyAi()
+	runner := NewRunner[map[string]string](mgr, NewDummyResourceLoader(), ai, WithSessionWorkers(3))
+	out, err := runner.Run(nil)
+	fmt.Println(out)
 }
