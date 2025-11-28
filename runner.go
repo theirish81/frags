@@ -139,12 +139,7 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	}
 	for i := 0; i < r.sessionWorkers; i++ {
 		r.logger.Debug("starting session worker", "index", i)
-		go func() {
-			if err := r.runSessionWorker(i); err != nil {
-				r.logger.Error("failed to run session worker", "err", err)
-				os.Exit(1)
-			}
-		}()
+		go r.runSessionWorker(i)
 	}
 	for !r.IsCompleted() {
 		if err := r.scanSessions(); err != nil {
@@ -318,10 +313,10 @@ func (r *Runner[T]) safeUnmarshal(data []byte) error {
 }
 
 // runSessionWorker runs a session worker.
-func (r *Runner[T]) runSessionWorker(index int) error {
+func (r *Runner[T]) runSessionWorker(index int) {
 	for t := range r.sessionChan {
 		r.logger.Debug("worker consuming message", "workerID", index, "sessionID", t.id)
-		err := func() error {
+		func() {
 			success := true
 			ctx := context.Background()
 			ctx, cancel := context.WithTimeout(ctx, t.timeout)
@@ -337,16 +332,10 @@ func (r *Runner[T]) runSessionWorker(index int) error {
 			}()
 			if err := r.runSession(ctx, t.id, t.session); err != nil {
 				success = false
-				r.logger.Error("FATAL: worked failed at running session", "workerID", index, "sessionID", t.id, "err", err)
-				return err
+				r.logger.Error("worker failed at running session", "workerID", index, "sessionID", t.id, "err", err)
 			}
-			return nil
 		}()
-		if err != nil {
-			return err
-		}
 	}
-	return nil
 }
 
 // SetStatus sets the status of a session (thread-safe)
