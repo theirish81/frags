@@ -2,17 +2,20 @@ package frags
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
-	"reflect"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/avast/retry-go/v5"
-	"github.com/expr-lang/expr"
+)
+
+const (
+	paramsAttr     = "params"
+	contextAttr    = "context"
+	componentsAttr = "components"
 )
 
 // Runner is a struct that runs a session manager.
@@ -23,7 +26,7 @@ type Runner[T any] struct {
 	ai              Ai
 	dataStructure   *T
 	params          any
-	unmarshalMutex  sync.Mutex
+	marshalingMutex sync.Mutex
 	statusMutex     sync.Mutex
 	sessionChan     chan sessionTask
 	sessionWorkers  int
@@ -37,26 +40,20 @@ type Runner[T any] struct {
 type SessionStatus string
 
 // Session statuses.
-var queuedSessionStatus = SessionStatus("queued")
-var committedSessionStatus = SessionStatus("committed")
-var runningSessionStatus = SessionStatus("running")
-var finishedSessionStatus = SessionStatus("finished")
-var failedSessionStatus = SessionStatus("failed")
-var noOpSessionStatus = SessionStatus("noop")
+const (
+	queuedSessionStatus    = SessionStatus("queued")
+	committedSessionStatus = SessionStatus("committed")
+	runningSessionStatus   = SessionStatus("running")
+	finishedSessionStatus  = SessionStatus("finished")
+	failedSessionStatus    = SessionStatus("failed")
+	noOpSessionStatus      = SessionStatus("noop")
+)
 
 // sessionTask is a message to run a session.
 type sessionTask struct {
 	id      string
 	session Session
 	timeout time.Duration
-}
-
-// ProgressMessage is a message sent to the progress channel.
-type ProgressMessage struct {
-	Action  string
-	Session string
-	Phase   int
-	Error   error
 }
 
 // RunnerOptions are options for the runner.
@@ -110,7 +107,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 		status:          status,
 		resourceLoader:  resourceLoader,
 		ai:              ai,
-		unmarshalMutex:  sync.Mutex{},
+		marshalingMutex: sync.Mutex{},
 		statusMutex:     sync.Mutex{},
 		sessionWorkers:  opts.sessionWorkers,
 		logger:          opts.logger,
@@ -129,14 +126,7 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	defer func() {
 		close(r.sessionChan)
 	}()
-	var v T
-	val := reflect.ValueOf(&v).Elem()
-	if val.Kind() == reflect.Map {
-		val.Set(reflect.MakeMap(val.Type()))
-		r.dataStructure = &v
-	} else {
-		r.dataStructure = new(T)
-	}
+	r.dataStructure = initDataStructure[T]()
 	for i := 0; i < r.sessionWorkers; i++ {
 		r.logger.Debug("starting session worker", "index", i)
 		go r.runSessionWorker(i)
@@ -170,14 +160,7 @@ func (r *Runner[T]) scanSessions() error {
 
 		r.wg.Add(1)
 		r.logger.Debug("sending message to workers for session", "session", k)
-		timeout := 10 * time.Minute
-		if s.Timeout != nil {
-			var err error
-			timeout, err = time.ParseDuration(*s.Timeout)
-			if err != nil {
-				return err
-			}
-		}
+		timeout := parseDurationOrDefault(s.Timeout, 10*time.Minute)
 		r.SetStatus(k, committedSessionStatus)
 		r.sessionChan <- sessionTask{
 			id:      k,
@@ -206,59 +189,54 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	ai := r.ai.New()
 	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
 		err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
-			r.sendProgress("START", sessionID, phaseIndex, nil)
+			r.sendProgress(progressActionStart, sessionID, phaseIndex, nil)
 			deadline, _ := ctx.Deadline()
 			if time.Now().After(deadline) {
-				r.sendProgress("END", sessionID, phaseIndex, ctx.Err())
+				r.sendProgress(progressActionError, sessionID, phaseIndex, ctx.Err())
 				return ctx.Err()
 			}
 			phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
 			if err != nil {
-				r.sendProgress("END", sessionID, phaseIndex, err)
+				r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 				return err
 			}
 			var data []byte
-			scope := map[string]any{
-				"components": r.sessionManager.Components,
-				"context":    *r.dataStructure,
-				"params":     r.params,
-			}
+			scope := r.newEvalScope()
 			if idx == 0 {
 				prompt, err := session.RenderPrompt(scope)
 				if err != nil {
-					r.sendProgress("END", sessionID, phaseIndex, err)
+					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
-				p := prompt
-				if session.Context {
-					llmContext, err := json.MarshalIndent(r.dataStructure, "", " ")
-					if err != nil {
-						return err
-					}
-					p = "=== CURRENT CONTEXT ===\n" + string(llmContext) + "\n===\n\n" + p
-				}
-				data, err = ai.Ask(ctx, p, phaseSchema, resources...)
+				// as this is the first prompt, we may be asked to additional information to the prompt, like
+				// the already extracted context
+				prompt, err = r.enrichFirstMessagePrompt(prompt, session)
 				if err != nil {
-					r.sendProgress("END", sessionID, phaseIndex, err)
+					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+					return err
+				}
+				data, err = ai.Ask(ctx, prompt, phaseSchema, resources...)
+				if err != nil {
+					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
 			} else {
 				prompt, err := session.RenderNextPhasePrompt(scope)
 				if err != nil {
-					r.sendProgress("END", sessionID, phaseIndex, err)
+					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
 				data, err = ai.Ask(ctx, prompt, phaseSchema)
 				if err != nil {
-					r.sendProgress("END", sessionID, phaseIndex, err)
+					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
 			}
-			if err := r.safeUnmarshal(data); err != nil {
-				r.sendProgress("END", sessionID, phaseIndex, err)
+			if err := r.safeUnmarshalDataStructure(data); err != nil {
+				r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 				return err
 			}
-			r.sendProgress("END", sessionID, phaseIndex, nil)
+			r.sendProgress(progressActionEnd, sessionID, phaseIndex, nil)
 			return nil
 		})
 		if err != nil {
@@ -279,15 +257,11 @@ func (r *Runner[T]) ListQueued() Sessions {
 	return sessions
 }
 
-// sendProgress sends a progress message to the progress channel
-func (r *Runner[T]) sendProgress(action string, sessionID string, phaseIndex int, err error) {
-	if r.progressChannel != nil {
-		r.progressChannel <- ProgressMessage{
-			Action:  action,
-			Session: sessionID,
-			Phase:   phaseIndex,
-			Error:   err,
-		}
+func (r *Runner[T]) newEvalScope() map[string]any {
+	return map[string]any{
+		paramsAttr:     r.params,
+		contextAttr:    *r.dataStructure,
+		componentsAttr: r.sessionManager.Components,
 	}
 }
 
@@ -304,14 +278,6 @@ func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error
 	return resources, nil
 }
 
-// safeUnmarshal is a thread safe version of json.Unmarshal.
-func (r *Runner[T]) safeUnmarshal(data []byte) error {
-	r.unmarshalMutex.Lock()
-	defer r.unmarshalMutex.Unlock()
-	err := json.Unmarshal(data, r.dataStructure)
-	return err
-}
-
 // runSessionWorker runs a session worker.
 func (r *Runner[T]) runSessionWorker(index int) {
 	for t := range r.sessionChan {
@@ -320,6 +286,11 @@ func (r *Runner[T]) runSessionWorker(index int) {
 			success := true
 			ctx := context.Background()
 			ctx, cancel := context.WithTimeout(ctx, t.timeout)
+
+			// This defer is crucial!
+			// Other than canceling the context, it also ensures that:
+			// 1. the status is always set either to  finishedSessionStatus or failedSessionStatus.
+			// 2. the worker is removed from the wait group.
 			defer func() {
 				cancel()
 				if success {
@@ -379,20 +350,14 @@ func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyChec
 				return DependencyCheckFailed, nil
 			}
 		}
-		scope := map[string]any{
-			"params":  r.params,
-			"context": *r.dataStructure,
-		}
+		scope := r.newEvalScope()
+
 		if dep.Expression != nil {
-			c, err := expr.Compile(*dep.Expression, expr.Env(scope))
+			pass, err := EvaluateBooleanExpression(*dep.Expression, scope)
 			if err != nil {
 				return DependencyCheckUnsolvable, err
 			}
-			res, err := expr.Run(c, scope)
-			if err != nil {
-				return DependencyCheckUnsolvable, err
-			}
-			if !res.(bool) {
+			if !pass {
 				return DependencyCheckUnsolvable, nil
 			}
 		}
