@@ -1,13 +1,16 @@
 sessions:
   session_one:
-    prompt: retrieve these pieces of information about {{ .butterfly_type }} butterflies. Respond in JSON using the provided JSON schema
-    nextPhasePrompt: retrieve also these pieces of information.  Respond in JSON using the provided JSON schema
+    prompt: /nothink retrieve these pieces of information about {{ .params.butterfly_type }} butterflies. Respond in JSON using the provided JSON schema
+    nextPhasePrompt: /nothink retrieve also these pieces of information.  Respond in JSON using the provided JSON schema
   session_two:
-    prompt: retrieve these pieces of information about {{ .sparrow_type }} sparrows. Respond in JSON using the provided JSON schema
-    nextPhasePrompt: retrieve also these pieces of information. Respond in JSON using the provided JSON schema
+    prompt: /nothink  retrieve these pieces of information about {{ .params.sparrow_type }} sparrows. Respond in JSON using the provided JSON schema
+    nextPhasePrompt: /nothink retrieve also these pieces of information. Respond in JSON using the provided JSON schema
   session_three:
-    prompt: given the provided document, extract these pieces of information. Respond in JSON using the provided JSON schema
-    nextPhasePrompt: also these pieces of information. Respond in JSON using the provided JSON schema
+    prompt: /nothink  given the provided document, extract these pieces of information. Respond in JSON using the provided JSON schema
+    nextPhasePrompt: /nothink also these pieces of information. Respond in JSON using the provided JSON schema
+    context: true
+    dependsOn:
+      - session: session_one
     resources:
       - identifier: story.txt
 schema:

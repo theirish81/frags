@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/avast/retry-go/v5"
 	"github.com/expr-lang/expr"
 )
 
@@ -125,6 +126,9 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	r.params = params
 	r.running = true
 	r.sessionChan = make(chan sessionTask)
+	defer func() {
+		close(r.sessionChan)
+	}()
 	var v T
 	val := reflect.ValueOf(&v).Elem()
 	if val.Kind() == reflect.Map {
@@ -135,14 +139,19 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	}
 	for i := 0; i < r.sessionWorkers; i++ {
 		r.logger.Debug("starting session worker", "index", i)
-		go r.runSessionWorker(i)
+		go func() {
+			if err := r.runSessionWorker(i); err != nil {
+				r.logger.Error("failed to run session worker", "err", err)
+				os.Exit(1)
+			}
+		}()
 	}
 	for !r.IsCompleted() {
 		if err := r.scanSessions(); err != nil {
 			r.logger.Error("failed to scan sessions", "err", err)
+			return r.dataStructure, err
 		}
 	}
-	close(r.sessionChan)
 	r.running = false
 	return r.dataStructure, nil
 }
@@ -196,48 +205,70 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	if err != nil {
 		return err
 	}
+	if session.Attempts <= 0 {
+		session.Attempts = 1
+	}
 	ai := r.ai.New()
 	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
-		r.sendProgress("START", sessionID, phaseIndex, nil)
-		deadline, _ := ctx.Deadline()
-		if time.Now().After(deadline) {
-			r.sendProgress("END", sessionID, phaseIndex, ctx.Err())
-			return ctx.Err()
-		}
-		phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
+		err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
+			r.sendProgress("START", sessionID, phaseIndex, nil)
+			deadline, _ := ctx.Deadline()
+			if time.Now().After(deadline) {
+				r.sendProgress("END", sessionID, phaseIndex, ctx.Err())
+				return ctx.Err()
+			}
+			phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
+			if err != nil {
+				r.sendProgress("END", sessionID, phaseIndex, err)
+				return err
+			}
+			var data []byte
+			scope := map[string]any{
+				"components": r.sessionManager.Components,
+				"context":    *r.dataStructure,
+				"params":     r.params,
+			}
+			if idx == 0 {
+				prompt, err := session.RenderPrompt(scope)
+				if err != nil {
+					r.sendProgress("END", sessionID, phaseIndex, err)
+					return err
+				}
+				p := prompt
+				if session.Context {
+					llmContext, err := json.MarshalIndent(r.dataStructure, "", " ")
+					if err != nil {
+						return err
+					}
+					p = "=== CURRENT CONTEXT ===\n" + string(llmContext) + "\n===\n\n" + p
+				}
+				data, err = ai.Ask(ctx, p, phaseSchema, resources...)
+				if err != nil {
+					r.sendProgress("END", sessionID, phaseIndex, err)
+					return err
+				}
+			} else {
+				prompt, err := session.RenderNextPhasePrompt(scope)
+				if err != nil {
+					r.sendProgress("END", sessionID, phaseIndex, err)
+					return err
+				}
+				data, err = ai.Ask(ctx, prompt, phaseSchema)
+				if err != nil {
+					r.sendProgress("END", sessionID, phaseIndex, err)
+					return err
+				}
+			}
+			if err := r.safeUnmarshal(data); err != nil {
+				r.sendProgress("END", sessionID, phaseIndex, err)
+				return err
+			}
+			r.sendProgress("END", sessionID, phaseIndex, nil)
+			return nil
+		})
 		if err != nil {
-			r.sendProgress("END", sessionID, phaseIndex, err)
 			return err
 		}
-		var data []byte
-		if idx == 0 {
-			prompt, err := session.RenderPrompt(r.params)
-			if err != nil {
-				r.sendProgress("END", sessionID, phaseIndex, err)
-				return err
-			}
-			data, err = ai.Ask(ctx, prompt, phaseSchema, resources...)
-			if err != nil {
-				r.sendProgress("END", sessionID, phaseIndex, err)
-				return err
-			}
-		} else {
-			prompt, err := session.RenderNextPhasePrompt(r.params)
-			if err != nil {
-				r.sendProgress("END", sessionID, phaseIndex, err)
-				return err
-			}
-			data, err = ai.Ask(ctx, prompt, phaseSchema)
-			if err != nil {
-				r.sendProgress("END", sessionID, phaseIndex, err)
-				return err
-			}
-		}
-		if err := r.safeUnmarshal(data); err != nil {
-			r.sendProgress("END", sessionID, phaseIndex, err)
-			return err
-		}
-		r.sendProgress("END", sessionID, phaseIndex, nil)
 	}
 	return nil
 }
@@ -287,10 +318,10 @@ func (r *Runner[T]) safeUnmarshal(data []byte) error {
 }
 
 // runSessionWorker runs a session worker.
-func (r *Runner[T]) runSessionWorker(index int) {
+func (r *Runner[T]) runSessionWorker(index int) error {
 	for t := range r.sessionChan {
 		r.logger.Debug("worker consuming message", "workerID", index, "sessionID", t.id)
-		func() {
+		err := func() error {
 			success := true
 			ctx := context.Background()
 			ctx, cancel := context.WithTimeout(ctx, t.timeout)
@@ -306,11 +337,16 @@ func (r *Runner[T]) runSessionWorker(index int) {
 			}()
 			if err := r.runSession(ctx, t.id, t.session); err != nil {
 				success = false
-				r.logger.Error("worked failed at running session", "workerID", index, "sessionID", t.id, "err", err)
-				return
+				r.logger.Error("FATAL: worked failed at running session", "workerID", index, "sessionID", t.id, "err", err)
+				return err
 			}
+			return nil
 		}()
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // SetStatus sets the status of a session (thread-safe)
@@ -354,12 +390,16 @@ func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyChec
 				return DependencyCheckFailed, nil
 			}
 		}
+		scope := map[string]any{
+			"params":  r.params,
+			"context": *r.dataStructure,
+		}
 		if dep.Expression != nil {
-			c, err := expr.Compile(*dep.Expression, expr.Env(*r.dataStructure))
+			c, err := expr.Compile(*dep.Expression, expr.Env(scope))
 			if err != nil {
 				return DependencyCheckUnsolvable, err
 			}
-			res, err := expr.Run(c, *r.dataStructure)
+			res, err := expr.Run(c, scope)
 			if err != nil {
 				return DependencyCheckUnsolvable, err
 			}
