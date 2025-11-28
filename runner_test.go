@@ -1,7 +1,6 @@
 package frags
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -35,7 +34,7 @@ func TestRunner_Run(t *testing.T) {
 
 }
 
-func TestRunner_RunDependencies(t *testing.T) {
+func TestRunner_RunDependenciesAndContext(t *testing.T) {
 	sessionData, _ := os.ReadFile("test_data/dependant_sessions.yaml")
 	mgr := NewSessionManager()
 	err := mgr.FromYAML(sessionData)
@@ -43,5 +42,9 @@ func TestRunner_RunDependencies(t *testing.T) {
 	ai := NewDummyAi()
 	runner := NewRunner[map[string]string](mgr, NewDummyResourceLoader(), ai, WithSessionWorkers(3))
 	out, err := runner.Run(nil)
-	fmt.Println(out)
+	assert.Nil(t, err)
+	assert.Contains(t, (*out)["summary"], "CURRENT CONTEXT")
+	assert.Contains(t, (*out)["summary"], "animal1")
+	_, ok := (*out)["nop"]
+	assert.False(t, ok)
 }
