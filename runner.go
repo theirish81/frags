@@ -131,7 +131,9 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 		r.logger.Debug("starting session worker", "index", i)
 		go r.runSessionWorker(i)
 	}
+	// as long as all sessions have no reached a terminal state, keep scanning sessions
 	for !r.IsCompleted() {
+		// if the scan fails, we return the error and stop scanning. This will end the program
 		if err := r.scanSessions(); err != nil {
 			r.logger.Error("failed to scan sessions", "err", err)
 			return r.dataStructure, err
@@ -145,23 +147,33 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 // concurrency
 func (r *Runner[T]) scanSessions() error {
 	r.wg = sync.WaitGroup{}
+	// listing all the sessions still in queued state
 	for k, s := range r.ListQueued() {
 		depCheck, err := r.CheckDependencies(s.DependsOn)
 		if err != nil {
 			return err
 		}
 		switch depCheck {
+		// if the dependency check fails, it means that RIGHT NOW, we cannot start this session, but we may later
 		case DependencyCheckFailed:
 			continue
+		// if the dependency check results as unsolvable, it means that we will never be able to start this session.
+		// A dependency is unsolvable in 2 different scenarios
+		// * The dependency is a session that has failed or won't run because of its dependencies
+		// * The dependency is an expression that fails
+		// We mark it as no-op, which is a terminal state for the session, and we move on.
 		case DependencyCheckUnsolvable:
 			r.SetStatus(k, noOpSessionStatus)
 			continue
 		}
-
+		// our parallelism has a layered approach. Every run of scanSessions is a layer, and we will wait for the whole
+		// layer to complete before moving on to the next layer.
 		r.wg.Add(1)
 		r.logger.Debug("sending message to workers for session", "session", k)
 		timeout := parseDurationOrDefault(s.Timeout, 10*time.Minute)
 		r.SetStatus(k, committedSessionStatus)
+		// sending the message to the workers. If all workers are busy, we'll hang here for a while, until a worker
+		// is free, so we can complete this layer
 		r.sessionChan <- sessionTask{
 			id:      k,
 			session: s,
@@ -174,7 +186,6 @@ func (r *Runner[T]) scanSessions() error {
 
 // runSession runs a session.
 func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Session) error {
-	r.SetStatus(sessionID, runningSessionStatus)
 	resources, err := r.loadSessionResources(session)
 	if err != nil {
 		return err
@@ -186,8 +197,11 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	if session.Attempts <= 0 {
 		session.Attempts = 1
 	}
+	// here we're creating a new instance of the AI for this session, so it has no state.
 	ai := r.ai.New()
+	// For each phase...
 	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
+		// ...we retry the prompt a number of times, depending on the session's attempts.
 		err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
 			r.sendProgress(progressActionStart, sessionID, phaseIndex, nil)
 			deadline, _ := ctx.Deadline()
@@ -257,6 +271,7 @@ func (r *Runner[T]) ListQueued() Sessions {
 	return sessions
 }
 
+// newEvalScope returns a new scope for evaluating expressions.
 func (r *Runner[T]) newEvalScope() map[string]any {
 	return map[string]any{
 		paramsAttr:     r.params,
@@ -284,12 +299,13 @@ func (r *Runner[T]) runSessionWorker(index int) {
 		r.logger.Debug("worker consuming message", "workerID", index, "sessionID", t.id)
 		func() {
 			success := true
+			// we will create a context for each session, so we can cancel it if it takes too long
 			ctx := context.Background()
 			ctx, cancel := context.WithTimeout(ctx, t.timeout)
 
-			// This defer is crucial!
+			// This "defer" is crucial!
 			// Other than canceling the context, it also ensures that:
-			// 1. the status is always set either to  finishedSessionStatus or failedSessionStatus.
+			// 1. the status is always set either to finishedSessionStatus or failedSessionStatus.
 			// 2. the worker is removed from the wait group.
 			defer func() {
 				cancel()
@@ -301,6 +317,7 @@ func (r *Runner[T]) runSessionWorker(index int) {
 				r.logger.Debug("worker finished consuming message", "workerID", index, "sessionID", t.id)
 				r.wg.Done()
 			}()
+			r.SetStatus(t.id, runningSessionStatus)
 			if err := r.runSession(ctx, t.id, t.session); err != nil {
 				success = false
 				r.logger.Error("worker failed at running session", "workerID", index, "sessionID", t.id, "err", err)

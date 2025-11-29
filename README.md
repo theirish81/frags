@@ -209,6 +209,33 @@ Sessions `prompt` and `nextPhrasePrompt` also support [Go template](https://pkg.
 for dynamic prompts. Each session has  `RenderPrompt(scope any) (string, error)` and `RenderNextPhasePrompt(scope any) (string, error)`
 methods to render the final text.
 
+### Components for Reuse
+
+The `SessionManager` allows for the definition of reusable components. At present, this primarily supports the reuse of `prompts`.
+These reusable prompts can be defined under the `components.prompts` section in your YAML configuration.
+
+Example `sessions.yaml` with components:
+```yaml
+components:
+  prompts:
+    user_profile_prompt: "Extract the user's primary details from the provided document, including their name and email."
+    product_review_prompt: "Extract all relevant product review information, including product name, rating, and review text."
+
+sessions:
+  user_profile:
+    prompt: "{{ .components.prompts.user_profile_prompt }}"
+    nextPhasePrompt: "Also these secondary details"
+    resources:
+      - identifier: user_text.txt
+  product_review:
+    prompt: "{{ .components.prompts.product_review_prompt }}"
+    nextPhasePrompt: "Also extract these items"
+    resources:
+      - identifier: product_details.pdf
+```
+You can reference these defined prompts within your session's `prompt` or `nextPhasePrompt` fields using Go template syntax, e.g., `{{ .components.prompts.your_prompt_key }}`.
+
+
 ### Usage
 
 ```go
@@ -274,6 +301,53 @@ sessions sequentially. To enable parallelism, use the `WithSessionsWorkers(int)`
 ### Reusability
 The same instance of a runner can be used multiple times, however, it can work on a task at a time and will return
 an error if you call `Run` before the previous task has completed.
+
+## Advanced Features
+
+Beyond the core concepts of sessions and phases, Frags provides additional features for more complex workflows, such as conditional execution, data sharing between sessions, and error handling.
+
+### Session Dependencies (`dependsOn`)
+
+You can define dependencies between sessions using the `dependsOn` property. This allows you to create workflows where a session will only run after other sessions have successfully completed. `dependsOn` is a list of dependencies, and all dependencies must be met for the session to run.
+
+A dependency can be on another session, or it can be a conditional expression.
+
+-   **Session Dependency**: To make a session wait for another, specify the session name.
+-   **Conditional Expression**: You can add a `expression` to a dependency. This expression is evaluated against the data extracted so far, and the session will only run if the expression evaluates to `true`. Expressions are written in a simple expression language (see [antonmedv/expr](https://github.com/antonmedv/expr)).
+
+In this example, `end_session` depends on `session_one` and `session_two`. It will only run after both are complete, and only if the `animal1` field has been extracted in `session_one`.
+
+```yaml
+sessions:
+  session_one:
+    prompt: answer the question
+  session_two:
+    prompt: answer the question
+  end_session:
+    context: true
+    dependsOn:
+      - session: session_one
+        expression: len(context.animal1) > 0
+      - session: session_two
+    prompt: answer the question based on the answers to the previous questions
+```
+
+### Shared Context (`context`)
+
+When a session depends on others, it can be useful to access the data extracted by its dependencies. By setting `context: true` on a session, you make the accumulated data from all its dependencies available within the session's prompt templates and `dependsOn` expressions.
+
+The data is available under a `context` object. For example, if a previous session extracted a field named `username`, you could access it in a prompt like this: `{{ .context.username }}`.
+
+### Retries (`attempts`)
+
+By default, a phase will be attempted once. You can add resilience to your workflow by specifying the `attempts` property on a session. This will cause each phase within that session to be retried the specified number of times if the AI call fails or returns invalid data.
+
+```yaml
+sessions:
+  robust_session:
+    prompt: "This is an important prompt."
+    attempts: 3
+```
 
 ### Implementing the missing bits
 #### ResourceLoader
