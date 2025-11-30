@@ -112,12 +112,6 @@ var runCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		for _, v := range sm.Sessions.ListVariables() {
-			if _, ok := paramsMap[v]; !ok {
-				fmt.Println("Error: the variable " + v + " is not set, but is required by the session.")
-				return
-			}
-		}
 
 		// execute
 		result, err := runner.Run(paramsMap)
