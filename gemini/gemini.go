@@ -13,6 +13,9 @@ var temperature float32 = 0.1
 var topK float32 = 40
 var topP float32 = 0.9
 
+const contentType = "application/json"
+const defaultModel = "gemini-2.5-flash"
+
 // Ai is a wrapper around the genai client for Frags
 type Ai struct {
 	client    *genai.Client
@@ -25,7 +28,7 @@ func NewAI(client *genai.Client) *Ai {
 	return &Ai{
 		client:    client,
 		content:   make([]*genai.Content, 0),
-		modelName: "gemini-2.5-flash",
+		modelName: defaultModel,
 	}
 }
 
@@ -52,7 +55,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema frags.Schema, resource
 	newMsg := genai.NewContentFromParts(parts, genai.RoleUser)
 
 	cfg := genai.GenerateContentConfig{
-		ResponseMIMEType: "application/json",
+		ResponseMIMEType: contentType,
 		ResponseSchema:   &genAiSchema,
 		Temperature:      &temperature,
 		TopK:             &topK,
