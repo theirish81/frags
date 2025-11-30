@@ -47,10 +47,12 @@ func NewBytesLoader() *BytesLoader {
 	return &BytesLoader{resources: make(map[string]ResourceData)}
 }
 
+// SetResource sets a resource in the loader's internal map.
 func (l *BytesLoader) SetResource(resourceData ResourceData) {
 	l.resources[resourceData.Identifier] = resourceData
 }
 
+// LoadResource returns a resource from the loader's internal map.
 func (l *BytesLoader) LoadResource(identifier string, _ map[string]string) (ResourceData, error) {
 	if resource, ok := l.resources[identifier]; ok {
 		return resource, nil

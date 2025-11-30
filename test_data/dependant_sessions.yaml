@@ -1,0 +1,38 @@
+sessions:
+  session_one:
+    prompt: answer the question
+  session_two:
+    prompt: answer the question
+  end_session:
+    context: true
+    dependsOn:
+      - session: session_one
+        expression: len(context.animal1) > 0
+      - session: session_two
+    prompt: answer the question based on the answers to the previous questions
+  nop_session:
+    dependsOn:
+      - session: session_one
+        expression: '"animal3" in context'
+schema:
+  properties:
+    animal1:
+      x-session: session_one
+      x-phase: 0
+      type: string
+      description: what does the dog say?
+    animal2:
+      x-session: session_two
+      x-phase: 0
+      type: string
+      description: what does the cat say?
+    summary:
+      x-session: end_session
+      x-phase: 0
+      type: string
+      description: what do the animals say?
+    nop:
+      x-session: nop_session
+      x-phase: 0
+      type: string
+      description: this should not be here

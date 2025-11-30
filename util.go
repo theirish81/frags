@@ -2,8 +2,8 @@ package frags
 
 import (
 	"encoding/json"
-	"regexp"
-	"strings"
+	"reflect"
+	"time"
 )
 
 // ProgMap is a custom map type that allows for incremental unmarshaling of JSON data.
@@ -25,15 +25,24 @@ func (p *ProgMap) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func extractTemplateVariables(templateStr string) []string {
-	re := regexp.MustCompile(`{{\s*\.([\w.]+)\s*}}`)
-	matches := re.FindAllStringSubmatch(templateStr, -1)
-	var variables []string
-	for _, match := range matches {
-		if len(match) > 1 {
-			cleanVar := strings.TrimSpace(match[1])
-			variables = append(variables, cleanVar)
-		}
+func initDataStructure[T any]() *T {
+	var v T
+	val := reflect.ValueOf(&v).Elem()
+	if val.Kind() == reflect.Map {
+		val.Set(reflect.MakeMap(val.Type()))
+		return &v
+	} else {
+		return new(T)
 	}
-	return variables
+}
+
+func parseDurationOrDefault(durationStr *string, defaultDuration time.Duration) time.Duration {
+	if durationStr == nil || *durationStr == "" {
+		return defaultDuration
+	}
+	parsedDuration, err := time.ParseDuration(*durationStr)
+	if err != nil {
+		return defaultDuration
+	}
+	return parsedDuration
 }
