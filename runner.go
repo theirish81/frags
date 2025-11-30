@@ -21,7 +21,7 @@ const (
 // Runner is a struct that runs a session manager.
 type Runner[T any] struct {
 	sessionManager  SessionManager
-	status          map[string]SessionStatus
+	status          *SafeMap[string, SessionStatus]
 	resourceLoader  ResourceLoader
 	ai              Ai
 	dataStructure   *T
@@ -98,9 +98,9 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 	for _, opt := range options {
 		opt(&opts)
 	}
-	status := make(map[string]SessionStatus)
+	status := NewSafeMap[string, SessionStatus]()
 	for k, _ := range sessionManager.Sessions {
-		status[k] = queuedSessionStatus
+		status.Store(k, queuedSessionStatus)
 	}
 	return Runner[T]{
 		sessionManager:  sessionManager,
@@ -263,7 +263,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 // ListQueued returns a list of queued sessions
 func (r *Runner[T]) ListQueued() Sessions {
 	sessions := make(Sessions)
-	for k, v := range r.status {
+	for k, v := range r.status.Iter() {
 		if v == queuedSessionStatus {
 			sessions[k] = r.sessionManager.Sessions[k]
 		}
@@ -305,9 +305,14 @@ func (r *Runner[T]) runSessionWorker(index int) {
 
 			// This "defer" is crucial!
 			// Other than canceling the context, it also ensures that:
-			// 1. the status is always set either to finishedSessionStatus or failedSessionStatus.
-			// 2. the worker is removed from the wait group.
+			// 1. if the worker panics, the failure is handled gracefully
+			// 2. the status is always set either to finishedSessionStatus or failedSessionStatus.
+			// 3. the worker is removed from the wait group.
 			defer func() {
+				if err := recover(); err != nil {
+					r.logger.Error("worker panicked", "workerID", index, "sessionID", t.id, "err", err)
+					success = false
+				}
 				cancel()
 				if success {
 					r.SetStatus(t.id, finishedSessionStatus)
@@ -330,12 +335,12 @@ func (r *Runner[T]) runSessionWorker(index int) {
 func (r *Runner[T]) SetStatus(sessionID string, status SessionStatus) {
 	r.statusMutex.Lock()
 	defer r.statusMutex.Unlock()
-	r.status[sessionID] = status
+	r.status.Store(sessionID, status)
 }
 
 // IsCompleted returns true if all sessions are completed
 func (r *Runner[T]) IsCompleted() bool {
-	for _, s := range r.status {
+	for _, s := range r.status.Iter() {
 		if s == queuedSessionStatus {
 			return false
 		}
@@ -359,7 +364,7 @@ func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyChec
 	}
 	for _, dep := range dependencies {
 		if dep.Session != nil {
-			dependencyStatus := r.status[*dep.Session]
+			dependencyStatus, _ := r.status.Load(*dep.Session)
 			if slices.Contains([]SessionStatus{failedSessionStatus, noOpSessionStatus}, dependencyStatus) {
 				return DependencyCheckUnsolvable, nil
 			}
@@ -367,10 +372,9 @@ func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyChec
 				return DependencyCheckFailed, nil
 			}
 		}
-		scope := r.newEvalScope()
 
 		if dep.Expression != nil {
-			pass, err := EvaluateBooleanExpression(*dep.Expression, scope)
+			pass, err := EvaluateBooleanExpression(*dep.Expression, r.newEvalScope())
 			if err != nil {
 				return DependencyCheckUnsolvable, err
 			}
