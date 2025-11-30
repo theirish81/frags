@@ -53,5 +53,9 @@ func (sm *SafeMap[K, V]) Load(key K) (V, bool) {
 func (sm *SafeMap[K, V]) Iter() map[K]V {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-	return sm.data
+	cpy := make(map[K]V)
+	for k, v := range sm.data {
+		cpy[k] = v
+	}
+	return cpy
 }
