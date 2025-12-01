@@ -6,19 +6,6 @@ robust, iterative interactions with AI models, making it ideal for tasks like st
 progressive data collection from users, or any scenario where you need to manage a complex, stateful conversation with
 an AI.
 
-## Overview
-
-Frags enables you to break down complex JSON Schema structures into smaller, sequential fragments (phases and sessions).
-This is particularly useful when working with AI APIs that have output token limits, allowing you to process large
-schemas iteratively while maintaining a single source of truth.
-
-The library is designed to be used in three ways, each building on the last:
-1. **Standalone Schema**: Use the `Schema` type to manually fragment a schema by phase.
-2. **Schema + SessionManager**: Use the `SessionManager` to define and manage multiple "sessions" against a single
-3. schema, loaded from a file (e.g. YAML).
-3. **Schema + SessionManager + Runner**: Use the `Runner` to automate the entire process of running sessions and phases,
-4. including loading resources and calling an AI API.
-
 ## The Problem
 
 When interacting with AI APIs that support structured JSON output, you may encounter scenarios where:
@@ -44,13 +31,15 @@ Frags introduces two custom properties to JSON Schema that allows you to:
 go get github.com/theirish81/frags
 ```
 
-## Level 1: Standalone Schema Usage
+## Usage
 
+The library is designed to be used in three ways, each building on the last:
+
+### Level 1: Standalone Schema
 At its core, `frags` allows you to work with a `Schema` object to manually extract phased portions of a larger schema.
 The purpose of such partitioning is to allow you to query the AI API incrementally, in the same conversational context.
 
-### Basic Example
-
+**Basic Example**
 ```go
 package main
 
@@ -107,11 +96,11 @@ func intPtr(i int) *int {
 }
 ```
 
-## Level 2: Schema + SessionManager
+### Level 2: Schema + SessionManager
 
 The `SessionManager` introduces the concept of "sessions," which are self-contained, multi-phase conversational tasks.
 While a single schema defines the entire data universe, and phases allow you to extract incremental chunks of data,
-the context may become polluted with excessive information, reducing the efficacy. 
+the context may become polluted with excessive information, reducing the efficacy.
 Sessions are used to create isolated contexts, which improve AI efficacy, while phases still allow you to retrieve
 incremental chunks of data.
 
@@ -122,10 +111,8 @@ Here's how it works:
 This allows you to define multiple, distinct, and phased AI interactions that operate on the same overall data model
 without interfering with one another.
 
-### Example `sessions.yaml`
-
+**Example `sessions.yaml`**
 This example defines two sessions, `user_profile` and `product_review`, each with its own progressive phases.
-
 ```yaml
 schema:
   type: object
@@ -204,40 +191,7 @@ sessions:
       - identifier: product_details.pdf
 ```
 
-### Session Parameters
-Sessions `prompt` and `nextPhrasePrompt` also support [Go template](https://pkg.go.dev/text/template) syntax, allowing
-for dynamic prompts. Each session has  `RenderPrompt(scope any) (string, error)` and `RenderNextPhasePrompt(scope any) (string, error)`
-methods to render the final text.
-
-### Components for Reuse
-
-The `SessionManager` allows for the definition of reusable components. At present, this primarily supports the reuse of `prompts`.
-These reusable prompts can be defined under the `components.prompts` section in your YAML configuration.
-
-Example `sessions.yaml` with components:
-```yaml
-components:
-  prompts:
-    user_profile_prompt: "Extract the user's primary details from the provided document, including their name and email."
-    product_review_prompt: "Extract all relevant product review information, including product name, rating, and review text."
-
-sessions:
-  user_profile:
-    prompt: "{{ .components.prompts.user_profile_prompt }}"
-    nextPhasePrompt: "Also these secondary details"
-    resources:
-      - identifier: user_text.txt
-  product_review:
-    prompt: "{{ .components.prompts.product_review_prompt }}"
-    nextPhasePrompt: "Also extract these items"
-    resources:
-      - identifier: product_details.pdf
-```
-You can reference these defined prompts within your session's `prompt` or `nextPhasePrompt` fields using Go template syntax, e.g., `{{ .components.prompts.your_prompt_key }}`.
-
-
-### Usage
-
+**SessionManager Usage**
 ```go
 package main
 
@@ -283,7 +237,7 @@ func main() {
 }
 ```
 
-## Level 3: Full Automation with the Runner
+### Level 3: Full Automation with the Runner
 
 The `Runner` is the highest-level abstraction. It automates the entire workflow:
 
@@ -294,17 +248,15 @@ The `Runner` is the highest-level abstraction. It automates the entire workflow:
     phase and the `nextPhasePrompt` for all subsequent phases.
 5.  Unmarshals the structured JSON results from the AI into a final Go struct.
 
-### Session Parallelism
+**Session Parallelism**
 Sessions can run in parallel, which can significantly improve performance. As a default, however, the runner will run
 sessions sequentially. To enable parallelism, use the `WithSessionsWorkers(int)` option when creating the runner.
 
-### Reusability
+**Reusability**
 The same instance of a runner can be used multiple times, however, it can work on a task at a time and will return
 an error if you call `Run` before the previous task has completed.
 
 ## Advanced Features
-
-Beyond the core concepts of sessions and phases, Frags provides additional features for more complex workflows, such as conditional execution, data sharing between sessions, and error handling.
 
 ### Session Dependencies (`dependsOn`)
 
@@ -349,12 +301,42 @@ sessions:
     attempts: 3
 ```
 
-### Implementing the missing bits
-#### ResourceLoader
-loading resources can take various forms based on the needs. The system implements a simple  FileResourceLoader, but
+### Components for Reuse
+The `SessionManager` allows for the definition of reusable components. At present, this primarily supports the reuse of `prompts`.
+These reusable prompts can be defined under the `components.prompts` section in your YAML configuration.
+
+**Example `sessions.yaml` with components**
+```yaml
+components:
+  prompts:
+    user_profile_prompt: "Extract the user's primary details from the provided document, including their name and email."
+    product_review_prompt: "Extract all relevant product review information, including product name, rating, and review text."
+
+sessions:
+  user_profile:
+    prompt: "{{ .components.prompts.user_profile_prompt }}"
+    nextPhasePrompt: "Also these secondary details"
+    resources:
+      - identifier: user_text.txt
+  product_review:
+    prompt: "{{ .components.prompts.product_review_prompt }}"
+    nextPhasePrompt: "Also extract these items"
+    resources:
+      - identifier: product_details.pdf
+```
+You can reference these defined prompts within your session's `prompt` or `nextPhasePrompt` fields using Go template syntax, e.g., `{{ .components.prompts.your_prompt_key }}`.
+
+Sessions `prompt` and `nextPhrasePrompt` also support [Go template](https://pkg.go.dev/text/template) syntax, allowing
+for dynamic prompts. Each session has  `RenderPrompt(scope any) (string, error)` and `RenderNextPhasePrompt(scope any) (string, error)`
+methods to render the final text.
+
+## Implementing Custom Components
+
+### ResourceLoader
+Loading resources can take various forms based on the needs. The system implements a simple  `FileResourceLoader`, but
 you can implement your own to load resources from any source.
 
-Example:
+**Example**
 ```go
 type FileResourceLoader struct {
 	basePath string
@@ -377,9 +359,9 @@ func (l *FileResourceLoader) LoadResource(identifier string, _ []string) (Resour
 }
 ```
 
-#### AI
+### AI
 The runner calls your AI API using the `Call` method. You can implement your own AI API client here. The implementation
 should be stateful to allow the progressive conversation of phases. Ideally the AI implementation  supports files
 uploads and JSON schema response formats.
 
-Example: refer to the [Gemini implementation](https://github.com/theirish81/frags/blob/main/gemini/gemini.go).
+Example: refer to the [Gemini implementation](https.github.com/theirish81/frags/blob/main/gemini/gemini.go).
