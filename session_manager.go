@@ -6,13 +6,18 @@ import (
 
 // Session defines an LLM session, with its own context.
 // Each session has a Prompt, a NextPhasePrompt for the phases after the first, and a list of resources to load.
+// Each session may also have a PrePrompt, that is an LLM interaction that happens before the main one, produces
+// no structured data, and has the sole purpose to enrich the context and get it ready. This is mostly useful for
+// situations in which we need to use an extraction functionality that poorly harmonizes with a structured output.
 // Resources configure resource loaders to load files for the session.
 // Timeout defines the maximum time the session can run for.
 // DependsOn defines a list of sessions that must be completed before this session can start, and expressions defining
 // code evaluations against the already extracted data, to determine whether the session can start.
 // Context defines whether the partially extracted data should be passed to the session
 // Attempts defines the number of times each phase should be retried if it fails
+// Tools defines the tools that can be used in this session
 type Session struct {
+	PrePrompt       *string      `json:"pre_prompt" yaml:"prePrompt"`
 	Prompt          string       `json:"prompt" yaml:"prompt"`
 	NextPhasePrompt string       `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
 	Resources       []Resource   `json:"resources" yaml:"resources"`
@@ -20,6 +25,7 @@ type Session struct {
 	DependsOn       Dependencies `json:"depends_on" yaml:"dependsOn"`
 	Context         bool         `json:"context" yaml:"context"`
 	Attempts        int          `json:"attempts" yaml:"attempts"`
+	Tools           Tools        `json:"tools" yaml:"tools"`
 }
 
 // Dependency defines whether this session can run or should:
@@ -33,7 +39,48 @@ type Dependency struct {
 // Dependencies is a list of Dependencies
 type Dependencies []Dependency
 
-// RenderPrompt renders the prompt (which may contain Go templat es), with the given scope
+type ToolType string
+
+const (
+	ToolTypeInternetSearch ToolType = "internet_search"
+	ToolTypeFunction       ToolType = "function"
+)
+
+// Tool defines a tool that can be used in a session.
+// Name is either the tool name of the function name
+// Description is the tool description. Optional, as the tool should already have a description, fill if you wish
+// to override the default
+// Type is either internet_search or function
+// Parameters is used only for functions, and defines the parameters of the function. Optional, as the tool should
+// already have parameters, fill if you wish to override the default
+type Tool struct {
+	Name        string   `json:"name" yaml:"name"`
+	Description string   `json:"description" yaml:"description"`
+	Type        ToolType `json:"type" yaml:"type"`
+	Parameters  *Schema  `json:"parameters" yaml:"parameters"`
+}
+
+type Tools []Tool
+
+func (t *Tools) HasType(tt ToolType) bool {
+	for _, tool := range *t {
+		if tool.Type == tt {
+			return true
+		}
+	}
+	return false
+}
+
+// RenderPrePrompt renders the pre-prompt (which may contain Go templates), with the given scope
+func (s *Session) RenderPrePrompt(scope any) (*string, error) {
+	if s.PrePrompt == nil {
+		return nil, nil
+	}
+	px, err := EvaluateTemplate(*s.PrePrompt, scope)
+	return &px, err
+}
+
+// RenderPrompt renders the prompt (which may contain Go templates), with the given scope
 func (s *Session) RenderPrompt(scope any) (string, error) {
 	return EvaluateTemplate(s.Prompt, scope)
 }

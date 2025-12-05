@@ -199,6 +199,24 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	}
 	// here we're creating a new instance of the AI for this session, so it has no state.
 	ai := r.ai.New()
+	if session.PrePrompt != nil {
+		// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
+		// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
+		// the context of the session.
+		scope := r.newEvalScope()
+		prePrompt, err := session.RenderPrePrompt(scope)
+		if err != nil {
+			return err
+		}
+		if prePrompt != nil {
+			r.sendProgress(progressActionStart, sessionID, -1, nil)
+			if _, err := ai.Ask(ctx, *prePrompt, nil, session.Tools); err != nil {
+				r.sendProgress(progressActionError, sessionID, -1, err)
+				return err
+			}
+			r.sendProgress(progressActionEnd, sessionID, -1, nil)
+		}
+	}
 	// For each phase...
 	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
 		// ...we retry the prompt a number of times, depending on the session's attempts.
@@ -229,7 +247,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
-				data, err = ai.Ask(ctx, prompt, phaseSchema, resources...)
+				data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, resources...)
 				if err != nil {
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
@@ -240,7 +258,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
-				data, err = ai.Ask(ctx, prompt, phaseSchema)
+				data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools)
 				if err != nil {
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
