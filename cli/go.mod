@@ -6,9 +6,9 @@ require (
 	cloud.google.com/go/auth v0.9.3
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.3.1
-	github.com/theirish81/frags/gemini v0.3.1
-	github.com/theirish81/frags/ollama v0.3.1
+	github.com/theirish81/frags v0.4.0
+	github.com/theirish81/frags/gemini v0.4.0
+	github.com/theirish81/frags/ollama v0.4.0
 	google.golang.org/genai v1.36.0
 	gopkg.in/yaml.v3 v3.0.1
 )
