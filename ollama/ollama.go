@@ -15,10 +15,11 @@ import (
 
 // Ai implements the Ai interface for Ollama.
 type Ai struct {
-	client   *http.Client
-	baseURL  string
-	model    string
-	messages []Message
+	client    *http.Client
+	baseURL   string
+	model     string
+	messages  []Message
+	Functions frags.Functions
 }
 
 // NewAI creates a new Ai instance
@@ -32,22 +33,24 @@ func NewAI(baseURL string, model string) *Ai {
 				MaxIdleConnsPerHost: 10,
 			},
 		},
-		messages: make([]Message, 0),
+		Functions: frags.Functions{},
+		messages:  make([]Message, 0),
 	}
 }
 
 // New creates a new Ai instance and returns it
 func (d *Ai) New() frags.Ai {
 	return &Ai{
-		client:   d.client,
-		baseURL:  d.baseURL,
-		model:    d.model,
-		messages: make([]Message, 0),
+		client:    d.client,
+		baseURL:   d.baseURL,
+		model:     d.model,
+		messages:  make([]Message, 0),
+		Functions: d.Functions,
 	}
 }
 
 // Ask performs a query against the Ollama API, according to the Frags interface
-func (d *Ai) Ask(ctx context.Context, text string, schema frags.Schema, resources ...frags.ResourceData) ([]byte, error) {
+func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.Tools, resources ...frags.ResourceData) ([]byte, error) {
 	message := Message{
 		Content: "",
 		Role:    "user",
@@ -63,16 +66,73 @@ func (d *Ai) Ask(ctx context.Context, text string, schema frags.Schema, resource
 	request := Request{
 		Messages: d.messages,
 		Model:    d.model,
+		Think:    false,
 		Format:   schema,
+		Tools:    make([]ToolDefinition, 0),
+		Options: Options{
+			NumPredict:  1024,
+			Temperature: 0.1,
+		},
 	}
+	request.Tools, _ = d.configureTools(tools)
+	keepGoing := true
+	out := ""
+	for keepGoing {
+		request.Messages = d.messages
+		err := func() error {
+			responseMessage, err := d.sendRequest(ctx, request)
+			if err != nil {
+				return err
+			}
+			d.messages = append(d.messages, responseMessage.Message)
+			if len(responseMessage.Message.ToolCalls) > 0 {
+				err := d.handleFunctionCall(responseMessage)
+				if err != nil {
+					return err
+				}
+			} else {
+				out = responseMessage.Message.Content
+				keepGoing = false
+			}
+			return nil
+		}()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return []byte(out), nil
+}
+
+func (d *Ai) handleFunctionCall(responseMessage Response) error {
+	for _, fc := range responseMessage.Message.ToolCalls {
+		res, err := d.Functions[fc.Function.Name].Func(fc.Function.Arguments)
+		if err != nil {
+			return err
+		}
+		content, err := json.Marshal(res)
+		if err != nil {
+			return err
+		}
+		d.messages = append(d.messages, Message{
+			Role:       "tool",
+			Content:    string(content),
+			ToolCallID: fc.ID,
+		})
+	}
+	return nil
+}
+
+func (d *Ai) sendRequest(ctx context.Context, request Request) (Response, error) {
 	requestBody, err := json.Marshal(request)
+	response := Response{}
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 	reader := bytes.NewReader(requestBody)
 	apiUrl, err := url.Parse(d.baseURL + "/api/chat")
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 	req := http.Request{
 		Method: "POST",
@@ -82,21 +142,47 @@ func (d *Ai) Ask(ctx context.Context, text string, schema frags.Schema, resource
 		},
 		Body: io.NopCloser(reader),
 	}
-	response, err := d.client.Do(req.WithContext(ctx))
+
+	res, err := d.client.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 	defer func() {
-		if response.Body != nil {
-			_ = response.Body.Close()
+		if res.Body != nil {
+			_ = res.Body.Close()
 		}
 	}()
-	responseBody, err := io.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
-	responseMessage := Response{}
-	d.messages = append(d.messages, responseMessage.Message)
-	err = json.Unmarshal(responseBody, &responseMessage)
-	return []byte(responseMessage.Message.Content), err
+	err = json.Unmarshal(responseBody, &response)
+	return response, err
+}
+
+func (d *Ai) configureTools(tools frags.Tools) ([]ToolDefinition, error) {
+	tx := make([]ToolDefinition, 0)
+	for _, tool := range tools {
+		if tool.Type == frags.ToolTypeFunction {
+			if fx, found := d.Functions[tool.Name]; found {
+				pSchema := fx.Schema
+				if tool.Parameters != nil {
+					pSchema = tool.Parameters
+				}
+				description := fx.Description
+				if len(tool.Description) > 0 {
+					description = tool.Description
+				}
+				tx = append(tx, ToolDefinition{
+					Type: "function",
+					Function: FunctionDef{
+						Name:        tool.Name,
+						Description: description,
+						Parameters:  *pSchema,
+					},
+				})
+			}
+		}
+	}
+	return tx, nil
 }
