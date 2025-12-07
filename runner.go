@@ -209,6 +209,11 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			return err
 		}
 		if prePrompt != nil {
+			px, err := r.enrichFirstMessagePrompt(*prePrompt, session)
+			if err != nil {
+				return err
+			}
+			prePrompt = &px
 			r.sendProgress(progressActionStart, sessionID, -1, nil)
 			if _, err := ai.Ask(ctx, *prePrompt, nil, session.Tools); err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, err)
@@ -240,9 +245,12 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
-				// as this is the first prompt, we may be asked to additional information to the prompt, like
-				// the already extracted context
-				prompt, err = r.enrichFirstMessagePrompt(prompt, session)
+				// as this is the first prompt, and there was no prePrompt, we may be asked to additional information
+				//to the prompt, like the already extracted context
+				if session.PrePrompt != nil {
+					prompt, err = r.enrichFirstMessagePrompt(prompt, session)
+				}
+
 				if err != nil {
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err

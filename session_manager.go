@@ -44,6 +44,7 @@ type ToolType string
 const (
 	ToolTypeInternetSearch ToolType = "internet_search"
 	ToolTypeFunction       ToolType = "function"
+	ToolTypeMCP            ToolType = "mcp"
 )
 
 // Tool defines a tool that can be used in a session.
@@ -55,6 +56,7 @@ const (
 // already have parameters, fill if you wish to override the default
 type Tool struct {
 	Name        string   `json:"name" yaml:"name"`
+	ServerName  string   `json:"server_name" yaml:"serverName"`
 	Description string   `json:"description" yaml:"description"`
 	Type        ToolType `json:"type" yaml:"type"`
 	Parameters  *Schema  `json:"parameters" yaml:"parameters"`
