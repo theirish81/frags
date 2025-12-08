@@ -42,6 +42,10 @@ type Function struct {
 	Schema      *Schema
 }
 
+func (f Function) Run(data map[string]any) (map[string]any, error) {
+	return f.Func(data)
+}
+
 // Functions is a map of functions, indexed by name.
 type Functions map[string]Function
 
