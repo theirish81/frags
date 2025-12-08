@@ -6,15 +6,18 @@ import (
 	"net/http"
 	"os/exec"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/jinzhu/copier"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// McpConfig defines the configuration for the MCP clients
 type McpConfig struct {
-	McpServers map[string]McpServer `json:"mcpServers"`
+	McpServers map[string]McpServerConfig `json:"mcpServers"`
 }
 
-type McpServer struct {
+// McpServerConfig defines the configuration to connect to a MCP server
+type McpServerConfig struct {
 	Command   string            `json:"command"`
 	Args      []string          `json:"args"`
 	Env       map[string]string `json:"env"`
@@ -23,12 +26,14 @@ type McpServer struct {
 	Url       string            `json:"url"`
 }
 
+// McpTool is a wrapper around the MCP client
 type McpTool struct {
 	Name    string
 	client  *mcp.Client
 	session *mcp.ClientSession
 }
 
+// NewMcpTool creates a new MCP client wrapper
 func NewMcpTool(name string) McpTool {
 	client := mcp.NewClient(&mcp.Implementation{Name: name, Version: "v1.0.0"}, nil)
 	return McpTool{
@@ -37,14 +42,16 @@ func NewMcpTool(name string) McpTool {
 	}
 }
 
-func (c *McpTool) Connect(ctx context.Context, server McpServer) error {
+// Connect connects to the MCP server
+func (c *McpTool) Connect(ctx context.Context, server McpServerConfig) error {
 	if len(server.Command) > 0 {
 		return c.ConnectStd(ctx, server)
 	}
 	return c.ConnectSSE(ctx, server)
 }
 
-func (c *McpTool) ConnectStd(ctx context.Context, server McpServer) error {
+// ConnectStd connects to the MCP server using a std/stdout transport
+func (c *McpTool) ConnectStd(ctx context.Context, server McpServerConfig) error {
 	var err error
 	cmd := exec.Command(server.Command, server.Args...)
 	cmd.Env = make([]string, 0)
@@ -58,7 +65,8 @@ func (c *McpTool) ConnectStd(ctx context.Context, server McpServer) error {
 	return err
 }
 
-func (c *McpTool) ConnectSSE(ctx context.Context, server McpServer) error {
+// ConnectSSE connects to the MCP server using an SSE transport
+func (c *McpTool) ConnectSSE(ctx context.Context, server McpServerConfig) error {
 	var err error
 	c.session, err = c.client.Connect(ctx, &mcp.SSEClientTransport{
 		Endpoint:   server.Url,
@@ -67,6 +75,7 @@ func (c *McpTool) ConnectSSE(ctx context.Context, server McpServer) error {
 	return err
 }
 
+// ListTools lists the tools available on the server
 func (c *McpTool) ListTools(ctx context.Context) (Tools, error) {
 	res := Tools{}
 	tools, err := c.session.ListTools(ctx, nil)
@@ -78,6 +87,10 @@ func (c *McpTool) ListTools(ctx context.Context) (Tools, error) {
 		switch typed := t.InputSchema.(type) {
 		case string:
 			if err := json.Unmarshal([]byte(typed), &schema); err != nil {
+				return res, err
+			}
+		case map[string]any:
+			if err := mapstructure.Decode(typed, &schema); err != nil {
 				return res, err
 			}
 		case []byte:
@@ -106,6 +119,7 @@ func (c *McpTool) ListTools(ctx context.Context) (Tools, error) {
 	return res, nil
 }
 
+// AsFunctions returns the tools as functions
 func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 	functions := Functions{}
 	tools, err := c.ListTools(ctx)
@@ -122,6 +136,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 				if err != nil {
 					return nil, err
 				}
+				// here we ALWAYS return a map, regardless of the type of the result
 				switch t := res.(type) {
 				case map[string]any:
 					return t, nil
@@ -134,6 +149,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 	return functions, nil
 }
 
+// Run runs a tool on the server
 func (c *McpTool) Run(ctx context.Context, name string, arguments any) (any, error) {
 	res, err := c.session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      name,
@@ -142,9 +158,34 @@ func (c *McpTool) Run(ctx context.Context, name string, arguments any) (any, err
 	if err != nil {
 		return nil, err
 	}
-	return res.StructuredContent, nil
+	if res.StructuredContent != nil {
+		return res.StructuredContent, nil
+	}
+
+	if typed, ok := res.Content[0].(*mcp.TextContent); ok {
+		return convertTextContent(typed), nil
+	}
+
+	return res.Content[0], nil
 }
 
 func (c *McpTool) Close() error {
 	return c.session.Close()
+}
+
+// convertTextContent tries to convert its textual content into a map[string]any or a slice[any]
+func convertTextContent(content *mcp.TextContent) any {
+	out := make(map[string]any)
+	if content == nil {
+		return out
+	}
+	if err := json.Unmarshal([]byte(content.Text), &out); err == nil {
+		return out
+	}
+	slice := make([]any, 0)
+	if err := mapstructure.Decode([]byte(content.Text), &slice); err == nil {
+		return slice
+	}
+	_ = mapstructure.Decode(content, &out)
+	return out
 }

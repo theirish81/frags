@@ -13,17 +13,23 @@ type Ai interface {
 	SetFunctions(functions Functions)
 }
 
+// Function represents a function that can be called by the AI model.
 type Function struct {
 	Func        func(data map[string]any) (map[string]any, error)
 	Server      string
 	Description string
 	Schema      *Schema
 }
+
+// Functions is a map of functions, indexed by name.
 type Functions map[string]Function
 
+// Get returns a function by name.
 func (f Functions) Get(name string) Function {
 	return f[name]
 }
+
+// ListByServer returns a subset of functions, filtered by (MCP) server.
 func (f Functions) ListByServer(server string) Functions {
 	out := Functions{}
 	for k, v := range f {

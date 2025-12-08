@@ -203,8 +203,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 		// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 		// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 		// the context of the session.
-		scope := r.newEvalScope()
-		prePrompt, err := session.RenderPrePrompt(scope)
+		prePrompt, err := session.RenderPrePrompt(r.newEvalScope())
 		if err != nil {
 			return err
 		}
@@ -213,9 +212,8 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			if err != nil {
 				return err
 			}
-			prePrompt = &px
 			r.sendProgress(progressActionStart, sessionID, -1, nil)
-			if _, err := ai.Ask(ctx, *prePrompt, nil, session.Tools); err != nil {
+			if _, err := ai.Ask(ctx, px, nil, session.Tools); err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, err)
 				return err
 			}

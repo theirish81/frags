@@ -25,6 +25,7 @@ func (p *ProgMap) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// initDataStructure initializes the data structure, assuming it's either a map or a struct
 func initDataStructure[T any]() *T {
 	var v T
 	val := reflect.ValueOf(&v).Elem()
@@ -36,6 +37,7 @@ func initDataStructure[T any]() *T {
 	}
 }
 
+// parseDurationOrDefault parses a duration string into a time.Duration, or returns the default duration if parsing fails
 func parseDurationOrDefault(durationStr *string, defaultDuration time.Duration) time.Duration {
 	if durationStr == nil || *durationStr == "" {
 		return defaultDuration
