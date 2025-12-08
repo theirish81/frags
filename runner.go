@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"os"
-	"slices"
 	"sync"
 	"time"
 
@@ -370,42 +369,4 @@ func (r *Runner[T]) IsCompleted() bool {
 		}
 	}
 	return true
-}
-
-// DependencyCheckResult is the result of a dependency check.
-type DependencyCheckResult string
-
-const (
-	DependencyCheckPassed     DependencyCheckResult = "passed"
-	DependencyCheckFailed     DependencyCheckResult = "failed"
-	DependencyCheckUnsolvable DependencyCheckResult = "unsolvable"
-)
-
-// CheckDependencies checks whether a session can start, cannot start yet, or will never start
-func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyCheckResult, error) {
-	if dependencies == nil {
-		return DependencyCheckPassed, nil
-	}
-	for _, dep := range dependencies {
-		if dep.Session != nil {
-			dependencyStatus, _ := r.status.Load(*dep.Session)
-			if slices.Contains([]SessionStatus{failedSessionStatus, noOpSessionStatus}, dependencyStatus) {
-				return DependencyCheckUnsolvable, nil
-			}
-			if slices.Contains([]SessionStatus{queuedSessionStatus, committedSessionStatus, runningSessionStatus}, dependencyStatus) {
-				return DependencyCheckFailed, nil
-			}
-		}
-
-		if dep.Expression != nil {
-			pass, err := EvaluateBooleanExpression(*dep.Expression, r.newEvalScope())
-			if err != nil {
-				return DependencyCheckUnsolvable, err
-			}
-			if !pass {
-				return DependencyCheckUnsolvable, nil
-			}
-		}
-	}
-	return DependencyCheckPassed, nil
 }

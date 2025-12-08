@@ -1,0 +1,62 @@
+package frags
+
+type ToolType string
+
+const (
+	ToolTypeInternetSearch ToolType = "internet_search"
+	ToolTypeFunction       ToolType = "function"
+	ToolTypeMCP            ToolType = "mcp"
+)
+
+// Tool defines a tool that can be used in a session.
+// Name is either the tool name of the function name
+// Description is the tool description. Optional, as the tool should already have a description, fill if you wish
+// to override the default
+// Type is either internet_search or function
+// InputSchema is used only for functions, and defines the parameters of the function. Optional, as the tool should
+// already have parameters, fill if you wish to override the default
+type Tool struct {
+	Name        string   `json:"name" yaml:"name"`
+	ServerName  string   `json:"server_name" yaml:"serverName"`
+	Description string   `json:"description" yaml:"description"`
+	Type        ToolType `json:"type" yaml:"type"`
+	InputSchema *Schema  `json:"inputSchema" yaml:"input_schema"`
+}
+
+type Tools []Tool
+
+func (t *Tools) HasType(tt ToolType) bool {
+	for _, tool := range *t {
+		if tool.Type == tt {
+			return true
+		}
+	}
+	return false
+}
+
+// Function represents a function that can be called by the AI model.
+type Function struct {
+	Func        func(data map[string]any) (map[string]any, error)
+	Server      string
+	Description string
+	Schema      *Schema
+}
+
+// Functions is a map of functions, indexed by name.
+type Functions map[string]Function
+
+// Get returns a function by name.
+func (f Functions) Get(name string) Function {
+	return f[name]
+}
+
+// ListByServer returns a subset of functions, filtered by (MCP) server.
+func (f Functions) ListByServer(server string) Functions {
+	out := Functions{}
+	for k, v := range f {
+		if v.Server == server {
+			out[k] = v
+		}
+	}
+	return out
+}

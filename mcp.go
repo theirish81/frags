@@ -113,7 +113,7 @@ func (c *McpTool) ListTools(ctx context.Context) (Tools, error) {
 		res = append(res, Tool{
 			Name:        t.Name,
 			Description: t.Description,
-			Parameters:  sPointer,
+			InputSchema: sPointer,
 		})
 	}
 	return res, nil
@@ -130,7 +130,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 		functions[t.Name] = Function{
 			Description: t.Description,
 			Server:      c.Name,
-			Schema:      t.Parameters,
+			Schema:      t.InputSchema,
 			Func: func(data map[string]any) (map[string]any, error) {
 				res, err := c.Run(context.Background(), t.Name, data)
 				if err != nil {

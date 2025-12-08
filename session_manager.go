@@ -28,51 +28,6 @@ type Session struct {
 	Tools           Tools        `json:"tools" yaml:"tools"`
 }
 
-// Dependency defines whether this session can run or should:
-// * wait on another Session to complete
-// * run at all, based on an Expression
-type Dependency struct {
-	Session    *string `json:"session" yaml:"session"`
-	Expression *string `json:"expression" yaml:"expression"`
-}
-
-// Dependencies is a list of Dependencies
-type Dependencies []Dependency
-
-type ToolType string
-
-const (
-	ToolTypeInternetSearch ToolType = "internet_search"
-	ToolTypeFunction       ToolType = "function"
-	ToolTypeMCP            ToolType = "mcp"
-)
-
-// Tool defines a tool that can be used in a session.
-// Name is either the tool name of the function name
-// Description is the tool description. Optional, as the tool should already have a description, fill if you wish
-// to override the default
-// Type is either internet_search or function
-// Parameters is used only for functions, and defines the parameters of the function. Optional, as the tool should
-// already have parameters, fill if you wish to override the default
-type Tool struct {
-	Name        string   `json:"name" yaml:"name"`
-	ServerName  string   `json:"server_name" yaml:"serverName"`
-	Description string   `json:"description" yaml:"description"`
-	Type        ToolType `json:"type" yaml:"type"`
-	Parameters  *Schema  `json:"parameters" yaml:"parameters"`
-}
-
-type Tools []Tool
-
-func (t *Tools) HasType(tt ToolType) bool {
-	for _, tool := range *t {
-		if tool.Type == tt {
-			return true
-		}
-	}
-	return false
-}
-
 // RenderPrePrompt renders the pre-prompt (which may contain Go templates), with the given scope
 func (s *Session) RenderPrePrompt(scope any) (*string, error) {
 	if s.PrePrompt == nil {
