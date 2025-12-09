@@ -88,7 +88,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		if res.FunctionCalls() != nil {
 			for _, fc := range res.FunctionCalls() {
 				d.content = append(d.content, genai.NewContentFromFunctionCall(fc.Name, fc.Args, genai.RoleModel))
-				fres, ferr := d.Functions[fc.Name].Func(fc.Args)
+				fres, ferr := d.Functions[fc.Name].Run(fc.Args)
 				if ferr != nil {
 					return nil, ferr
 				} else {
@@ -109,11 +109,12 @@ func (d *Ai) configureTools(tools frags.Tools) ([]*genai.Tool, error) {
 	tx := make([]*genai.Tool, 0)
 	fd := make([]*genai.FunctionDeclaration, 0)
 	for _, tool := range tools {
-		if tool.Type == frags.ToolTypeFunction {
+		switch tool.Type {
+		case frags.ToolTypeFunction:
 			if fx, found := d.Functions[tool.Name]; found {
 				pSchema := fx.Schema
-				if tool.Parameters != nil {
-					pSchema = tool.Parameters
+				if tool.InputSchema != nil {
+					pSchema = tool.InputSchema
 				}
 				genAiPSchema := &genai.Schema{}
 				if err := copier.Copy(genAiPSchema, pSchema); err != nil {
@@ -129,6 +130,26 @@ func (d *Ai) configureTools(tools frags.Tools) ([]*genai.Tool, error) {
 					Parameters:  genAiPSchema,
 				})
 			}
+		case frags.ToolTypeMCP:
+			for k, v := range d.Functions.ListByServer(tool.ServerName) {
+				var genAiPSchema *genai.Schema
+				if v.Schema != nil {
+					genAiPSchema = &genai.Schema{}
+					if err := copier.Copy(genAiPSchema, v.Schema); err != nil {
+						return nil, err
+					}
+				}
+
+				fd = append(fd, &genai.FunctionDeclaration{
+					Name:        k,
+					Description: v.Description,
+					Parameters:  genAiPSchema,
+				})
+			}
+		case frags.ToolTypeInternetSearch:
+			tx = append(tx, &genai.Tool{
+				GoogleSearch: &genai.GoogleSearch{},
+			})
 		}
 	}
 	if len(fd) > 0 {
@@ -136,13 +157,11 @@ func (d *Ai) configureTools(tools frags.Tools) ([]*genai.Tool, error) {
 			FunctionDeclarations: fd,
 		})
 	}
-
-	if tools.HasType(frags.ToolTypeInternetSearch) {
-		tx = append(tx, &genai.Tool{
-			GoogleSearch: &genai.GoogleSearch{},
-		})
-	}
 	return tx, nil
+}
+
+func (d *Ai) SetFunctions(functions frags.Functions) {
+	d.Functions = functions
 }
 
 func joinParts(parts []*genai.Part) string {
