@@ -28,9 +28,9 @@ type ToolDefinition struct {
 
 // FunctionDef represents a function definition
 type FunctionDef struct {
-	Name        string       `json:"name" yaml:"name"`
-	Description string       `json:"description" yaml:"description"`
-	Parameters  frags.Schema `json:"parameters" yaml:"parameters"`
+	Name        string        `json:"name" yaml:"name"`
+	Description string        `json:"description" yaml:"description"`
+	Parameters  *frags.Schema `json:"parameters" yaml:"parameters"`
 }
 
 // Response represents a response from Ollama
