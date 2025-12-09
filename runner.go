@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"os"
-	"slices"
 	"sync"
 	"time"
 
@@ -203,14 +202,17 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 		// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 		// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 		// the context of the session.
-		scope := r.newEvalScope()
-		prePrompt, err := session.RenderPrePrompt(scope)
+		prePrompt, err := session.RenderPrePrompt(r.newEvalScope())
 		if err != nil {
 			return err
 		}
 		if prePrompt != nil {
+			px, err := r.enrichFirstMessagePrompt(*prePrompt, session)
+			if err != nil {
+				return err
+			}
 			r.sendProgress(progressActionStart, sessionID, -1, nil)
-			if _, err := ai.Ask(ctx, *prePrompt, nil, session.Tools); err != nil {
+			if _, err := ai.Ask(ctx, px, nil, session.Tools); err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, err)
 				return err
 			}
@@ -240,9 +242,12 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
-				// as this is the first prompt, we may be asked to additional information to the prompt, like
-				// the already extracted context
-				prompt, err = r.enrichFirstMessagePrompt(prompt, session)
+				// as this is the first prompt, and there was no prePrompt, we may be asked to additional information
+				//to the prompt, like the already extracted context
+				if session.PrePrompt != nil {
+					prompt, err = r.enrichFirstMessagePrompt(prompt, session)
+				}
+
 				if err != nil {
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
@@ -364,42 +369,4 @@ func (r *Runner[T]) IsCompleted() bool {
 		}
 	}
 	return true
-}
-
-// DependencyCheckResult is the result of a dependency check.
-type DependencyCheckResult string
-
-const (
-	DependencyCheckPassed     DependencyCheckResult = "passed"
-	DependencyCheckFailed     DependencyCheckResult = "failed"
-	DependencyCheckUnsolvable DependencyCheckResult = "unsolvable"
-)
-
-// CheckDependencies checks whether a session can start, cannot start yet, or will never start
-func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyCheckResult, error) {
-	if dependencies == nil {
-		return DependencyCheckPassed, nil
-	}
-	for _, dep := range dependencies {
-		if dep.Session != nil {
-			dependencyStatus, _ := r.status.Load(*dep.Session)
-			if slices.Contains([]SessionStatus{failedSessionStatus, noOpSessionStatus}, dependencyStatus) {
-				return DependencyCheckUnsolvable, nil
-			}
-			if slices.Contains([]SessionStatus{queuedSessionStatus, committedSessionStatus, runningSessionStatus}, dependencyStatus) {
-				return DependencyCheckFailed, nil
-			}
-		}
-
-		if dep.Expression != nil {
-			pass, err := EvaluateBooleanExpression(*dep.Expression, r.newEvalScope())
-			if err != nil {
-				return DependencyCheckUnsolvable, err
-			}
-			if !pass {
-				return DependencyCheckUnsolvable, nil
-			}
-		}
-	}
-	return DependencyCheckPassed, nil
 }

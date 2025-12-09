@@ -301,6 +301,19 @@ sessions:
     attempts: 3
 ```
 
+### Pre-Prompt (`prePrompt`)
+
+Each session can optionally define a `prePrompt`. This is a special prompt that runs *before* the first phase of the session and its purpose is to enrich and prepare the context for the subsequent AI interactions. Unlike regular session prompts, the `prePrompt` does not contribute to the structured output of the session. It's particularly useful for guiding LLMs that may struggle with combining tool calling and structured output by priming them with necessary context or instructions.
+
+For example, you can use a `prePrompt` to instruct the LLM on its persona or specific rules it should follow during the session without those instructions being part of the final data extraction.
+
+```yaml
+sessions:
+  my_session:
+    prePrompt: "You are an expert data extraction agent. Always respond concisely."
+    prompt: "Extract the user's name and email."
+```
+
 ### Components for Reuse
 The `SessionManager` allows for the definition of reusable components. At present, this primarily supports the reuse of `prompts`.
 These reusable prompts can be defined under the `components.prompts` section in your YAML configuration.

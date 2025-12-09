@@ -10,14 +10,8 @@ import (
 type Ai interface {
 	Ask(ctx context.Context, text string, schema *Schema, tools Tools, resources ...ResourceData) ([]byte, error)
 	New() Ai
+	SetFunctions(functions Functions)
 }
-
-type Function struct {
-	Func        func(data map[string]any) (map[string]any, error)
-	Description string
-	Schema      *Schema
-}
-type Functions map[string]Function
 
 // dummyHistoryItem is a history item for testing purposes, to use with DummyAi.
 type dummyHistoryItem struct {
@@ -41,6 +35,8 @@ func (d *DummyAi) Ask(_ context.Context, text string, schema *Schema, _ Tools, r
 	time.Sleep(1 * time.Second)
 	return json.Marshal(out)
 }
+
+func (d *DummyAi) SetFunctions(_ Functions) {}
 
 func (d *DummyAi) New() Ai {
 	return &DummyAi{History: make([]dummyHistoryItem, 0)}
