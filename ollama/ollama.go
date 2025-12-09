@@ -106,7 +106,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 
 func (d *Ai) handleFunctionCall(responseMessage Response) error {
 	for _, fc := range responseMessage.Message.ToolCalls {
-		res, err := d.Functions[fc.Function.Name].Func(fc.Function.Arguments)
+		res, err := d.Functions[fc.Function.Name].Run(fc.Function.Arguments)
 		if err != nil {
 			return err
 		}
@@ -121,6 +121,10 @@ func (d *Ai) handleFunctionCall(responseMessage Response) error {
 		})
 	}
 	return nil
+}
+
+func (d *Ai) SetFunctions(functions frags.Functions) {
+	d.Functions = functions
 }
 
 func (d *Ai) sendRequest(ctx context.Context, request Request) (Response, error) {
@@ -163,11 +167,23 @@ func (d *Ai) sendRequest(ctx context.Context, request Request) (Response, error)
 func (d *Ai) configureTools(tools frags.Tools) ([]ToolDefinition, error) {
 	tx := make([]ToolDefinition, 0)
 	for _, tool := range tools {
-		if tool.Type == frags.ToolTypeFunction {
+		switch tool.Type {
+		case frags.ToolTypeMCP:
+			for k, v := range d.Functions.ListByServer(tool.ServerName) {
+				tx = append(tx, ToolDefinition{
+					Type: "function",
+					Function: FunctionDef{
+						Name:        k,
+						Description: v.Description,
+						Parameters:  v.Schema,
+					},
+				})
+			}
+		case frags.ToolTypeFunction:
 			if fx, found := d.Functions[tool.Name]; found {
 				pSchema := fx.Schema
-				if tool.Parameters != nil {
-					pSchema = tool.Parameters
+				if tool.InputSchema != nil {
+					pSchema = tool.InputSchema
 				}
 				description := fx.Description
 				if len(tool.Description) > 0 {
@@ -178,7 +194,7 @@ func (d *Ai) configureTools(tools frags.Tools) ([]ToolDefinition, error) {
 					Function: FunctionDef{
 						Name:        tool.Name,
 						Description: description,
-						Parameters:  *pSchema,
+						Parameters:  pSchema,
 					},
 				})
 			}
