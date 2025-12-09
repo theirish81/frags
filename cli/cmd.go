@@ -52,6 +52,14 @@ var runCmd = &cobra.Command{
 			return
 		}
 
+		mcpConfig := frags.McpConfig{}
+		if data, err := os.ReadFile("mcp.json"); err == nil {
+			if err := json.Unmarshal(data, &mcpConfig); err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+		}
+
 		// read session YAML
 		data, err := os.ReadFile(args[0])
 		if err != nil {
@@ -66,13 +74,6 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		// create AI client
-		client, err := newGeminiClient()
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-
 		dir := filepath.Dir(args[0])
 		workers := cfg.ParallelWorkers
 		if workers <= 0 {
@@ -81,12 +82,30 @@ var runCmd = &cobra.Command{
 		var ai frags.Ai
 		switch cfg.guessAi() {
 		case engineGemini:
+			client, err := newGeminiClient()
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
 			ai = gemini.NewAI(client)
 		case engineOllama:
 			ai = ollama.NewAI(cfg.OllamaBaseURL, cfg.OllamaModel)
 		default:
 			cmd.PrintErrln("No AI is fully configured. Check your .env file")
 			return
+		}
+		for name, mcpServer := range mcpConfig.McpServers {
+			tool := frags.NewMcpTool(name)
+			if err := tool.Connect(context.Background(), mcpServer); err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			functions, err := tool.AsFunctions(context.Background())
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			ai.SetFunctions(functions)
 		}
 		ch := make(chan frags.ProgressMessage)
 		go func() {
@@ -144,7 +163,7 @@ func init() {
 	runCmd.Flags().StringVarP(&format, "format", "f", formatYAML, "Output format (yaml, json or template)")
 	runCmd.Flags().StringVarP(&output, "output", "o", "", "Output file")
 	runCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file (used with -f template)")
-	runCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "Parameters to pass to the template (used with -f template) in key=value format")
+	runCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "InputSchema to pass to the template (used with -f template) in key=value format")
 }
 
 // validateRunArgs checks basic flag constraints and file existence.
