@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -40,7 +41,8 @@ var cfg = Config{}
 func main() {
 	viper.SetConfigFile(".env")
 	if err := viper.ReadInConfig(); err != nil {
-		panic(err)
+		fmt.Println("error reading .env file: ", err)
+		return
 	}
 	if err := viper.Unmarshal(&cfg); err != nil {
 		panic(err)
