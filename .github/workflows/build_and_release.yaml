@@ -1,0 +1,30 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - cli/*
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.8'
+      - name: Build
+        working-directory: cli
+        run: |
+          mkdir target
+          GOOS=linux GOARCH=amd64 go build -o target/frags-linux -v .
+          GOOS=windows GOARCH=amd64 go build -o target/frags.exe -v .
+          GOOS=darwin GOARCH=amd64 go build -o target/frags-darwin-amd64 -v .
+          GOOS=darwin GOARCH=arm64 go build -o target/frags-darwin-arm64 -v .
+      - name: GitHub Releases
+        uses: fnkr/github-action-ghr@v1.3
+        env:
+          GHR_PATH: cli/target/
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
