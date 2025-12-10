@@ -26,5 +26,5 @@ jobs:
       - name: GitHub Releases
         uses: fnkr/github-action-ghr@v1.3
         env:
-          GHR_PATH: target/
+          GHR_PATH: cli/target/
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
