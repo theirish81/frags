@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
 )
 
@@ -41,7 +42,13 @@ var cfg = Config{}
 func main() {
 	viper.SetConfigFile(".env")
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println("error reading .env file: ", err)
+		data := make(map[string]any)
+		_ = mapstructure.Decode(&cfg, &data)
+		_ = viper.MergeConfigMap(data)
+		viper.SetConfigType("env")
+		_ = viper.WriteConfigAs(".env")
+		fmt.Println("an empty .env file was created, please fill it out and try again.")
+		_ = rootCmd.Help()
 		return
 	}
 	if err := viper.Unmarshal(&cfg); err != nil {
