@@ -13,20 +13,43 @@ import (
 	"github.com/theirish81/frags"
 )
 
+const defaultModel = "qwen3:latest"
+const temperature float32 = 0.1
+const topK float32 = 40
+const topP float32 = 0.9
+
 // Ai implements the Ai interface for Ollama.
 type Ai struct {
 	client    *http.Client
 	baseURL   string
-	model     string
+	config    Config
 	messages  []Message
 	Functions frags.Functions
 }
 
+type Config struct {
+	Model       string  `yaml:"model" json:"model"`
+	Temperature float32 `yaml:"temperature" json:"temperature"`
+	TopK        float32 `yaml:"topK" json:"top_k"`
+	TopP        float32 `yaml:"topP" json:"top_p"`
+	NumPredict  int     `yaml:"numPredict" json:"num_predict"`
+}
+
+func DefaultConfig() Config {
+	return Config{
+		Model:       defaultModel,
+		Temperature: temperature,
+		TopK:        topK,
+		TopP:        topP,
+		NumPredict:  1024,
+	}
+}
+
 // NewAI creates a new Ai instance
-func NewAI(baseURL string, model string) *Ai {
+func NewAI(baseURL string, config Config) *Ai {
 	return &Ai{
 		baseURL: baseURL,
-		model:   model,
+		config:  config,
 		client: &http.Client{
 			Timeout: 5 * time.Minute,
 			Transport: &http.Transport{
@@ -43,7 +66,7 @@ func (d *Ai) New() frags.Ai {
 	return &Ai{
 		client:    d.client,
 		baseURL:   d.baseURL,
-		model:     d.model,
+		config:    d.config,
 		messages:  make([]Message, 0),
 		Functions: d.Functions,
 	}
@@ -65,13 +88,15 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	d.messages = append(d.messages, message)
 	request := Request{
 		Messages: d.messages,
-		Model:    d.model,
+		Model:    d.config.Model,
 		Think:    false,
 		Format:   schema,
 		Tools:    make([]ToolDefinition, 0),
 		Options: Options{
-			NumPredict:  1024,
-			Temperature: 0.1,
+			NumPredict:  d.config.NumPredict,
+			Temperature: d.config.Temperature,
+			TopK:        d.config.TopK,
+			TopP:        d.config.TopP,
 		},
 	}
 	request.Tools, _ = d.configureTools(tools)
