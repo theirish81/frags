@@ -53,6 +53,8 @@ type FunctionCall struct {
 type Options struct {
 	NumPredict        int      `json:"num_predict,omitempty"`
 	Stop              []string `json:"stop,omitempty"`
-	Temperature       float64  `json:"temperature,omitempty"`
-	RepetitionPenalty float64  `json:"repeat_penalty,omitempty"`
+	Temperature       float32  `json:"temperature,omitempty"`
+	TopK              float32  `json:"top_k,omitempty"`
+	TopP              float32  `json:"top_p,omitempty"`
+	RepetitionPenalty float32  `json:"repeat_penalty,omitempty"`
 }
