@@ -42,7 +42,7 @@ var rootCmd = cobra.Command{
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run",
+	Use:   "run <path/to/plan.yaml>",
 	Short: "Run a session",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -158,12 +158,52 @@ var runCmd = &cobra.Command{
 	},
 }
 
+var renderCMd = &cobra.Command{
+	Use:   "render <path/to/data.json>",
+	Short: "renders a YAML/JSON file into a document using a template",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		data, err := os.ReadFile(args[0])
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		if templatePath == "" {
+			cmd.PrintErrln("template path must be specified")
+			return
+		}
+		format = formatTemplate
+		progMap := frags.ProgMap{}
+		if err := yaml.Unmarshal(data, &progMap); err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		text, err := renderResult(progMap)
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		// write to file or stdout
+		if output != "" {
+			if err := os.WriteFile(output, text, 0o644); err != nil {
+				cmd.PrintErrln(err)
+			}
+			return
+		}
+		fmt.Print(string(text))
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(runCmd)
 	runCmd.Flags().StringVarP(&format, "format", "f", formatYAML, "Output format (yaml, json or template)")
 	runCmd.Flags().StringVarP(&output, "output", "o", "", "Output file")
 	runCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file (used with -f template)")
 	runCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "InputSchema to pass to the template (used with -f template) in key=value format")
+
+	rootCmd.AddCommand(renderCMd)
+	renderCMd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file")
+	renderCMd.Flags().StringVarP(&output, "output", "o", "", "Output file")
 }
 
 // validateRunArgs checks basic flag constraints and file existence.
