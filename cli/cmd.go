@@ -87,9 +87,20 @@ var runCmd = &cobra.Command{
 				cmd.PrintErrln(err)
 				return
 			}
-			ai = gemini.NewAI(client)
+			ai = gemini.NewAI(client, gemini.Config{
+				Temperature: cfg.Temperature,
+				TopK:        cfg.TopK,
+				TopP:        cfg.TopP,
+				Model:       cfg.Model,
+			})
 		case engineOllama:
-			ai = ollama.NewAI(cfg.OllamaBaseURL, cfg.OllamaModel)
+			ai = ollama.NewAI(cfg.OllamaBaseURL, ollama.Config{
+				Temperature: cfg.Temperature,
+				TopK:        cfg.TopK,
+				TopP:        cfg.TopP,
+				Model:       cfg.Model,
+				NumPredict:  cfg.NumPredict,
+			})
 		default:
 			cmd.PrintErrln("No AI is fully configured. Check your .env file")
 			return
