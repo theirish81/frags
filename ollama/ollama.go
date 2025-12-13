@@ -20,11 +20,12 @@ const topP float32 = 0.9
 
 // Ai implements the Ai interface for Ollama.
 type Ai struct {
-	client    *http.Client
-	baseURL   string
-	config    Config
-	messages  []Message
-	Functions frags.Functions
+	client       *http.Client
+	baseURL      string
+	config       Config
+	messages     []Message
+	systemPrompt string
+	Functions    frags.Functions
 }
 
 type Config struct {
@@ -64,16 +65,23 @@ func NewAI(baseURL string, config Config) *Ai {
 // New creates a new Ai instance and returns it
 func (d *Ai) New() frags.Ai {
 	return &Ai{
-		client:    d.client,
-		baseURL:   d.baseURL,
-		config:    d.config,
-		messages:  make([]Message, 0),
-		Functions: d.Functions,
+		client:       d.client,
+		baseURL:      d.baseURL,
+		config:       d.config,
+		messages:     make([]Message, 0),
+		Functions:    d.Functions,
+		systemPrompt: d.systemPrompt,
 	}
 }
 
 // Ask performs a query against the Ollama API, according to the Frags interface
 func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.Tools, resources ...frags.ResourceData) ([]byte, error) {
+	if len(d.systemPrompt) > 0 && len(d.messages) == 0 {
+		d.messages = append(d.messages, Message{
+			Content: d.systemPrompt,
+			Role:    "system",
+		})
+	}
 	message := Message{
 		Content: "",
 		Role:    "user",
@@ -146,6 +154,10 @@ func (d *Ai) handleFunctionCall(responseMessage Response) error {
 		})
 	}
 	return nil
+}
+
+func (d *Ai) SetSystemPrompt(systemPrompt string) {
+	d.systemPrompt = systemPrompt
 }
 
 func (d *Ai) SetFunctions(functions frags.Functions) {

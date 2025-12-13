@@ -18,8 +18,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/theirish81/frags v0.5.0 h1:Mpf6BQQIrHF4GuFmDbWkAtp4frBYpoem4GZ26ixTSN4=
-github.com/theirish81/frags v0.5.0/go.mod h1:KW/iX/Yzxy7thleQrnyuw56qV1jz4QTdy+LiRtvZ4nU=
+github.com/theirish81/frags v0.6.0 h1:PkD0rIhdhkn+THCZjkBR6eirKlWt5s66rf40n7Wsf88=
+github.com/theirish81/frags v0.6.0/go.mod h1:KW/iX/Yzxy7thleQrnyuw56qV1jz4QTdy+LiRtvZ4nU=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
 github.com/yosida95/uritemplate/v3 v3.0.2/go.mod h1:ILOh0sOhIJR3+L/8afwt/kE++YT040gmv5BQTMR2HP4=
 golang.org/x/oauth2 v0.30.0 h1:dnDm7JmhM45NNpd8FDDeLhK6FwqbOf4MLCM9zb1BOHI=

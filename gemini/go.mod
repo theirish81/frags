@@ -6,8 +6,8 @@ require (
 	cloud.google.com/go/auth v0.9.3
 	github.com/jinzhu/copier v0.4.0
 	github.com/stretchr/testify v1.11.1
-	github.com/theirish81/frags v0.5.0
-	google.golang.org/genai v1.36.0
+	github.com/theirish81/frags v0.6.0
+	google.golang.org/genai v1.39.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
