@@ -14,6 +14,7 @@ const (
 	contextAttr    = "context"
 	componentsAttr = "components"
 	iteratorAttr   = "it"
+	varsAttr       = "vars"
 )
 
 type EvalScope map[string]any
@@ -23,12 +24,23 @@ func (e EvalScope) WithIterator(it any) EvalScope {
 	return e
 }
 
+func (e EvalScope) WithVars(vars map[string]any) EvalScope {
+	if vars == nil {
+		e[varsAttr] = make(map[string]any)
+	} else {
+		e[varsAttr] = vars
+	}
+	return e
+}
+
 // newEvalScope returns a new scope for evaluating expressions.
 func (r *Runner[T]) newEvalScope() EvalScope {
 	return EvalScope{
 		paramsAttr:     r.params,
 		contextAttr:    *r.dataStructure,
 		componentsAttr: r.sessionManager.Components,
+		varsAttr:       make(map[string]any),
+		iteratorAttr:   nil,
 	}
 }
 
