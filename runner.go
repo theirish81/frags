@@ -206,7 +206,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			return err
 		}
 	}
-	for _, it := range iterator {
+	for idx, it := range iterator {
 		// here we're creating a new instance of the AI for this session, so it has no state.
 		ai := r.ai.New()
 		if session.PrePrompt != nil {
@@ -222,27 +222,27 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 				if err != nil {
 					return err
 				}
-				r.sendProgress(progressActionStart, sessionID, -1, nil)
+				r.sendProgress(progressActionStart, sessionID, -1, idx, nil)
 				if _, err := ai.Ask(ctx, px, nil, session.Tools); err != nil {
-					r.sendProgress(progressActionError, sessionID, -1, err)
+					r.sendProgress(progressActionError, sessionID, -1, idx, err)
 					return err
 				}
-				r.sendProgress(progressActionEnd, sessionID, -1, nil)
+				r.sendProgress(progressActionEnd, sessionID, -1, idx, nil)
 			}
 		}
 		// For each phase...
 		for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
 			// ...we retry the prompt a number of times, depending on the session's attempts.
 			err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
-				r.sendProgress(progressActionStart, sessionID, phaseIndex, nil)
+				r.sendProgress(progressActionStart, sessionID, phaseIndex, idx, nil)
 				deadline, _ := ctx.Deadline()
 				if time.Now().After(deadline) {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, ctx.Err())
+					r.sendProgress(progressActionError, sessionID, phaseIndex, idx, ctx.Err())
 					return ctx.Err()
 				}
 				phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
 				if err != nil {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+					r.sendProgress(progressActionError, sessionID, phaseIndex, idx, err)
 					return err
 				}
 				var data []byte
@@ -250,7 +250,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 				if idx == 0 {
 					prompt, err := session.RenderPrompt(scope)
 					if err != nil {
-						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						r.sendProgress(progressActionError, sessionID, phaseIndex, idx, err)
 						return err
 					}
 					// as this is the first prompt, and there was no prePrompt, we may be asked to additional information
@@ -260,31 +260,31 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					}
 
 					if err != nil {
-						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						r.sendProgress(progressActionError, sessionID, phaseIndex, idx, err)
 						return err
 					}
 					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, resources...)
 					if err != nil {
-						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						r.sendProgress(progressActionError, sessionID, phaseIndex, idx, err)
 						return err
 					}
 				} else {
 					prompt, err := session.RenderNextPhasePrompt(scope)
 					if err != nil {
-						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						r.sendProgress(progressActionError, sessionID, phaseIndex, idx, err)
 						return err
 					}
 					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools)
 					if err != nil {
-						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						r.sendProgress(progressActionError, sessionID, phaseIndex, idx, err)
 						return err
 					}
 				}
 				if err := r.safeUnmarshalDataStructure(data); err != nil {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+					r.sendProgress(progressActionError, sessionID, phaseIndex, idx, err)
 					return err
 				}
-				r.sendProgress(progressActionEnd, sessionID, phaseIndex, nil)
+				r.sendProgress(progressActionEnd, sessionID, phaseIndex, idx, nil)
 				return nil
 			})
 			if err != nil {

@@ -6,20 +6,22 @@ const progressActionError = "ERROR"
 
 // ProgressMessage is a message sent to the progress channel.
 type ProgressMessage struct {
-	Action  string
-	Session string
-	Phase   int
-	Error   error
+	Action    string
+	Session   string
+	Phase     int
+	Iteration int
+	Error     error
 }
 
 // sendProgress sends a progress message to the progress channel
-func (r *Runner[T]) sendProgress(action string, sessionID string, phaseIndex int, err error) {
+func (r *Runner[T]) sendProgress(action string, sessionID string, phaseIndex int, iteration int, err error) {
 	if r.progressChannel != nil {
 		r.progressChannel <- ProgressMessage{
-			Action:  action,
-			Session: sessionID,
-			Phase:   phaseIndex,
-			Error:   err,
+			Action:    action,
+			Session:   sessionID,
+			Phase:     phaseIndex,
+			Iteration: iteration,
+			Error:     err,
 		}
 	}
 }
