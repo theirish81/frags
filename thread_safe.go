@@ -10,8 +10,7 @@ import (
 func (r *Runner[T]) safeUnmarshalDataStructure(data []byte) error {
 	r.marshalingMutex.Lock()
 	defer r.marshalingMutex.Unlock()
-	err := json.Unmarshal(data, r.dataStructure)
-	return err
+	return MergeJSONInto(r.dataStructure, data)
 }
 
 // safeMarshalDataStructure is a thread-safe version of json.Marshal, and is used to marshal the runner's

@@ -19,7 +19,7 @@ func TestNewSessionManager(t *testing.T) {
 
 func TestSession_RenderPrompt(t *testing.T) {
 	session := Session{Prompt: "animal is {{ .animal }}"}
-	p, err := session.RenderPrompt(map[string]string{"animal": "dog"})
+	p, err := session.RenderPrompt(EvalScope{"animal": "dog"})
 	assert.Nil(t, err)
 	assert.Equal(t, "animal is dog", p)
 }

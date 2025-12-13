@@ -11,12 +11,6 @@ import (
 	"github.com/avast/retry-go/v5"
 )
 
-const (
-	paramsAttr     = "params"
-	contextAttr    = "context"
-	componentsAttr = "components"
-)
-
 // Runner is a struct that runs a session manager.
 type Runner[T any] struct {
 	sessionManager  SessionManager
@@ -126,6 +120,13 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 		close(r.sessionChan)
 	}()
 	r.dataStructure = initDataStructure[T]()
+	if r.sessionManager.SystemPrompt != nil {
+		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope())
+		if err != nil {
+			return nil, err
+		}
+		r.ai.SetSystemPrompt(systemPrompt)
+	}
 	for i := 0; i < r.sessionWorkers; i++ {
 		r.logger.Debug("starting session worker", "index", i)
 		go r.runSessionWorker(i)
@@ -196,88 +197,96 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	if session.Attempts <= 0 {
 		session.Attempts = 1
 	}
-	// here we're creating a new instance of the AI for this session, so it has no state.
-	ai := r.ai.New()
-	if session.PrePrompt != nil {
-		// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
-		// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
-		// the context of the session.
-		prePrompt, err := session.RenderPrePrompt(r.newEvalScope())
-		if err != nil {
+	iterator := make([]any, 1)
+	if session.IterateOn != nil {
+		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope()); err != nil {
 			return err
-		}
-		if prePrompt != nil {
-			px, err := r.enrichFirstMessagePrompt(*prePrompt, session)
-			if err != nil {
-				return err
-			}
-			r.sendProgress(progressActionStart, sessionID, -1, nil)
-			if _, err := ai.Ask(ctx, px, nil, session.Tools); err != nil {
-				r.sendProgress(progressActionError, sessionID, -1, err)
-				return err
-			}
-			r.sendProgress(progressActionEnd, sessionID, -1, nil)
 		}
 	}
-	// For each phase...
-	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
-		// ...we retry the prompt a number of times, depending on the session's attempts.
-		err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
-			r.sendProgress(progressActionStart, sessionID, phaseIndex, nil)
-			deadline, _ := ctx.Deadline()
-			if time.Now().After(deadline) {
-				r.sendProgress(progressActionError, sessionID, phaseIndex, ctx.Err())
-				return ctx.Err()
-			}
-			phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
+	for _, it := range iterator {
+		// here we're creating a new instance of the AI for this session, so it has no state.
+		ai := r.ai.New()
+		if session.PrePrompt != nil {
+			// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
+			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
+			// the context of the session.
+			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it))
 			if err != nil {
-				r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 				return err
 			}
-			var data []byte
-			scope := r.newEvalScope()
-			if idx == 0 {
-				prompt, err := session.RenderPrompt(scope)
+			if prePrompt != nil {
+				px, err := r.enrichFirstMessagePrompt(*prePrompt, session)
+				if err != nil {
+					return err
+				}
+				r.sendProgress(progressActionStart, sessionID, -1, nil)
+				if _, err := ai.Ask(ctx, px, nil, session.Tools); err != nil {
+					r.sendProgress(progressActionError, sessionID, -1, err)
+					return err
+				}
+				r.sendProgress(progressActionEnd, sessionID, -1, nil)
+			}
+		}
+		// For each phase...
+		for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
+			// ...we retry the prompt a number of times, depending on the session's attempts.
+			err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
+				r.sendProgress(progressActionStart, sessionID, phaseIndex, nil)
+				deadline, _ := ctx.Deadline()
+				if time.Now().After(deadline) {
+					r.sendProgress(progressActionError, sessionID, phaseIndex, ctx.Err())
+					return ctx.Err()
+				}
+				phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
 				if err != nil {
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
-				// as this is the first prompt, and there was no prePrompt, we may be asked to additional information
-				//to the prompt, like the already extracted context
-				if session.PrePrompt != nil {
-					prompt, err = r.enrichFirstMessagePrompt(prompt, session)
-				}
+				var data []byte
+				scope := r.newEvalScope().WithIterator(it)
+				if idx == 0 {
+					prompt, err := session.RenderPrompt(scope)
+					if err != nil {
+						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						return err
+					}
+					// as this is the first prompt, and there was no prePrompt, we may be asked to additional information
+					//to the prompt, like the already extracted context
+					if session.PrePrompt == nil {
+						prompt, err = r.enrichFirstMessagePrompt(prompt, session)
+					}
 
-				if err != nil {
+					if err != nil {
+						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						return err
+					}
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, resources...)
+					if err != nil {
+						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						return err
+					}
+				} else {
+					prompt, err := session.RenderNextPhasePrompt(scope)
+					if err != nil {
+						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						return err
+					}
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools)
+					if err != nil {
+						r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+						return err
+					}
+				}
+				if err := r.safeUnmarshalDataStructure(data); err != nil {
 					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
 					return err
 				}
-				data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, resources...)
-				if err != nil {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
-					return err
-				}
-			} else {
-				prompt, err := session.RenderNextPhasePrompt(scope)
-				if err != nil {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
-					return err
-				}
-				data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools)
-				if err != nil {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, err)
-					return err
-				}
-			}
-			if err := r.safeUnmarshalDataStructure(data); err != nil {
-				r.sendProgress(progressActionError, sessionID, phaseIndex, err)
+				r.sendProgress(progressActionEnd, sessionID, phaseIndex, nil)
+				return nil
+			})
+			if err != nil {
 				return err
 			}
-			r.sendProgress(progressActionEnd, sessionID, phaseIndex, nil)
-			return nil
-		})
-		if err != nil {
-			return err
 		}
 	}
 	return nil
@@ -292,15 +301,6 @@ func (r *Runner[T]) ListQueued() Sessions {
 		}
 	}
 	return sessions
-}
-
-// newEvalScope returns a new scope for evaluating expressions.
-func (r *Runner[T]) newEvalScope() map[string]any {
-	return map[string]any{
-		paramsAttr:     r.params,
-		contextAttr:    *r.dataStructure,
-		componentsAttr: r.sessionManager.Components,
-	}
 }
 
 // loadSessionResources loads resources for a session.

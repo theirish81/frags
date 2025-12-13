@@ -1,8 +1,6 @@
 package frags
 
-import (
-	"gopkg.in/yaml.v3"
-)
+import "gopkg.in/yaml.v3"
 
 // Session defines an LLM session, with its own context.
 // Each session has a Prompt, a NextPhasePrompt for the phases after the first, and a list of resources to load.
@@ -26,10 +24,11 @@ type Session struct {
 	Context         bool         `json:"context" yaml:"context"`
 	Attempts        int          `json:"attempts" yaml:"attempts"`
 	Tools           Tools        `json:"tools" yaml:"tools"`
+	IterateOn       *string      `json:"iterate_on" yaml:"iterateOn"`
 }
 
 // RenderPrePrompt renders the pre-prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrePrompt(scope any) (*string, error) {
+func (s *Session) RenderPrePrompt(scope EvalScope) (*string, error) {
 	if s.PrePrompt == nil {
 		return nil, nil
 	}
@@ -38,12 +37,12 @@ func (s *Session) RenderPrePrompt(scope any) (*string, error) {
 }
 
 // RenderPrompt renders the prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrompt(scope any) (string, error) {
+func (s *Session) RenderPrompt(scope EvalScope) (string, error) {
 	return EvaluateTemplate(s.Prompt, scope)
 }
 
 // RenderNextPhasePrompt renders the next phase prompt (which may contain Go templat es), with the given scope
-func (s *Session) RenderNextPhasePrompt(scope any) (string, error) {
+func (s *Session) RenderNextPhasePrompt(scope EvalScope) (string, error) {
 	return EvaluateTemplate(s.NextPhasePrompt, scope)
 }
 
@@ -58,9 +57,10 @@ type Sessions map[string]Session
 
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {
-	Components Components `yaml:"components" json:"components"`
-	Sessions   Sessions   `yaml:"sessions" json:"sessions"`
-	Schema     Schema     `yaml:"schema" json:"schema"`
+	SystemPrompt *string    `yaml:"systemPrompt" json:"system_prompt"`
+	Components   Components `yaml:"components" json:"components"`
+	Sessions     Sessions   `yaml:"sessions" json:"sessions"`
+	Schema       Schema     `yaml:"schema" json:"schema"`
 }
 
 type Components struct {
