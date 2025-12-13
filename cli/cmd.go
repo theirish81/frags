@@ -121,7 +121,7 @@ var runCmd = &cobra.Command{
 		ch := make(chan frags.ProgressMessage)
 		go func() {
 			for msg := range ch {
-				fmt.Print(msg.Action, ":\t", msg.Session, "/", msg.Phase)
+				fmt.Print(msg.Action, ":\t", msg.Session, "/", msg.Phase, "[", msg.Iteration, "]")
 				if msg.Error != nil {
 					fmt.Print("\tERROR: ", msg.Error.Error())
 				}
