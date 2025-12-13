@@ -34,11 +34,7 @@ type Schema struct {
 	Type             string             `json:"type,omitempty" yaml:"type,omitempty"`
 	XPhase           *int               `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
 	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
-}
-
-// NewSchema creates a new Schema.
-func NewSchema() Schema {
-	return Schema{}
+	Ref              *string            `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 }
 
 // FromYAML unmarshals a YAML document into the Schema.

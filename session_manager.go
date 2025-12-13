@@ -1,6 +1,9 @@
 package frags
 
 import (
+	"fmt"
+	"strings"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -17,19 +20,21 @@ import (
 // Attempts defines the number of times each phase should be retried if it fails
 // Tools defines the tools that can be used in this session
 type Session struct {
-	PrePrompt       *string      `json:"pre_prompt" yaml:"prePrompt"`
-	Prompt          string       `json:"prompt" yaml:"prompt"`
-	NextPhasePrompt string       `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
-	Resources       []Resource   `json:"resources" yaml:"resources"`
-	Timeout         *string      `json:"timeout" yaml:"timeout"`
-	DependsOn       Dependencies `json:"depends_on" yaml:"dependsOn"`
-	Context         bool         `json:"context" yaml:"context"`
-	Attempts        int          `json:"attempts" yaml:"attempts"`
-	Tools           Tools        `json:"tools" yaml:"tools"`
+	PrePrompt       *string        `json:"pre_prompt" yaml:"prePrompt"`
+	Prompt          string         `json:"prompt" yaml:"prompt"`
+	NextPhasePrompt string         `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
+	Resources       []Resource     `json:"resources" yaml:"resources"`
+	Timeout         *string        `json:"timeout" yaml:"timeout"`
+	DependsOn       Dependencies   `json:"depends_on" yaml:"dependsOn"`
+	Context         bool           `json:"context" yaml:"context"`
+	Attempts        int            `json:"attempts" yaml:"attempts"`
+	Tools           Tools          `json:"tools" yaml:"tools"`
+	IterateOn       *string        `json:"iterate_on" yaml:"iterateOn"`
+	Vars            map[string]any `json:"vars" yaml:"vars"`
 }
 
 // RenderPrePrompt renders the pre-prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrePrompt(scope any) (*string, error) {
+func (s *Session) RenderPrePrompt(scope EvalScope) (*string, error) {
 	if s.PrePrompt == nil {
 		return nil, nil
 	}
@@ -38,12 +43,12 @@ func (s *Session) RenderPrePrompt(scope any) (*string, error) {
 }
 
 // RenderPrompt renders the prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrompt(scope any) (string, error) {
+func (s *Session) RenderPrompt(scope EvalScope) (string, error) {
 	return EvaluateTemplate(s.Prompt, scope)
 }
 
 // RenderNextPhasePrompt renders the next phase prompt (which may contain Go templat es), with the given scope
-func (s *Session) RenderNextPhasePrompt(scope any) (string, error) {
+func (s *Session) RenderNextPhasePrompt(scope EvalScope) (string, error) {
 	return EvaluateTemplate(s.NextPhasePrompt, scope)
 }
 
@@ -58,13 +63,15 @@ type Sessions map[string]Session
 
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {
-	Components Components `yaml:"components" json:"components"`
-	Sessions   Sessions   `yaml:"sessions" json:"sessions"`
-	Schema     Schema     `yaml:"schema" json:"schema"`
+	SystemPrompt *string    `yaml:"systemPrompt" json:"system_prompt"`
+	Components   Components `yaml:"components" json:"components"`
+	Sessions     Sessions   `yaml:"sessions" json:"sessions"`
+	Schema       Schema     `yaml:"schema" json:"schema"`
 }
 
 type Components struct {
 	Prompts map[string]string `yaml:"prompts" json:"prompts"`
+	Schemas map[string]Schema `yaml:"schemas" json:"schemas"`
 }
 
 // NewSessionManager creates a new SessionManager.
@@ -85,4 +92,66 @@ func (s *SessionManager) SetSchema(schema Schema) {
 // FromYAML unmarshals a YAML document into the SessionManager.
 func (s *SessionManager) FromYAML(data []byte) error {
 	return yaml.Unmarshal(data, s)
+}
+
+func (s *SessionManager) ResolveSchema() error {
+	return s.resolveSchema(&s.Schema, make(map[string]bool))
+}
+
+func (s *SessionManager) resolveSchema(schema *Schema, visited map[string]bool) error {
+	if schema == nil {
+		return nil
+	}
+
+	if schema.Ref != nil {
+		ref := *schema.Ref
+		if visited[ref] {
+			return nil
+		}
+		if strings.HasPrefix(ref, "#/components/schemas/") {
+			visited[ref] = true
+			defer func() { delete(visited, ref) }()
+			schemaName := strings.TrimPrefix(ref, "#/components/schemas/")
+			if resolvedSchema, ok := s.Components.Schemas[schemaName]; ok {
+				originalXPhase := schema.XPhase
+				originalXSession := schema.XSession
+
+				*schema = resolvedSchema
+
+				schema.XPhase = originalXPhase
+				schema.XSession = originalXSession
+				schema.Ref = nil
+
+				if err := s.resolveSchema(schema, visited); err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("schema not found: %s", ref)
+			}
+		}
+	}
+
+	if schema.Properties != nil {
+		for _, propSchema := range schema.Properties {
+			if err := s.resolveSchema(propSchema, visited); err != nil {
+				return err
+			}
+		}
+	}
+
+	if schema.Items != nil {
+		if err := s.resolveSchema(schema.Items, visited); err != nil {
+			return err
+		}
+	}
+
+	if schema.AnyOf != nil {
+		for _, anyOfSchema := range schema.AnyOf {
+			if err := s.resolveSchema(anyOfSchema, visited); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
