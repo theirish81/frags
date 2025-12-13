@@ -4,7 +4,7 @@ go 1.24.8
 
 require (
 	github.com/stretchr/testify v1.11.1
-	github.com/theirish81/frags v0.5.0
+	github.com/theirish81/frags v0.6.0
 )
 
 require (

@@ -19,10 +19,11 @@ const defaultModel = "gemini-2.5-flash"
 
 // Ai is a wrapper around the genai client for Frags
 type Ai struct {
-	client    *genai.Client
-	content   []*genai.Content
-	Functions frags.Functions
-	config    Config
+	client       *genai.Client
+	systemPrompt string
+	content      []*genai.Content
+	Functions    frags.Functions
+	config       Config
 }
 
 type Config struct {
@@ -41,6 +42,10 @@ func DefaultConfig() Config {
 	}
 }
 
+func (d *Ai) SetSystemPrompt(prompt string) {
+	d.systemPrompt = prompt
+}
+
 // NewAI creates a new Ai wrapper
 func NewAI(client *genai.Client, config Config) *Ai {
 	return &Ai{
@@ -54,10 +59,11 @@ func NewAI(client *genai.Client, config Config) *Ai {
 // New creates a new Ai instance and returns it
 func (d *Ai) New() frags.Ai {
 	return &Ai{
-		client:    d.client,
-		content:   make([]*genai.Content, 0),
-		Functions: d.Functions,
-		config:    d.config,
+		client:       d.client,
+		content:      make([]*genai.Content, 0),
+		Functions:    d.Functions,
+		config:       d.config,
+		systemPrompt: d.systemPrompt,
 	}
 }
 
@@ -91,6 +97,9 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		TopK:             &d.config.TopK,
 		TopP:             &d.config.TopP,
 		Tools:            tx,
+	}
+	if len(d.systemPrompt) > 0 {
+		cfg.SystemInstruction = genai.NewContentFromText(d.systemPrompt, "")
 	}
 	keepGoing := true
 	out := ""
