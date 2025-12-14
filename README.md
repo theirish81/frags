@@ -328,7 +328,7 @@ calling certain tools and provide a structured output in the same interaction.
 Frags allows LLMs that support tool calling to be used in your plan. Simply define the tools in the plan and reference
 them in the prompts.  Tools must be enabled on a per-session basis.
 
-**Example:***
+**Example:**
 ```yaml
 sessions:
   my_session:
@@ -342,7 +342,57 @@ AI client.
 But there are other options
 
 ### internet_search
-Search is a special tool as it requires 
+Search is a *special tool type* and does not require a coded implementation. Instead it relies on the LLM's built-in
+search capabilities (if available). The Gemini AI client supports this out of the box.
+To enable it, simply add the internet search tool like this:
+```yaml
+sessions:
+  my_session:
+    prePrompt: search for "frags" on the internet
+    prompt: adapt the discovered information to the schema
+    tools:
+      - type: internet_search
+```
+**NOTICE:** in this example I explicitly placed the internet search tool in the `prePrompt` section, because **Gemini**
+does not work well with search and structured output in the same interaction. If your model does not have this problem,
+you can place it in the `prompt` section instead.
+
+### MCP
+Frags also support connection to MCP (Model Control Protocol) servers. The implementation is still quite naive, but it
+should work for many use cases. To enable MCP servers, create an `mcp.json` file in the same directory as the `.env`
+file. The format is similar if not identical to the one proposed by Anthropic.
+
+**Example:**
+```json
+{
+  "mcpServers": {
+    "bigQuery": {
+      "command": "toolbox",
+      "args": ["--prebuilt","bigquery","--stdio"],
+      "env": {
+        "BIGQUERY_PROJECT": "foobar-436917",
+        "GOOGLE_APPLICATION_CREDENTIALS": "bigQuery.json"
+      }
+    },
+    "lmx": {
+      "url": "http://localhost:8080/sse"
+    }
+  }
+}
+```
+
+The supported modes are stdio and SSE. You will then need to enable the MCP servers you wish to use in each session.
+
+**Example:**
+```yaml
+sessions:
+  my_session:
+    prePrompt: search for "frags" in bigQuery, table "services"
+    prompt: adapt the discovered information to the schema
+    tools:
+      - type: mcp
+        serverName: bigQuery
+```
 
 ## Implementing Custom Components
 
