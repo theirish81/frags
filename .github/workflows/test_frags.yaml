@@ -1,0 +1,15 @@
+name: Test frags
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+jobs:
+  test-frags:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Test
+        run: |-
+          go get
+          go test ./...
