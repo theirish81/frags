@@ -7,9 +7,9 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.6.0
-	github.com/theirish81/frags/gemini v0.6.0
-	github.com/theirish81/frags/ollama v0.6.0
+	github.com/theirish81/frags v0.6.1
+	github.com/theirish81/frags/gemini v0.6.1
+	github.com/theirish81/frags/ollama v0.6.1
 	google.golang.org/genai v1.39.0
 	gopkg.in/yaml.v3 v3.0.1
 )
