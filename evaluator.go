@@ -56,7 +56,7 @@ func EvaluateTemplate(text string, scope EvalScope) (string, error) {
 			return text, err
 		}
 		writer := bytes.NewBufferString("")
-		err = parsedTmpl.Execute(writer, scope)
+		err = parsedTmpl.Execute(writer, map[string]any(scope))
 		if err != nil {
 			return text, err
 		}
@@ -71,7 +71,7 @@ func EvaluateBooleanExpression(expression string, scope EvalScope) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	res, err := expr.Run(c, scope)
+	res, err := expr.Run(c, map[string]any(scope))
 	if err != nil {
 		return false, err
 	}
