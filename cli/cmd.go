@@ -105,20 +105,13 @@ var runCmd = &cobra.Command{
 			cmd.PrintErrln("No AI is fully configured. Check your .env file")
 			return
 		}
-		for name, mcpServer := range mcpConfig.McpServers {
-			tool := frags.NewMcpTool(name)
-			if err := tool.Connect(context.Background(), mcpServer); err != nil {
-				cmd.PrintErrln(err)
-				return
-			}
-			functions, err := tool.AsFunctions(context.Background())
-			if err != nil {
-				cmd.PrintErrln(err)
-				return
-			}
-			ai.SetFunctions(functions)
+		fx, err := prepareMcpFunctions(mcpConfig)
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
 		}
-		ch := make(chan frags.ProgressMessage)
+		ai.SetFunctions(fx)
+		ch := make(chan frags.ProgressMessage, 10)
 		go func() {
 			for msg := range ch {
 				fmt.Print(msg.Action, ":\t", msg.Session, "/", msg.Phase, "[", msg.Iteration, "]")
@@ -150,7 +143,7 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		// render output according to chosen format
+		// render output according to the chosen format
 		text, err := renderResult(result)
 		if err != nil {
 			cmd.PrintErrln(err)
@@ -279,6 +272,7 @@ func newGeminiClient() (*genai.Client, error) {
 	})
 }
 
+// sliceToMap converts a slice of strings with the key=value format into a map of strings.
 func sliceToMap(s []string) (map[string]string, error) {
 	m := make(map[string]string, len(s))
 	for _, v := range s {
@@ -289,4 +283,23 @@ func sliceToMap(s []string) (map[string]string, error) {
 		m[kv[0]] = kv[1]
 	}
 	return m, nil
+}
+
+// prepareMcpFunctions creates a map of MCP functions from the configured servers.
+func prepareMcpFunctions(mcpConfig frags.McpConfig) (frags.Functions, error) {
+	fx := frags.Functions{}
+	for name, mcpServer := range mcpConfig.McpServers {
+		tool := frags.NewMcpTool(name)
+		if err := tool.Connect(context.Background(), mcpServer); err != nil {
+			return fx, err
+		}
+		functions, err := tool.AsFunctions(context.Background())
+		if err != nil {
+			return fx, err
+		}
+		for k, v := range functions {
+			fx[k] = v
+		}
+	}
+	return fx, nil
 }
