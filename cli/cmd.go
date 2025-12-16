@@ -34,6 +34,7 @@ var (
 	output       string
 	templatePath string
 	params       []string
+	debug        bool
 )
 
 var rootCmd = cobra.Command{
@@ -67,6 +68,15 @@ var runCmd = &cobra.Command{
 			return
 		}
 
+		var log *slog.Logger
+		if debug {
+			log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+				Level: slog.LevelDebug,
+			}))
+		} else {
+			log = slog.Default()
+		}
+
 		// build session manager from YAML
 		sm := frags.NewSessionManager()
 		if err := sm.FromYAML(data); err != nil {
@@ -92,7 +102,7 @@ var runCmd = &cobra.Command{
 				TopK:        cfg.TopK,
 				TopP:        cfg.TopP,
 				Model:       cfg.Model,
-			})
+			}, log)
 		case engineOllama:
 			ai = ollama.NewAI(cfg.OllamaBaseURL, ollama.Config{
 				Temperature: cfg.Temperature,
@@ -100,7 +110,7 @@ var runCmd = &cobra.Command{
 				TopP:        cfg.TopP,
 				Model:       cfg.Model,
 				NumPredict:  cfg.NumPredict,
-			})
+			}, log)
 		default:
 			cmd.PrintErrln("No AI is fully configured. Check your .env file")
 			return
@@ -126,7 +136,7 @@ var runCmd = &cobra.Command{
 			frags.NewFileResourceLoader(dir),
 			ai,
 			frags.WithSessionWorkers(workers),
-			frags.WithLogger(slog.Default()),
+			frags.WithLogger(log),
 			frags.WithProgressChannel(ch),
 		)
 
@@ -204,6 +214,7 @@ func init() {
 	runCmd.Flags().StringVarP(&output, "output", "o", "", "Output file")
 	runCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file (used with -f template)")
 	runCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "InputSchema to pass to the template (used with -f template) in key=value format")
+	runCmd.Flags().BoolVarP(&debug, "debug", "d", false, "Enable debug logging")
 
 	rootCmd.AddCommand(renderCMd)
 	renderCMd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file")
