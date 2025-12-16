@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/jinzhu/copier"
 	"github.com/theirish81/frags"
@@ -24,6 +25,7 @@ type Ai struct {
 	content      []*genai.Content
 	Functions    frags.Functions
 	config       Config
+	log          *slog.Logger
 }
 
 type Config struct {
@@ -47,12 +49,13 @@ func (d *Ai) SetSystemPrompt(prompt string) {
 }
 
 // NewAI creates a new Ai wrapper
-func NewAI(client *genai.Client, config Config) *Ai {
+func NewAI(client *genai.Client, config Config, log *slog.Logger) *Ai {
 	return &Ai{
 		client:    client,
 		content:   make([]*genai.Content, 0),
 		Functions: frags.Functions{},
 		config:    config,
+		log:       log,
 	}
 }
 
@@ -64,6 +67,7 @@ func (d *Ai) New() frags.Ai {
 		Functions:    d.Functions,
 		config:       d.config,
 		systemPrompt: d.systemPrompt,
+		log:          d.log,
 	}
 }
 
@@ -71,6 +75,7 @@ func (d *Ai) New() frags.Ai {
 func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.Tools, resources ...frags.ResourceData) ([]byte, error) {
 	parts := make([]*genai.Part, 0)
 	for _, resource := range resources {
+		d.log.Debug("adding file resource", "ai", "gemini", "resource", resource.Identifier)
 		parts = append(parts, genai.NewPartFromBytes(resource.Data, resource.MediaType))
 	}
 	parts = append(parts, genai.NewPartFromText(text))
@@ -87,6 +92,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	newMsg := genai.NewContentFromParts(parts, genai.RoleUser)
 
 	tx, err := d.configureTools(tools)
+	d.log.Debug("configured tools", "ai", "gemini", "tools", tx)
 	if err != nil {
 		return nil, err
 	}
@@ -99,12 +105,13 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		Tools:            tx,
 	}
 	if len(d.systemPrompt) > 0 {
-		cfg.SystemInstruction = genai.NewContentFromText(d.systemPrompt, "")
+		cfg.SystemInstruction = genai.NewContentFromText(d.systemPrompt, "system")
 	}
 	keepGoing := true
 	out := ""
 	d.content = append(d.content, newMsg)
 	for keepGoing {
+		d.log.Debug("generating content", "ai", "gemini", "message", d.content[len(d.content)-1].Parts[0])
 		res, err := d.client.Models.GenerateContent(ctx, d.config.Model, d.content, &cfg)
 		if err != nil {
 			return nil, err
@@ -112,11 +119,13 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		d.content = append(d.content, res.Candidates[0].Content)
 		if res.FunctionCalls() != nil {
 			for _, fc := range res.FunctionCalls() {
+				d.log.Debug("invoking function", "ai", "gemini", "function", fc.Name)
 				d.content = append(d.content, genai.NewContentFromFunctionCall(fc.Name, fc.Args, genai.RoleModel))
 				fres, ferr := d.Functions[fc.Name].Run(fc.Args)
 				if ferr != nil {
 					return nil, ferr
 				} else {
+					d.log.Debug("function returned", "ai", "gemini", "function", fc.Name, "response", fres)
 					d.content = append(d.content, genai.NewContentFromFunctionResponse(fc.Name, fres, genai.RoleUser))
 				}
 			}
@@ -125,6 +134,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 			keepGoing = false
 			d.content = append(d.content, res.Candidates[0].Content)
 			out = joinParts(res.Candidates[0].Content.Parts)
+			d.log.Debug("generated response", "ai", "gemini", "response", out)
 		}
 	}
 	return []byte(out), nil
