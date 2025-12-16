@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -26,6 +27,7 @@ type Ai struct {
 	messages     []Message
 	systemPrompt string
 	Functions    frags.Functions
+	log          *slog.Logger
 }
 
 type Config struct {
@@ -47,7 +49,7 @@ func DefaultConfig() Config {
 }
 
 // NewAI creates a new Ai instance
-func NewAI(baseURL string, config Config) *Ai {
+func NewAI(baseURL string, config Config, log *slog.Logger) *Ai {
 	return &Ai{
 		baseURL: baseURL,
 		config:  config,
@@ -59,6 +61,7 @@ func NewAI(baseURL string, config Config) *Ai {
 		},
 		Functions: frags.Functions{},
 		messages:  make([]Message, 0),
+		log:       log,
 	}
 }
 
@@ -71,6 +74,7 @@ func (d *Ai) New() frags.Ai {
 		messages:     make([]Message, 0),
 		Functions:    d.Functions,
 		systemPrompt: d.systemPrompt,
+		log:          d.log,
 	}
 }
 
@@ -91,6 +95,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 			return nil, errors.New("ollama only supports text resources")
 		}
 		message.Content += message.Content + " === " + r.Identifier + " === \n" + string(r.Data) + "\n"
+		d.log.Debug("adding file resource", "ai", "ollama", "resource", r.Identifier)
 	}
 	message.Content += "\n" + text
 	d.messages = append(d.messages, message)
@@ -108,11 +113,13 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		},
 	}
 	request.Tools, _ = d.configureTools(tools)
+	d.log.Debug("configured tools", "ai", "ollama", "tools", request.Tools)
 	keepGoing := true
 	out := ""
 	for keepGoing {
 		request.Messages = d.messages
 		err := func() error {
+			d.log.Debug("generating content", "ai", "ollama", "message", request.Messages[len(request.Messages)-1])
 			responseMessage, err := d.sendRequest(ctx, request)
 			if err != nil {
 				return err
@@ -139,6 +146,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 
 func (d *Ai) handleFunctionCall(responseMessage Response) error {
 	for _, fc := range responseMessage.Message.ToolCalls {
+		d.log.Debug("invoking function", "ai", "ollama", "function", fc.Function.Name)
 		res, err := d.Functions[fc.Function.Name].Run(fc.Function.Arguments)
 		if err != nil {
 			return err
@@ -147,6 +155,7 @@ func (d *Ai) handleFunctionCall(responseMessage Response) error {
 		if err != nil {
 			return err
 		}
+		d.log.Debug("function result", "ai", "ollama", "result", string(content))
 		d.messages = append(d.messages, Message{
 			Role:       "tool",
 			Content:    string(content),
