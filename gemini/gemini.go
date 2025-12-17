@@ -92,7 +92,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	newMsg := genai.NewContentFromParts(parts, genai.RoleUser)
 
 	tx, err := d.configureTools(tools)
-	d.log.Debug("configured tools", "ai", "gemini", "tools", tx)
+	d.log.Debug("configured tools", "ai", "gemini", "tools", tools)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	out := ""
 	d.content = append(d.content, newMsg)
 	for keepGoing {
-		d.log.Debug("generating content", "ai", "gemini", "message", d.content[len(d.content)-1].Parts[0])
+		d.log.Debug("generating content", "ai", "gemini", "message", PartToLoggableText(d.content[len(d.content)-1]))
 		res, err := d.client.Models.GenerateContent(ctx, d.config.Model, d.content, &cfg)
 		if err != nil {
 			return nil, err
@@ -119,7 +119,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		d.content = append(d.content, res.Candidates[0].Content)
 		if res.FunctionCalls() != nil {
 			for _, fc := range res.FunctionCalls() {
-				d.log.Debug("invoking function", "ai", "gemini", "function", fc.Name)
+				d.log.Debug("invoking function", "ai", "gemini", "function", PartToLoggableText(res.Candidates[0].Content))
 				d.content = append(d.content, genai.NewContentFromFunctionCall(fc.Name, fc.Args, genai.RoleModel))
 				fres, ferr := d.Functions[fc.Name].Run(fc.Args)
 				if ferr != nil {
