@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -113,7 +114,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		},
 	}
 	request.Tools, _ = d.configureTools(tools)
-	d.log.Debug("configured tools", "ai", "ollama", "tools", request.Tools)
+	d.log.Debug("configured tools", "ai", "ollama", "tools", tools)
 	keepGoing := true
 	out := ""
 	for keepGoing {
@@ -132,6 +133,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 				}
 			} else {
 				out = responseMessage.Message.Content
+				d.log.Debug("generated response", "ai", "ollama", "response", out)
 				keepGoing = false
 			}
 			return nil
@@ -146,7 +148,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 
 func (d *Ai) handleFunctionCall(responseMessage Response) error {
 	for _, fc := range responseMessage.Message.ToolCalls {
-		d.log.Debug("invoking function", "ai", "ollama", "function", fc.Function.Name)
+		d.log.Debug("invoking function", "ai", "ollama", "function", fmt.Sprintf("%s(%v)", fc.Function.Name, fc.Function.Arguments))
 		res, err := d.Functions[fc.Function.Name].Run(fc.Function.Arguments)
 		if err != nil {
 			return err
