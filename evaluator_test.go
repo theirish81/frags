@@ -17,6 +17,18 @@ func TestEvaluateArrayExpression(t *testing.T) {
 		"bar": 123,
 	})
 	assert.NotNil(t, err)
+
+	res, err = EvaluateArrayExpression(`val`, EvalScope{
+		"val": []s1{
+			{
+				S2: s2{
+					P1: 123,
+				},
+			},
+		},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, float64(123), res[0].(s1).S2.P1)
 }
 
 func TestEvaluateBooleanExpression(t *testing.T) {
