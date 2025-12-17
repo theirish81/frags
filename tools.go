@@ -1,6 +1,10 @@
 package frags
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+	"time"
+)
 
 type ToolType string
 
@@ -77,4 +81,31 @@ func (f Functions) ListByServer(server string) Functions {
 		}
 	}
 	return out
+}
+
+type FunctionCall struct {
+	Name string         `yaml:"name" json:"name"`
+	Args map[string]any `yaml:"args" json:"args"`
+}
+
+type FunctionCalls []FunctionCall
+
+// RunPreCallsToTextContext runs the pre-call functions, and composes a textual context to be prepended to the
+// actual prompt.
+func (r *Runner[T]) RunPreCallsToTextContext(ctx context.Context, session Session) (string, error) {
+	preCallsText := ""
+	if session.PreCalls != nil {
+		for _, c := range *session.PreCalls {
+			deadline, _ := ctx.Deadline()
+			if time.Now().After(deadline) {
+				return preCallsText, ctx.Err()
+			}
+			res, err := r.ai.RunFunction(c)
+			if err != nil {
+				return preCallsText, err
+			}
+			preCallsText += preCallCtx(c, res)
+		}
+	}
+	return preCallsText, nil
 }
