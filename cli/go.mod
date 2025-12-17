@@ -7,10 +7,10 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.6.1
-	github.com/theirish81/frags/gemini v0.6.2
-	github.com/theirish81/frags/ollama v0.6.2
-	google.golang.org/genai v1.39.0
+	github.com/theirish81/frags v0.6.3
+	github.com/theirish81/frags/gemini v0.6.3
+	github.com/theirish81/frags/ollama v0.6.3
+	google.golang.org/genai v1.40.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -18,7 +18,7 @@ require (
 	cloud.google.com/go v0.116.0 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
-	github.com/expr-lang/expr v1.17.6 // indirect
+	github.com/expr-lang/expr v1.17.7 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.7.0 // indirect

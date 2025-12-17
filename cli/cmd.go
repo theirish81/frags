@@ -70,7 +70,7 @@ var runCmd = &cobra.Command{
 
 		var log *slog.Logger
 		if debug {
-			log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			log = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelDebug,
 			}))
 		} else {
@@ -124,11 +124,11 @@ var runCmd = &cobra.Command{
 		ch := make(chan frags.ProgressMessage, 10)
 		go func() {
 			for msg := range ch {
-				fmt.Print(msg.Action, ":\t", msg.Session, "/", msg.Phase, "[", msg.Iteration, "]")
-				if msg.Error != nil {
-					fmt.Print("\tERROR: ", msg.Error.Error())
+				if msg.Error == nil {
+					log.Info(msg.Action, "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration)
+				} else {
+					log.Error(msg.Action, "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration, "error", msg.Error)
 				}
-				fmt.Println()
 			}
 		}()
 		runner := frags.NewRunner[frags.ProgMap](
