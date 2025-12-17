@@ -4,10 +4,9 @@ go 1.24
 
 require (
 	github.com/avast/retry-go/v5 v5.0.0
-	github.com/expr-lang/expr v1.17.6
+	github.com/expr-lang/expr v1.17.7
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/jinzhu/copier v0.4.0
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
