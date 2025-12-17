@@ -1,5 +1,7 @@
 package frags
 
+import "fmt"
+
 type ToolType string
 
 const (
@@ -21,6 +23,18 @@ type Tool struct {
 	Description string   `json:"description" yaml:"description"`
 	Type        ToolType `json:"type" yaml:"type"`
 	InputSchema *Schema  `json:"inputSchema" yaml:"input_schema"`
+}
+
+func (t Tool) String() string {
+	switch t.Type {
+	case ToolTypeInternetSearch:
+		return string(ToolTypeInternetSearch)
+	case ToolTypeFunction:
+		return fmt.Sprintf("%s/%s", t.Type, t.Name)
+	case ToolTypeMCP:
+		return fmt.Sprintf("%s/%s", t.Type, t.ServerName)
+	}
+	return ""
 }
 
 type Tools []Tool
