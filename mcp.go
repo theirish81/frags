@@ -24,6 +24,7 @@ type McpServerConfig struct {
 	Cwd       string            `json:"cwd"`
 	Transport string            `json:"transport"`
 	Url       string            `json:"url"`
+	Headers   map[string]string `json:"headers"`
 }
 
 // McpTool is a wrapper around the MCP client
@@ -67,10 +68,16 @@ func (c *McpTool) ConnectStd(ctx context.Context, server McpServerConfig) error 
 
 // ConnectSSE connects to the MCP server using an SSE transport
 func (c *McpTool) ConnectSSE(ctx context.Context, server McpServerConfig) error {
+	client := http.Client{
+		Transport: &McpTransport{
+			Base:    http.DefaultTransport,
+			Headers: server.Headers,
+		},
+	}
 	var err error
 	c.session, err = c.client.Connect(ctx, &mcp.SSEClientTransport{
 		Endpoint:   server.Url,
-		HTTPClient: http.DefaultClient,
+		HTTPClient: &client,
 	}, nil)
 	return err
 }
@@ -162,23 +169,36 @@ func (c *McpTool) Run(ctx context.Context, name string, arguments any) (any, err
 		return res.StructuredContent, nil
 	}
 
-	if typed, ok := res.Content[0].(*mcp.TextContent); ok {
-		return convertTextContent(typed), nil
-	}
-
-	return res.Content[0], nil
+	return convertContentArray(res.Content), nil
 }
 
 func (c *McpTool) Close() error {
 	return c.session.Close()
 }
 
-// convertTextContent tries to convert its textual content into a map[string]any or a slice[any]
-func convertTextContent(content *mcp.TextContent) any {
-	out := make(map[string]any)
-	if content == nil {
-		return out
+// convertContentArray deals with the fact that the returned content, when it's not explicitly structured, can be a
+// bit of an odd ball. If items in the array are of type mcp.TextContent,we will try to convert them into a map[string]any,
+// or slices, otherwise plain text is fine. If the array is made of one single item, we return that item directly.
+func convertContentArray(content []mcp.Content) any {
+	stage1 := make([]any, 0)
+	for _, c := range content {
+		if textContent, ok := c.(*mcp.TextContent); ok {
+			stage1 = append(stage1, convertTextContent(textContent))
+		}
 	}
+	if len(stage1) == 1 {
+		return stage1[0]
+	}
+	return stage1
+}
+
+// convertTextContent tries to convert its textual content into a map[string]any or a slice[any]. If both fail, it
+// returns the text as a string.
+func convertTextContent(content *mcp.TextContent) any {
+	if content == nil {
+		return ""
+	}
+	out := make(map[string]any)
 	if err := json.Unmarshal([]byte(content.Text), &out); err == nil {
 		return out
 	}
@@ -186,6 +206,20 @@ func convertTextContent(content *mcp.TextContent) any {
 	if err := mapstructure.Decode([]byte(content.Text), &slice); err == nil {
 		return slice
 	}
-	_ = mapstructure.Decode(content, &out)
-	return out
+	return content.Text
+}
+
+type McpTransport struct {
+	Base    http.RoundTripper
+	Headers map[string]string
+}
+
+func (t *McpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req2 := req.Clone(req.Context())
+
+	// Add your default headers
+	for key, value := range t.Headers {
+		req2.Header.Set(key, value)
+	}
+	return t.Base.RoundTrip(req2)
 }

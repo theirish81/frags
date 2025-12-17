@@ -48,3 +48,5 @@ func parseDurationOrDefault(durationStr *string, defaultDuration time.Duration) 
 	}
 	return parsedDuration
 }
+
+func strPtr(s string) *string { return &s }
