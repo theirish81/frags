@@ -412,7 +412,9 @@ sessions:
     prompt: What file types do we have?
 ## continues with schema...
 ```
-**Notice:** out of the box, there's no `list_files` tool, this is just an example.
+**Notice:**
+* out of the box, there's no `list_files` tool, this is just an example.
+* Pre-Calls can access any available tool, regardless of whether they've been enabled for the specific session or not. 
 
 ## Implementing Custom Components
 
