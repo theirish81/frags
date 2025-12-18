@@ -2,6 +2,8 @@ package gemini
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/jinzhu/copier"
@@ -119,13 +121,12 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		d.content = append(d.content, res.Candidates[0].Content)
 		if res.FunctionCalls() != nil {
 			for _, fc := range res.FunctionCalls() {
-				d.log.Debug("invoking function", "ai", "gemini", "function", PartToLoggableText(res.Candidates[0].Content))
 				d.content = append(d.content, genai.NewContentFromFunctionCall(fc.Name, fc.Args, genai.RoleModel))
-				fres, ferr := d.Functions[fc.Name].Run(fc.Args)
+
+				fres, ferr := d.RunFunction(frags.FunctionCall{Name: fc.Name, Args: fc.Args})
 				if ferr != nil {
 					return nil, ferr
 				} else {
-					d.log.Debug("function returned", "ai", "gemini", "function", fc.Name, "response", fres)
 					d.content = append(d.content, genai.NewContentFromFunctionResponse(fc.Name, fres, genai.RoleUser))
 				}
 			}
@@ -205,4 +206,15 @@ func joinParts(parts []*genai.Part) string {
 		out += part.Text
 	}
 	return out
+}
+
+func (d *Ai) RunFunction(functionCall frags.FunctionCall) (map[string]any, error) {
+	if fx, ok := d.Functions[functionCall.Name]; ok {
+		functionSignature := fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args)
+		d.log.Debug("invoking function", "ai", "gemini", "function", functionSignature)
+		res, err := fx.Run(functionCall.Args)
+		d.log.Debug("function result", "ai", "gemini", "function", functionSignature, "result", res, "error", err)
+		return res, err
+	}
+	return nil, errors.New("function not found")
 }

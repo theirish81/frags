@@ -148,8 +148,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 
 func (d *Ai) handleFunctionCall(responseMessage Response) error {
 	for _, fc := range responseMessage.Message.ToolCalls {
-		d.log.Debug("invoking function", "ai", "ollama", "function", fmt.Sprintf("%s(%v)", fc.Function.Name, fc.Function.Arguments))
-		res, err := d.Functions[fc.Function.Name].Run(fc.Function.Arguments)
+		res, err := d.RunFunction(frags.FunctionCall{Name: fc.Function.Name, Args: fc.Function.Arguments})
 		if err != nil {
 			return err
 		}
@@ -157,7 +156,6 @@ func (d *Ai) handleFunctionCall(responseMessage Response) error {
 		if err != nil {
 			return err
 		}
-		d.log.Debug("function result", "ai", "ollama", "result", string(content))
 		d.messages = append(d.messages, Message{
 			Role:       "tool",
 			Content:    string(content),
@@ -249,4 +247,15 @@ func (d *Ai) configureTools(tools frags.Tools) ([]ToolDefinition, error) {
 		}
 	}
 	return tx, nil
+}
+
+func (d *Ai) RunFunction(functionCall frags.FunctionCall) (map[string]any, error) {
+	if fx, ok := d.Functions[functionCall.Name]; ok {
+		d.log.Debug("invoking function", "ai", "ollama", "function", fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args))
+		res, err := fx.Run(functionCall.Args)
+		d.log.Debug("function result", "ai", "ollama", "function", fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args), "result", res, "error", err)
+		return res, err
+	}
+	return nil, errors.New("function not found")
+
 }

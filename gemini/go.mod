@@ -4,7 +4,7 @@ go 1.24
 
 require (
 	github.com/jinzhu/copier v0.4.0
-	github.com/theirish81/frags v0.6.3
+	github.com/theirish81/frags v0.7.0
 	google.golang.org/genai v1.40.0
 )
 
