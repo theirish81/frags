@@ -101,6 +101,11 @@ func (r *Runner[T]) RunPreCallsToTextContext(ctx context.Context, session Sessio
 			if time.Now().After(deadline) {
 				return preCallsText, ctx.Err()
 			}
+			var err error
+			c.Args, err = EvaluateArgsTemplates(c.Args, r.newEvalScope().WithVars(session.Vars))
+			if err != nil {
+				return preCallsText, err
+			}
 			res, err := r.ai.RunFunction(c)
 			if err != nil {
 				return preCallsText, err

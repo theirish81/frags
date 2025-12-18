@@ -18,13 +18,16 @@ const (
 	varsAttr       = "vars"
 )
 
+// EvalScope is the scope for evaluating expressions.
 type EvalScope map[string]any
 
+// WithIterator clones the scope and adds the iterator.
 func (e EvalScope) WithIterator(it any) EvalScope {
 	e[iteratorAttr] = it
 	return e
 }
 
+// WithVars clones the scope and adds the vars.
 func (e EvalScope) WithVars(vars map[string]any) EvalScope {
 	if vars == nil {
 		e[varsAttr] = make(map[string]any)
@@ -82,6 +85,7 @@ func EvaluateBooleanExpression(expression string, scope EvalScope) (bool, error)
 	return false, nil
 }
 
+// EvaluateArrayExpression evaluates an array expression, expecting the target to be an array.
 func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) {
 	c, err := expr.Compile(expression, expr.Env(scope))
 	if err != nil {
@@ -101,4 +105,21 @@ func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) 
 		}
 		return result, nil
 	}
+}
+
+// EvaluateArgsTemplates will evaluate all **first level** strings as templates, in a given map of arguments.
+func EvaluateArgsTemplates(args map[string]any, scope EvalScope) (map[string]any, error) {
+	if args == nil {
+		return nil, nil
+	}
+	for k, v := range args {
+		if s, ok := v.(string); ok {
+			res, err := EvaluateTemplate(s, scope)
+			if err != nil {
+				return nil, err
+			}
+			args[k] = res
+		}
+	}
+	return args, nil
 }
