@@ -84,8 +84,9 @@ func (f Functions) ListByServer(server string) Functions {
 }
 
 type FunctionCall struct {
-	Name string         `yaml:"name" json:"name"`
-	Args map[string]any `yaml:"args" json:"args"`
+	Name        string         `yaml:"name" json:"name"`
+	Args        map[string]any `yaml:"args" json:"args"`
+	Description *string        `yaml:"description" json:"description"`
 }
 
 type FunctionCalls []FunctionCall

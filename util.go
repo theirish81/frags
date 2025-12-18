@@ -50,8 +50,3 @@ func parseDurationOrDefault(durationStr *string, defaultDuration time.Duration) 
 }
 
 func strPtr(s string) *string { return &s }
-
-func preCallCtx(call FunctionCall, res map[string]any) string {
-	data, _ := json.Marshal(res)
-	return "\n=== CALL: " + call.Name + " ===\n" + string(data) + "\n===\n"
-}
