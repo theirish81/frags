@@ -215,6 +215,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			// the context of the session.
 			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it).WithVars(session.Vars))
 			if err != nil {
+				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
 			}
 			if prePrompt != nil {
