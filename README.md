@@ -392,7 +392,29 @@ sessions:
     tools:
       - type: mcp
         serverName: bigQuery
+## continues with schema...
 ```
+
+### Pre-Calls
+Not a tool, but a way to employ tools, pre-calls allows you to directly instruct the Runner to call tools at the
+start of a session. The invocation is programmatic, requires to plan writer to know exactly what they're doing, and
+does not involve the LLM. The output of the pre-calls will be included in the context.
+
+**Example:**
+```yaml
+sessions:
+  my_session:
+    preCalls:
+      - name: list_files
+        description: "File list of the test_data directory"
+        args:
+          dir: "./test_data/"
+    prompt: What file types do we have?
+## continues with schema...
+```
+**Notice:**
+* out of the box, there's no `list_files` tool, this is just an example.
+* Pre-Calls can access any available tool, regardless of whether they've been enabled for the specific session or not. 
 
 ## Implementing Custom Components
 

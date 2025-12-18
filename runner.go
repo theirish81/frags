@@ -215,15 +215,17 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			// the context of the session.
 			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it).WithVars(session.Vars))
 			if err != nil {
+				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
 			}
 			if prePrompt != nil {
-				px, err := r.enrichFirstMessagePrompt(*prePrompt, session)
+				prePrompt, err := r.contextualizePrompt(ctx, *prePrompt, session)
 				if err != nil {
+					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 					return err
 				}
 				r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
-				if _, err := ai.Ask(ctx, px, nil, session.Tools); err != nil {
+				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools); err != nil {
 					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 					return err
 				}
@@ -254,14 +256,13 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 						return err
 					}
 					// as this is the first prompt, and there was no prePrompt, we may be asked to additional information
-					//to the prompt, like the already extracted context
+					// to the prompt, like the already extracted context, and pre-calls
 					if session.PrePrompt == nil {
-						prompt, err = r.enrichFirstMessagePrompt(prompt, session)
-					}
-
-					if err != nil {
-						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
-						return err
+						prompt, err = r.contextualizePrompt(ctx, prompt, session)
+						if err != nil {
+							r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
+							return err
+						}
 					}
 					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, resources...)
 					if err != nil {

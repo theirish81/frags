@@ -20,6 +20,7 @@ import (
 // Attempts defines the number of times each phase should be retried if it fails
 // Tools defines the tools that can be used in this session
 type Session struct {
+	PreCalls        *FunctionCalls `json:"pre_calls" yaml:"preCalls"`
 	PrePrompt       *string        `json:"pre_prompt" yaml:"prePrompt"`
 	Prompt          string         `json:"prompt" yaml:"prompt"`
 	NextPhasePrompt string         `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
