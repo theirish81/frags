@@ -7,7 +7,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.7.0
+	github.com/theirish81/frags v0.7.1
 	github.com/theirish81/frags/gemini v0.7.0
 	github.com/theirish81/frags/ollama v0.7.0
 	google.golang.org/genai v1.40.0
