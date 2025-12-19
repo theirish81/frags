@@ -3,7 +3,9 @@ package frags
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
+	"os"
 	"os/exec"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -32,6 +34,7 @@ type McpTool struct {
 	Name    string
 	client  *mcp.Client
 	session *mcp.ClientSession
+	log     *slog.Logger
 }
 
 // NewMcpTool creates a new MCP client wrapper
@@ -40,6 +43,9 @@ func NewMcpTool(name string) McpTool {
 	return McpTool{
 		Name:   name,
 		client: client,
+		log: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		})),
 	}
 }
 
@@ -48,7 +54,10 @@ func (c *McpTool) Connect(ctx context.Context, server McpServerConfig) error {
 	if len(server.Command) > 0 {
 		return c.ConnectStd(ctx, server)
 	}
-	return c.ConnectSSE(ctx, server)
+	if server.Transport == "sse" {
+		return c.ConnectSSE(ctx, server)
+	}
+	return c.ConnectStreamableHttp(ctx, server)
 }
 
 // ConnectStd connects to the MCP server using a std/stdout transport
@@ -79,6 +88,25 @@ func (c *McpTool) ConnectSSE(ctx context.Context, server McpServerConfig) error 
 		Endpoint:   server.Url,
 		HTTPClient: &client,
 	}, nil)
+	return err
+}
+
+func (c *McpTool) ConnectStreamableHttp(ctx context.Context, server McpServerConfig) error {
+	client := http.Client{
+		Transport: &McpTransport{
+			Base:    http.DefaultTransport,
+			Headers: server.Headers,
+		},
+	}
+	var err error
+	c.session, err = c.client.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint:   server.Url,
+		HTTPClient: &client,
+	}, nil)
+	if err != nil {
+		c.log.Warn("Streamable HTTP transport failed, falling back to SSE transport: %v", err)
+		return c.ConnectSSE(ctx, server)
+	}
 	return err
 }
 
