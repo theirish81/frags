@@ -1,0 +1,68 @@
+/*
+ * Copyright (C) 2025 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/theirish81/frags"
+	"gopkg.in/yaml.v3"
+)
+
+var renderCmd = &cobra.Command{
+	Use:   "render <path/to/data.json>",
+	Short: "renders a YAML/JSON file into a document using a template",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		data, err := os.ReadFile(args[0])
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		if templatePath == "" {
+			cmd.PrintErrln("template path must be specified")
+			return
+		}
+		format = formatTemplate
+		progMap := frags.ProgMap{}
+		if err := yaml.Unmarshal(data, &progMap); err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		text, err := renderResult(progMap)
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		// write to file or stdout
+		if output != "" {
+			if err := os.WriteFile(output, text, 0o644); err != nil {
+				cmd.PrintErrln(err)
+			}
+			return
+		}
+		fmt.Print(string(text))
+	},
+}
+
+func init() {
+	renderCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file")
+	renderCmd.Flags().StringVarP(&output, "output", "o", "", "Output file")
+}
