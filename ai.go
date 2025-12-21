@@ -8,10 +8,10 @@ import (
 
 // Ai is an interface for AI models.
 type Ai interface {
-	Ask(ctx context.Context, text string, schema *Schema, tools Tools, resources ...ResourceData) ([]byte, error)
+	Ask(ctx context.Context, text string, schema *Schema, tools Tools, transformers *Transformers, resources ...ResourceData) ([]byte, error)
 	New() Ai
 	SetFunctions(functions Functions)
-	RunFunction(functionCall FunctionCall) (map[string]any, error)
+	RunFunction(functionCall FunctionCall, transformers *Transformers) (map[string]any, error)
 	SetSystemPrompt(systemPrompt string)
 }
 
@@ -28,7 +28,7 @@ type DummyAi struct {
 }
 
 // Ask returns a dummy response for testing purposes.
-func (d *DummyAi) Ask(_ context.Context, text string, schema *Schema, _ Tools, resources ...ResourceData) ([]byte, error) {
+func (d *DummyAi) Ask(_ context.Context, text string, schema *Schema, _ Tools, _ *Transformers, resources ...ResourceData) ([]byte, error) {
 	d.History = append(d.History, dummyHistoryItem{Text: text, Schema: schema, Resources: resources})
 	out := map[string]string{}
 	for k, _ := range schema.Properties {
@@ -38,9 +38,11 @@ func (d *DummyAi) Ask(_ context.Context, text string, schema *Schema, _ Tools, r
 	return json.Marshal(out)
 }
 
-func (d *DummyAi) SetFunctions(_ Functions)                           {}
-func (d *DummyAi) SetSystemPrompt(_ string)                           {}
-func (d *DummyAi) RunFunction(_ FunctionCall) (map[string]any, error) { return nil, nil }
+func (d *DummyAi) SetFunctions(_ Functions) {}
+func (d *DummyAi) SetSystemPrompt(_ string) {}
+func (d *DummyAi) RunFunction(_ FunctionCall, _ *Transformers) (map[string]any, error) {
+	return nil, nil
+}
 
 func (d *DummyAi) New() Ai {
 	return &DummyAi{History: make([]dummyHistoryItem, 0)}
