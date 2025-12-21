@@ -21,7 +21,7 @@ func (r *Runner[T]) contextualizePrompt(ctx context.Context, prompt string, sess
 		if err != nil {
 			return prompt, err
 		}
-		prompt = "=== CURRENT CONTEXT ===\n" + ToKFormat(string(llmContext)) + "\n===\n\n" + prompt
+		prompt = "=== CURRENT CONTEXT ===\n" + string(llmContext) + "\n===\n\n" + prompt
 	}
 	return prompt, nil
 }

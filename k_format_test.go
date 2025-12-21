@@ -18,12 +18,13 @@
 package frags
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestToMarkdown(t *testing.T) {
-	fmt.Println(ToKFormat(ProgMap{
+	assert.Equal(t, "\n- **doh**: `(string)` \"val_doh\"\n- **foo**: `(string)` \"bar\"\n- **list**: \n  - [0] `(string)` \"a\"\n  - [1] `(string)` \"b\"\n  - [2] `(string)` \"c\"\n- **sub**: \n  - **baz**: `(string)` \"qux\"\n  - **p2**: \n    - **p3**: `(string)` \"val_p3\"", ToKFormat(ProgMap{
 		"foo": "bar",
 		"sub": ProgMap{
 			"baz": "qux",
@@ -36,5 +37,6 @@ func TestToMarkdown(t *testing.T) {
 		"list": []string{"a", "b", "c"},
 	}))
 
-	fmt.Println(ToKFormat(s1{S2: s2{P1: 123}}))
+	assert.Equal(t, "\n- **S2**: \n  - **P1**: `(float)` 123\n  - **P2**: `(float)` 0\n- **ArrayOfS2**:  (empty)\n- **MapOfS3**: (empty)",
+		ToKFormat(s1{S2: s2{P1: 123}}))
 }

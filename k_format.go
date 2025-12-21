@@ -26,7 +26,7 @@ import (
 
 // ToKFormat renders a value in a format we called "K Format" or "Knowledge Format", a flavor of markdown that is
 // designed to be easily readable by LLMs.
-func ToKFormat(v interface{}) string {
+func ToKFormat(v any) string {
 	return recursiveRender(reflect.ValueOf(v), 0)
 }
 

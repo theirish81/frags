@@ -27,6 +27,7 @@ type Runner[T any] struct {
 	running         bool
 	logger          *slog.Logger
 	progressChannel chan ProgressMessage
+	kFormat         bool
 }
 
 // SessionStatus is the status of a session.
@@ -54,6 +55,7 @@ type RunnerOptions struct {
 	sessionWorkers  int
 	logger          *slog.Logger
 	progressChannel chan ProgressMessage
+	kFormat         bool
 }
 
 // RunnerOption is an option for the runner.
@@ -77,6 +79,12 @@ func WithSessionWorkers(sessionWorkers int) RunnerOption {
 func WithProgressChannel(progressChannel chan ProgressMessage) RunnerOption {
 	return func(o *RunnerOptions) {
 		o.progressChannel = progressChannel
+	}
+}
+
+func WithUseKFormat(kFormat bool) RunnerOption {
+	return func(o *RunnerOptions) {
+		o.kFormat = kFormat
 	}
 }
 
@@ -105,6 +113,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 		sessionWorkers:  opts.sessionWorkers,
 		logger:          opts.logger,
 		progressChannel: opts.progressChannel,
+		kFormat:         opts.kFormat,
 	}
 }
 

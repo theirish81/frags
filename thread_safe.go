@@ -18,6 +18,9 @@ func (r *Runner[T]) safeUnmarshalDataStructure(data []byte) error {
 func (r *Runner[T]) safeMarshalDataStructure(indent bool) ([]byte, error) {
 	r.marshalingMutex.Lock()
 	defer r.marshalingMutex.Unlock()
+	if r.kFormat {
+		return []byte(ToKFormat(r.dataStructure)), nil
+	}
 	if indent {
 		return json.MarshalIndent(r.dataStructure, "", "  ")
 	}
