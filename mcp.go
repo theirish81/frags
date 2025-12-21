@@ -163,6 +163,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 	}
 	for _, t := range tools {
 		functions[t.Name] = Function{
+			Name:        t.Name,
 			Description: t.Description,
 			Server:      c.Name,
 			Schema:      t.InputSchema,

@@ -225,7 +225,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
-				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools); err != nil {
+				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r.sessionManager.Transformers); err != nil {
 					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 					return err
 				}
@@ -264,7 +264,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 							return err
 						}
 					}
-					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, resources...)
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r.sessionManager.Transformers, resources...)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
@@ -275,7 +275,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
 					}
-					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools)
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r.sessionManager.Transformers)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
