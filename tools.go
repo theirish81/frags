@@ -55,13 +55,21 @@ func (t *Tools) HasType(tt ToolType) bool {
 // Function represents a function that can be called by the AI model.
 type Function struct {
 	Func        func(data map[string]any) (map[string]any, error)
+	Name        string
 	Server      string
 	Description string
 	Schema      *Schema
 }
 
-func (f Function) Run(data map[string]any) (map[string]any, error) {
-	return f.Func(data)
+func (f Function) Run(data map[string]any, transformers *Transformers) (map[string]any, error) {
+	data, err := f.Func(data)
+	if err != nil {
+		return nil, err
+	}
+	if transformers != nil {
+		return transformers.FilterOnFunctionOutput(f.Name).Transform(data)
+	}
+	return data, nil
 }
 
 // Functions is a map of functions, indexed by name.
@@ -106,7 +114,7 @@ func (r *Runner[T]) RunPreCallsToTextContext(ctx context.Context, session Sessio
 			if err != nil {
 				return preCallsText, err
 			}
-			res, err := r.ai.RunFunction(c)
+			res, err := r.ai.RunFunction(c, r.sessionManager.Transformers)
 			if err != nil {
 				return preCallsText, err
 			}

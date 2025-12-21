@@ -1,9 +1,12 @@
 module github.com/theirish81/frags
 
-go 1.24
+go 1.24.0
+
+toolchain go1.24.8
 
 require (
 	github.com/avast/retry-go/v5 v5.0.0
+	github.com/blues/jsonata-go v1.5.4
 	github.com/expr-lang/expr v1.17.7
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/jinzhu/copier v0.4.0

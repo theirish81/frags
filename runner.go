@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2025 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package frags
 
 import (
@@ -27,6 +44,7 @@ type Runner[T any] struct {
 	running         bool
 	logger          *slog.Logger
 	progressChannel chan ProgressMessage
+	kFormat         bool
 }
 
 // SessionStatus is the status of a session.
@@ -54,6 +72,7 @@ type RunnerOptions struct {
 	sessionWorkers  int
 	logger          *slog.Logger
 	progressChannel chan ProgressMessage
+	kFormat         bool
 }
 
 // RunnerOption is an option for the runner.
@@ -77,6 +96,12 @@ func WithSessionWorkers(sessionWorkers int) RunnerOption {
 func WithProgressChannel(progressChannel chan ProgressMessage) RunnerOption {
 	return func(o *RunnerOptions) {
 		o.progressChannel = progressChannel
+	}
+}
+
+func WithUseKFormat(kFormat bool) RunnerOption {
+	return func(o *RunnerOptions) {
+		o.kFormat = kFormat
 	}
 }
 
@@ -105,6 +130,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 		sessionWorkers:  opts.sessionWorkers,
 		logger:          opts.logger,
 		progressChannel: opts.progressChannel,
+		kFormat:         opts.kFormat,
 	}
 }
 
@@ -225,7 +251,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
-				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools); err != nil {
+				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r.sessionManager.Transformers); err != nil {
 					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 					return err
 				}
@@ -264,7 +290,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 							return err
 						}
 					}
-					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, resources...)
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r.sessionManager.Transformers, resources...)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
@@ -275,7 +301,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
 					}
-					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools)
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r.sessionManager.Transformers)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err

@@ -2,6 +2,7 @@ package frags
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -54,7 +55,7 @@ func EvaluateTemplate(text string, scope EvalScope) (string, error) {
 		if scope == nil || !strings.Contains(text, "{{") {
 			return text, nil
 		}
-		tmpl := template.New("tpl")
+		tmpl := template.New("tpl").Funcs(templateFuncs)
 		parsedTmpl, err := tmpl.Parse(text)
 		if err != nil {
 			return text, err
@@ -122,4 +123,14 @@ func EvaluateArgsTemplates(args map[string]any, scope EvalScope) (map[string]any
 		}
 	}
 	return args, nil
+}
+
+var templateFuncs = template.FuncMap{
+	"json": func(v any) string {
+		json, _ := json.Marshal(v)
+		return string(json)
+	},
+	"kf": func(v any) string {
+		return ToKFormat(v)
+	},
 }
