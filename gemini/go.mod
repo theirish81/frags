@@ -1,10 +1,12 @@
 module github.com/theirish81/frags/gemini
 
-go 1.24
+go 1.24.0
+
+toolchain go1.24.8
 
 require (
 	github.com/jinzhu/copier v0.4.0
-	github.com/theirish81/frags v0.7.0
+	github.com/theirish81/frags v0.8.0
 	google.golang.org/genai v1.40.0
 )
 
@@ -13,6 +15,7 @@ require (
 	cloud.google.com/go/auth v0.9.3 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
+	github.com/blues/jsonata-go v1.5.4 // indirect
 	github.com/expr-lang/expr v1.17.7 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
