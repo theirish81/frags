@@ -28,6 +28,12 @@ import (
 	"github.com/avast/retry-go/v5"
 )
 
+type ExportableRunner interface {
+	Transformers() *Transformers
+	RunFunction(name string, args map[string]any) (map[string]any, error)
+	ScriptEngine() ScriptEngine
+}
+
 // Runner is a struct that runs a session manager.
 type Runner[T any] struct {
 	sessionManager  SessionManager
@@ -44,6 +50,7 @@ type Runner[T any] struct {
 	running         bool
 	logger          *slog.Logger
 	progressChannel chan ProgressMessage
+	scriptEngine    ScriptEngine
 	kFormat         bool
 }
 
@@ -73,6 +80,7 @@ type RunnerOptions struct {
 	logger          *slog.Logger
 	progressChannel chan ProgressMessage
 	kFormat         bool
+	scriptEngine    ScriptEngine
 }
 
 // RunnerOption is an option for the runner.
@@ -104,6 +112,11 @@ func WithUseKFormat(kFormat bool) RunnerOption {
 		o.kFormat = kFormat
 	}
 }
+func WithScriptEngine(scriptEngine ScriptEngine) RunnerOption {
+	return func(o *RunnerOptions) {
+		o.scriptEngine = scriptEngine
+	}
+}
 
 // NewRunner creates a new runner.
 func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoader, ai Ai, options ...RunnerOption) Runner[T] {
@@ -131,6 +144,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 		logger:          opts.logger,
 		progressChannel: opts.progressChannel,
 		kFormat:         opts.kFormat,
+		scriptEngine:    opts.scriptEngine,
 	}
 }
 
@@ -251,7 +265,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
-				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r.sessionManager.Transformers); err != nil {
+				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r); err != nil {
 					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 					return err
 				}
@@ -290,7 +304,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 							return err
 						}
 					}
-					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r.sessionManager.Transformers, resources...)
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r, resources...)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
@@ -301,7 +315,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
 					}
-					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r.sessionManager.Transformers)
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
@@ -399,4 +413,16 @@ func (r *Runner[T]) IsCompleted() bool {
 		}
 	}
 	return true
+}
+
+func (r *Runner[T]) RunFunction(name string, args map[string]any) (map[string]any, error) {
+	return r.ai.RunFunction(FunctionCall{Name: name, Args: args}, r)
+}
+
+func (r *Runner[T]) Transformers() *Transformers {
+	return r.sessionManager.Transformers
+}
+
+func (r *Runner[T]) ScriptEngine() ScriptEngine {
+	return r.scriptEngine
 }

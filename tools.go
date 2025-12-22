@@ -61,13 +61,13 @@ type Function struct {
 	Schema      *Schema
 }
 
-func (f Function) Run(data map[string]any, transformers *Transformers) (map[string]any, error) {
+func (f Function) Run(data map[string]any, runner ExportableRunner) (map[string]any, error) {
 	data, err := f.Func(data)
 	if err != nil {
 		return nil, err
 	}
-	if transformers != nil {
-		return transformers.FilterOnFunctionOutput(f.Name).Transform(data)
+	if runner.Transformers() != nil {
+		return runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(data, runner)
 	}
 	return data, nil
 }
@@ -93,6 +93,7 @@ func (f Functions) ListByServer(server string) Functions {
 
 type FunctionCall struct {
 	Name        string         `yaml:"name" json:"name"`
+	Code        *string        `yaml:"code" json:"code"`
 	Args        map[string]any `yaml:"args" json:"args"`
 	Description *string        `yaml:"description" json:"description"`
 }
@@ -114,11 +115,19 @@ func (r *Runner[T]) RunPreCallsToTextContext(ctx context.Context, session Sessio
 			if err != nil {
 				return preCallsText, err
 			}
-			res, err := r.ai.RunFunction(c, r.sessionManager.Transformers)
-			if err != nil {
-				return preCallsText, err
+			if c.Code != nil {
+				res, err := r.ScriptEngine().RunCode(*c.Code, c.Args, r)
+				if err != nil {
+					return preCallsText, err
+				}
+				preCallsText += preCallCtx(c, res)
+			} else {
+				res, err := r.ai.RunFunction(c, r)
+				if err != nil {
+					return preCallsText, err
+				}
+				preCallsText += preCallCtx(c, res)
 			}
-			preCallsText += preCallCtx(c, res)
 		}
 	}
 	return preCallsText, nil
