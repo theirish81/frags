@@ -37,6 +37,7 @@ func main() {
 		cfg.Temperature = defCfg.Temperature
 		cfg.ParallelWorkers = 1
 		cfg.NumPredict = 1024
+		cfg.UseKFormat = false
 		_ = mapstructure.Decode(&cfg, &data)
 		_ = viper.MergeConfigMap(data)
 		viper.SetConfigType("env")

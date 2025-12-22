@@ -68,6 +68,9 @@ var runCmd = &cobra.Command{
 		}
 
 		ai, err := initAi(log)
+		if err != nil {
+			cmd.PrintErrln(err)
+		}
 		fx, err := prepareMcpFunctions(mcpConfig)
 		if err != nil {
 			cmd.PrintErrln(err)
@@ -98,6 +101,8 @@ var runCmd = &cobra.Command{
 			frags.WithSessionWorkers(workers),
 			frags.WithLogger(log),
 			frags.WithProgressChannel(ch),
+			frags.WithUseKFormat(cfg.UseKFormat),
+			frags.WithScriptEngine(NewJavascriptScriptingEngine()),
 		)
 
 		paramsMap, err := sliceToMap(params)

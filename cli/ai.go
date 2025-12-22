@@ -53,7 +53,7 @@ func initAi(log *slog.Logger) (frags.Ai, error) {
 			NumPredict:  cfg.NumPredict,
 		}, log), nil
 	default:
-		return nil, errors.New("No AI is fully configured. Check your .env file")
+		return nil, errors.New("no AI is fully configured. Check your .env file")
 	}
 }
 
