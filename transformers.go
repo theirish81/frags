@@ -23,6 +23,7 @@ type Transformer struct {
 	Name             string  `yaml:"name" json:"name"`
 	OnFunctionOutput *string `yaml:"onFunctionOutput" json:"on_function_output"`
 	Jsonata          *string `yaml:"jsonata" json:"jsonata"`
+	Code             *string `yaml:"code" json:"code"`
 }
 
 type Transformers []Transformer
@@ -37,7 +38,7 @@ func (t Transformers) FilterOnFunctionOutput(name string) Transformers {
 	return t2
 }
 
-func (t Transformer) Transform(data map[string]any) (map[string]any, error) {
+func (t Transformer) Transform(data map[string]any, runner ExportableRunner) (map[string]any, error) {
 	if t.Jsonata != nil {
 		script, err := jsonata.Compile(*t.Jsonata)
 		if err != nil {
@@ -52,14 +53,17 @@ func (t Transformer) Transform(data map[string]any) (map[string]any, error) {
 		}
 		return map[string]any{"result": res}, nil
 	}
+	if runner.ScriptEngine() != nil && t.Code != nil {
+		return runner.ScriptEngine().RunCode(*t.Code, data, runner)
+	}
 	return data, nil
 }
 
-func (t Transformers) Transform(data map[string]any) (map[string]any, error) {
+func (t Transformers) Transform(data map[string]any, runner ExportableRunner) (map[string]any, error) {
 	tmp := data
 	var err error
 	for _, tx := range t {
-		tmp, err = tx.Transform(tmp)
+		tmp, err = tx.Transform(tmp, runner)
 		if err != nil {
 			return tmp, err
 		}

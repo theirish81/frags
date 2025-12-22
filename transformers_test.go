@@ -32,7 +32,7 @@ func TestTransformer_Transform(t *testing.T) {
 	}
 	res, err := tx.Transform(map[string]any{
 		"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-	})
+	}, &Runner[any]{})
 	assert.Nil(t, err)
 	assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
 
@@ -42,7 +42,7 @@ func TestTransformer_Transform(t *testing.T) {
 	}
 	res, err = tx.Transform(map[string]any{
 		"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-	})
+	}, &Runner[any]{})
 	assert.Nil(t, err)
 	assert.Equal(t, map[string]any{"result": map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 
@@ -54,7 +54,7 @@ func TestTransformer_Transform(t *testing.T) {
 		"result": []map[string]any{
 			{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
 		},
-	})
+	}, &Runner[any]{})
 	assert.Nil(t, err)
 	assert.Equal(t, map[string]any{"result": []any{map[string]any{"first_name": "John", "last_name": "Doe"}}}, res)
 }
