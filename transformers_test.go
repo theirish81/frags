@@ -20,6 +20,8 @@ package frags
 import (
 	"testing"
 
+	"github.com/blues/jsonata-go"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,4 +57,30 @@ func TestTransformer_Transform(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, map[string]any{"result": []any{map[string]any{"first_name": "John", "last_name": "Doe"}}}, res)
+}
+
+func TestTransformer_Transform2(t *testing.T) {
+	data := s1{
+		S2: s2{
+			P1: 1,
+			P2: 2,
+		},
+	}
+	script, err := jsonata.Compile(`
+{
+  	"s2": {
+		"p1": S2.P1 * 2
+		}
+}
+`)
+	assert.Nil(t, err)
+	res, err := script.Eval(data)
+	assert.Nil(t, err)
+	sx := s1{}
+	dec, _ := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  &sx,
+	})
+	assert.Nil(t, dec.Decode(res))
+	assert.Equal(t, float64(2), sx.S2.P1)
 }

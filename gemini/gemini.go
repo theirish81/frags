@@ -74,7 +74,8 @@ func (d *Ai) New() frags.Ai {
 }
 
 // Ask performs a query against the Gemini API, according to the Frags interface
-func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.Tools, resources ...frags.ResourceData) ([]byte, error) {
+func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.Tools,
+	transformers *frags.Transformers, resources ...frags.ResourceData) ([]byte, error) {
 	parts := make([]*genai.Part, 0)
 	for _, resource := range resources {
 		d.log.Debug("adding file resource", "ai", "gemini", "resource", resource.Identifier)
@@ -123,7 +124,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 			for _, fc := range res.FunctionCalls() {
 				d.content = append(d.content, genai.NewContentFromFunctionCall(fc.Name, fc.Args, genai.RoleModel))
 
-				fres, ferr := d.RunFunction(frags.FunctionCall{Name: fc.Name, Args: fc.Args})
+				fres, ferr := d.RunFunction(frags.FunctionCall{Name: fc.Name, Args: fc.Args}, transformers)
 				if ferr != nil {
 					return nil, ferr
 				} else {
@@ -208,11 +209,11 @@ func joinParts(parts []*genai.Part) string {
 	return out
 }
 
-func (d *Ai) RunFunction(functionCall frags.FunctionCall) (map[string]any, error) {
+func (d *Ai) RunFunction(functionCall frags.FunctionCall, transformers *frags.Transformers) (map[string]any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
 		functionSignature := fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args)
 		d.log.Debug("invoking function", "ai", "gemini", "function", functionSignature)
-		res, err := fx.Run(functionCall.Args)
+		res, err := fx.Run(functionCall.Args, transformers)
 		d.log.Debug("function result", "ai", "gemini", "function", functionSignature, "result", res, "error", err)
 		return res, err
 	}
