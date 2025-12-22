@@ -81,7 +81,7 @@ func (d *Ai) New() frags.Ai {
 
 // Ask performs a query against the Ollama API, according to the Frags interface
 func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.Tools,
-	transformers *frags.Transformers, resources ...frags.ResourceData) ([]byte, error) {
+	runner frags.ExportableRunner, resources ...frags.ResourceData) ([]byte, error) {
 	if len(d.systemPrompt) > 0 && len(d.messages) == 0 {
 		d.messages = append(d.messages, Message{
 			Content: d.systemPrompt,
@@ -128,7 +128,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 			}
 			d.messages = append(d.messages, responseMessage.Message)
 			if len(responseMessage.Message.ToolCalls) > 0 {
-				err := d.handleFunctionCall(responseMessage, transformers)
+				err := d.handleFunctionCall(responseMessage, runner)
 				if err != nil {
 					return err
 				}
@@ -147,9 +147,9 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	return []byte(out), nil
 }
 
-func (d *Ai) handleFunctionCall(responseMessage Response, transformers *frags.Transformers) error {
+func (d *Ai) handleFunctionCall(responseMessage Response, runner frags.ExportableRunner) error {
 	for _, fc := range responseMessage.Message.ToolCalls {
-		res, err := d.RunFunction(frags.FunctionCall{Name: fc.Function.Name, Args: fc.Function.Arguments}, transformers)
+		res, err := d.RunFunction(frags.FunctionCall{Name: fc.Function.Name, Args: fc.Function.Arguments}, runner)
 		if err != nil {
 			return err
 		}
@@ -250,10 +250,10 @@ func (d *Ai) configureTools(tools frags.Tools) ([]ToolDefinition, error) {
 	return tx, nil
 }
 
-func (d *Ai) RunFunction(functionCall frags.FunctionCall, transformers *frags.Transformers) (map[string]any, error) {
+func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (map[string]any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
 		d.log.Debug("invoking function", "ai", "ollama", "function", fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args))
-		res, err := fx.Run(functionCall.Args, transformers)
+		res, err := fx.Run(functionCall.Args, runner)
 		d.log.Debug("function result", "ai", "ollama", "function", fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args), "result", res, "error", err)
 		return res, err
 	}
