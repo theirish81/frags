@@ -48,6 +48,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(askCmd)
 	rootCmd.AddCommand(renderCmd)
+	rootCmd.AddCommand(scriptCmd)
 
 }
 

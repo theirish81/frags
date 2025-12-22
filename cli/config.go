@@ -44,6 +44,7 @@ type Config struct {
 	TopK                     float32 `mapstructure:"TOP_K"`
 	TopP                     float32 `mapstructure:"TOP_P"`
 	NumPredict               int     `mapstructure:"NUM_PREDICT"`
+	UseKFormat               bool    `mapstructure:"USE_K_FORMAT"`
 }
 
 func (c Config) guessAi() string {
