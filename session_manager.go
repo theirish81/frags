@@ -18,9 +18,6 @@
 package frags
 
 import (
-	"fmt"
-	"strings"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,13 +26,20 @@ import (
 // Each session may also have a PrePrompt, that is an LLM interaction that happens before the main one, produces
 // no structured data, and has the sole purpose to enrich the context and get it ready. This is mostly useful for
 // situations in which we need to use an extraction functionality that poorly harmonizes with a structured output.
+// PreCalls defines a list of functions to call before the main interaction.
+// PrePrompt is the prompt that will be called before the main interaction. This is mainly for context enrichment
+// Prompt defines the main interaction.
+// NextPhasePrompt defines the prompt that will be called after the main interaction.
 // Resources configure resource loaders to load files for the session.
 // Timeout defines the maximum time the session can run for.
 // DependsOn defines a list of sessions that must be completed before this session can start, and expressions defining
 // code evaluations against the already extracted data, to determine whether the session can start.
-// Context defines whether the partially extracted data should be passed to the session
-// Attempts defines the number of times each phase should be retried if it fails
-// Tools defines the tools that can be used in this session
+// Context defines whether the partially extracted data should be passed to the session.
+// Attempts defines the number of times each phase should be retried if it fails.
+// Tools defines the tools that can be used in this session.
+// IterateOn describes a variable (typically a list) over which we will iterate the session. The session will run
+// len(IterateOn) times. Use an github.com/expr-lang/expr expression.
+// Vars defines variables that are local to the session.
 type Session struct {
 	PreCalls        *FunctionCalls `json:"pre_calls" yaml:"preCalls"`
 	PrePrompt       *string        `json:"pre_prompt" yaml:"prePrompt"`
@@ -88,6 +92,7 @@ type SessionManager struct {
 	Schema       Schema        `yaml:"schema" json:"schema"`
 }
 
+// Components holds the reusable components of the sessions and schema
 type Components struct {
 	Prompts map[string]string `yaml:"prompts" json:"prompts"`
 	Schemas map[string]Schema `yaml:"schemas" json:"schemas"`
@@ -111,66 +116,4 @@ func (s *SessionManager) SetSchema(schema Schema) {
 // FromYAML unmarshals a YAML document into the SessionManager.
 func (s *SessionManager) FromYAML(data []byte) error {
 	return yaml.Unmarshal(data, s)
-}
-
-func (s *SessionManager) ResolveSchema() error {
-	return s.resolveSchema(&s.Schema, make(map[string]bool))
-}
-
-func (s *SessionManager) resolveSchema(schema *Schema, visited map[string]bool) error {
-	if schema == nil {
-		return nil
-	}
-
-	if schema.Ref != nil {
-		ref := *schema.Ref
-		if visited[ref] {
-			return nil
-		}
-		if strings.HasPrefix(ref, "#/components/schemas/") {
-			visited[ref] = true
-			defer func() { delete(visited, ref) }()
-			schemaName := strings.TrimPrefix(ref, "#/components/schemas/")
-			if resolvedSchema, ok := s.Components.Schemas[schemaName]; ok {
-				originalXPhase := schema.XPhase
-				originalXSession := schema.XSession
-
-				*schema = resolvedSchema
-
-				schema.XPhase = originalXPhase
-				schema.XSession = originalXSession
-				schema.Ref = nil
-
-				if err := s.resolveSchema(schema, visited); err != nil {
-					return err
-				}
-			} else {
-				return fmt.Errorf("schema not found: %s", ref)
-			}
-		}
-	}
-
-	if schema.Properties != nil {
-		for _, propSchema := range schema.Properties {
-			if err := s.resolveSchema(propSchema, visited); err != nil {
-				return err
-			}
-		}
-	}
-
-	if schema.Items != nil {
-		if err := s.resolveSchema(schema.Items, visited); err != nil {
-			return err
-		}
-	}
-
-	if schema.AnyOf != nil {
-		for _, anyOfSchema := range schema.AnyOf {
-			if err := s.resolveSchema(anyOfSchema, visited); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }

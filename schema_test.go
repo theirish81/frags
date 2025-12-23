@@ -122,3 +122,183 @@ func TestSchema_GetContextGetPhaseCombined(t *testing.T) {
 	assert.Contains(t, phase1.Properties, "p4")
 	assert.NotContains(t, phase1.Properties, "p3")
 }
+
+func TestSchema_Resolve(t *testing.T) {
+
+	ref := "#/components/schemas/Address"
+	ref2 := "#/components/schemas/Person"
+
+	comp := Components{Schemas: map[string]Schema{
+		"Address": {
+			Type: "object",
+			Properties: map[string]*Schema{
+				"street": {Type: "string"},
+				"city":   {Type: "string"},
+			},
+		},
+		"Person": {
+			Type: "object",
+			Properties: map[string]*Schema{
+				"name": {Type: "string"},
+				"address": {
+					Ref: &ref,
+				},
+			},
+		},
+	},
+	}
+
+	schema := Schema{
+		Type: "object",
+		Properties: map[string]*Schema{
+			"person": {
+				Ref: &ref2,
+			},
+		},
+	}
+	err := schema.Resolve(comp)
+	assert.NoError(t, err)
+
+	personSchema := schema.Properties["person"]
+	assert.Equal(t, "object", personSchema.Type)
+	assert.NotNil(t, personSchema.Properties["address"])
+
+	addressSchema := personSchema.Properties["address"]
+	assert.Equal(t, "object", addressSchema.Type)
+	assert.Equal(t, "string", addressSchema.Properties["street"].Type)
+}
+
+func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
+
+	ref := "#/components/schemas/Address"
+
+	comp := Components{Schemas: map[string]Schema{
+		"Address": {
+			Type: "object",
+			Properties: map[string]*Schema{
+				"street": {Type: "string"},
+			},
+		},
+	},
+	}
+
+	schema := Schema{
+		AnyOf: []*Schema{
+			{Ref: &ref},
+		},
+	}
+
+	err := schema.Resolve(comp)
+	assert.NoError(t, err)
+	assert.NotNil(t, schema.AnyOf[0])
+	assert.Equal(t, "object", schema.AnyOf[0].Type)
+}
+
+func TestSessionManager_ResolveSchema_Items(t *testing.T) {
+
+	ref := "#/components/schemas/Address"
+
+	comp := Components{Schemas: map[string]Schema{
+		"Address": {
+			Type: "object",
+			Properties: map[string]*Schema{
+				"street": {Type: "string"},
+			},
+		},
+	},
+	}
+
+	schema := Schema{
+		Type: "array",
+		Items: &Schema{
+			Ref: &ref,
+		},
+	}
+
+	err := schema.Resolve(comp)
+	assert.NoError(t, err)
+	assert.NotNil(t, schema.Items)
+	assert.Equal(t, "object", schema.Items.Type)
+}
+
+func TestSessionManager_ResolveSchema_Circular(t *testing.T) {
+	refA := "#/components/schemas/A"
+	refB := "#/components/schemas/B"
+
+	comp := Components{Schemas: map[string]Schema{
+		"A": {
+			Type: "object",
+			Properties: map[string]*Schema{
+				"b": {Ref: &refB},
+			},
+		},
+		"B": {
+			Type: "object",
+			Properties: map[string]*Schema{
+				"a": {Ref: &refA},
+			},
+		},
+	},
+	}
+
+	schema := Schema{
+		Ref: &refA,
+	}
+
+	err := schema.Resolve(comp)
+	assert.NoError(t, err)
+
+	aSchema := schema
+	assert.NotNil(t, aSchema.Properties["b"])
+	bSchema := aSchema.Properties["b"]
+	assert.NotNil(t, bSchema.Properties["a"])
+	circularRefSchema := bSchema.Properties["a"]
+	assert.NotNil(t, circularRefSchema.Ref)
+	assert.Equal(t, refA, *circularRefSchema.Ref)
+}
+
+func TestSessionManager_ResolveSchema_NotFound(t *testing.T) {
+	ref := "#/components/schemas/NonExistent"
+	schema := Schema{
+		Ref: &ref,
+	}
+	err := schema.Resolve(Components{})
+	assert.Error(t, err)
+}
+
+func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
+	ref := "#/components/schemas/Address"
+	phase := 1
+	session := "test_session"
+
+	comp := Components{Schemas: map[string]Schema{
+		"Address": {
+			Type: "object",
+			Properties: map[string]*Schema{
+				"street": {Type: "string"},
+			},
+		},
+	},
+	}
+
+	schema := Schema{
+		Type: "object",
+		Properties: map[string]*Schema{
+			"shipping_address": {
+				Ref:      &ref,
+				XPhase:   &phase,
+				XSession: &session,
+			},
+		},
+	}
+
+	err := schema.Resolve(comp)
+	assert.NoError(t, err)
+
+	addressSchema := schema.Properties["shipping_address"]
+	assert.Nil(t, addressSchema.Ref)
+	assert.Equal(t, "object", addressSchema.Type)
+	assert.Equal(t, phase, *addressSchema.XPhase)
+	assert.Equal(t, session, *addressSchema.XSession)
+	assert.Equal(t, "string", addressSchema.Properties["street"].Type)
+}
