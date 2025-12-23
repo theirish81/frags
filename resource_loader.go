@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2025 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package frags
 
 import (
@@ -39,10 +56,12 @@ func (l *FileResourceLoader) LoadResource(identifier string, _ map[string]string
 	return resource, nil
 }
 
+// BytesLoader "loads" and returns resources that have already been preloaded into memory
 type BytesLoader struct {
 	resources map[string]ResourceData
 }
 
+// NewBytesLoader creates a new BytesLoader.
 func NewBytesLoader() *BytesLoader {
 	return &BytesLoader{resources: make(map[string]ResourceData)}
 }
@@ -66,6 +85,7 @@ type MultiResourceLoader struct {
 	loaders map[string]ResourceLoader
 }
 
+// NewMultiResourceLoader creates a new MultiResourceLoader.
 func NewMultiResourceLoader() *MultiResourceLoader {
 	return &MultiResourceLoader{loaders: make(map[string]ResourceLoader)}
 }

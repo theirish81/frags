@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2025 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package frags
 
 import (
@@ -91,6 +108,8 @@ func (c *McpTool) ConnectSSE(ctx context.Context, server McpServerConfig) error 
 	return err
 }
 
+// ConnectStreamableHttp connects to the MCP server using a Streamable HTTP transport, which is now the default.
+// In case of failure, it falls back to SSE transport
 func (c *McpTool) ConnectStreamableHttp(ctx context.Context, server McpServerConfig) error {
 	client := http.Client{
 		Transport: &McpTransport{
@@ -117,6 +136,8 @@ func (c *McpTool) ListTools(ctx context.Context) (Tools, error) {
 	if err != nil {
 		return res, err
 	}
+	// Unfortunately the library seems to return InputSchema in multiple, bizzarre ways, so we need to make sure
+	// we convert it into something predictable.
 	for _, t := range tools.Tools {
 		schema := Schema{}
 		switch typed := t.InputSchema.(type) {
@@ -238,11 +259,13 @@ func convertTextContent(content *mcp.TextContent) any {
 	return content.Text
 }
 
+// McpTransport is a wrapper around the default http.RoundTripper that adds default headers to every request
 type McpTransport struct {
 	Base    http.RoundTripper
 	Headers map[string]string
 }
 
+// RoundTrip adds default headers to the request
 func (t *McpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req2 := req.Clone(req.Context())
 
