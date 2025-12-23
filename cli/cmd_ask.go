@@ -27,7 +27,7 @@ import (
 
 var askCmd = &cobra.Command{
 	Use:   "ask <prompt>",
-	Short: "Ask a question to the AI",
+	Short: "Ask a question to the AI, using the current Frags settings and tools.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		mcpConfig, err := parseMcpConfig()
@@ -52,16 +52,6 @@ var askCmd = &cobra.Command{
 			return
 		}
 		ai.SetFunctions(fx)
-		ch := make(chan frags.ProgressMessage, 10)
-		go func() {
-			for msg := range ch {
-				if msg.Error == nil {
-					log.Info(msg.Action, "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration)
-				} else {
-					log.Error(msg.Action, "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration, "error", msg.Error)
-				}
-			}
-		}()
 
 		mgr := frags.NewSessionManager()
 
@@ -87,7 +77,7 @@ var askCmd = &cobra.Command{
 				Resources: resources,
 			},
 		}
-		mgr.Schema = frags.Schema{
+		mgr.Schema = &frags.Schema{
 			Type:     "object",
 			Required: []string{"answer"},
 			Properties: map[string]*frags.Schema{
@@ -95,7 +85,7 @@ var askCmd = &cobra.Command{
 					Type:        "string",
 					Description: "the answer to the prompt",
 					XSession:    strPtr("default"),
-					XPhase:      intPtr(0),
+					XPhase:      0,
 				},
 			},
 		}

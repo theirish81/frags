@@ -29,7 +29,7 @@ import (
 
 var runCmd = &cobra.Command{
 	Use:   "run <path/to/plan.yaml>",
-	Short: "Run a session",
+	Short: "Run a frags plan from a YAML file.",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// validate flags and input
@@ -77,13 +77,14 @@ var runCmd = &cobra.Command{
 			return
 		}
 		ai.SetFunctions(fx)
+		log.Info("functions loaded", "functions", fx.String())
 		ch := make(chan frags.ProgressMessage, 10)
 		go func() {
 			for msg := range ch {
 				if msg.Error == nil {
-					log.Info(msg.Action, "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration)
+					log.Info(string(msg.Action), "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration)
 				} else {
-					log.Error(msg.Action, "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration, "error", msg.Error)
+					log.Error(string(msg.Action), "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration, "error", msg.Error)
 				}
 			}
 		}()
