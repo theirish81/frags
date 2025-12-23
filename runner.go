@@ -424,5 +424,9 @@ func (r *Runner[T]) Transformers() *Transformers {
 }
 
 func (r *Runner[T]) ScriptEngine() ScriptEngine {
+	if r.scriptEngine == nil {
+		r.logger.Warn("no script engine provided, using dummy engine")
+		return &DummyScriptEngine{}
+	}
 	return r.scriptEngine
 }
