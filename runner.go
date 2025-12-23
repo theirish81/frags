@@ -420,6 +420,9 @@ func (r *Runner[T]) RunFunction(name string, args map[string]any) (map[string]an
 }
 
 func (r *Runner[T]) Transformers() *Transformers {
+	if r.sessionManager.Transformers == nil {
+		return &Transformers{}
+	}
 	return r.sessionManager.Transformers
 }
 

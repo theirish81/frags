@@ -24,6 +24,7 @@ import "github.com/blues/jsonata-go"
 // triggers. We currently support only OnFunctionOutput.
 type Transformer struct {
 	Name             string  `yaml:"name" json:"name"`
+	OnFunctionInput  *string `yaml:"onFunctionInput" json:"on_function_input"`
 	OnFunctionOutput *string `yaml:"onFunctionOutput" json:"on_function_output"`
 	Jsonata          *string `yaml:"jsonata" json:"jsonata"`
 	Code             *string `yaml:"code" json:"code"`
@@ -36,6 +37,16 @@ func (t Transformers) FilterOnFunctionOutput(name string) Transformers {
 	t2 := make(Transformers, 0)
 	for _, t := range t {
 		if t.OnFunctionOutput != nil && *t.OnFunctionOutput == name {
+			t2 = append(t2, t)
+		}
+	}
+	return t2
+}
+
+func (t Transformers) FilterOnFunctionInput(name string) Transformers {
+	t2 := make(Transformers, 0)
+	for _, t := range t {
+		if t.OnFunctionInput != nil && *t.OnFunctionInput == name {
 			t2 = append(t2, t)
 		}
 	}

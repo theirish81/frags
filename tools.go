@@ -82,15 +82,16 @@ type Function struct {
 }
 
 // Run runs the function, applying any transformers defined in the runner.
-func (f Function) Run(data map[string]any, runner ExportableRunner) (map[string]any, error) {
-	data, err := f.Func(data)
+func (f Function) Run(args map[string]any, runner ExportableRunner) (map[string]any, error) {
+	args, err := runner.Transformers().FilterOnFunctionInput(f.Name).Transform(args, runner)
 	if err != nil {
 		return nil, err
 	}
-	if runner.Transformers() != nil {
-		return runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(data, runner)
+	data, err := f.Func(args)
+	if err != nil {
+		return nil, err
 	}
-	return data, nil
+	return runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(data, runner)
 }
 
 // Functions is a map of functions, indexed by name.
