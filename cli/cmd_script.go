@@ -28,7 +28,8 @@ import (
 
 var scriptCmd = &cobra.Command{
 	Use:   "script <path/to/script.js>",
-	Short: "runs a script (JavaScript). Meant for debugging purposes to code embedded tools",
+	Short: "Run a script (JavaScript) on the scripting engine in the Frags context. Useful for debugging scriptable components",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		data, err := os.ReadFile(args[0])
 		if err != nil {

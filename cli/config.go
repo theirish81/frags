@@ -33,18 +33,18 @@ const (
 )
 
 type Config struct {
-	GeminiServiceAccountPath string  `mapstructure:"GEMINI_SERVICE_ACCOUNT_PATH"`
-	GeminiProjectID          string  `mapstructure:"GEMINI_PROJECT_ID"`
-	GeminiLocation           string  `mapstructure:"GEMINI_LOCATION"`
-	ParallelWorkers          int     `mapstructure:"PARALLEL_WORKERS"`
-	OllamaBaseURL            string  `mapstructure:"OLLAMA_BASE_URL"`
-	Model                    string  `mapstructure:"MODEL"`
-	AiEngine                 string  `mapstructure:"AI_ENGINE"`
-	Temperature              float32 `mapstructure:"TEMPERATURE"`
-	TopK                     float32 `mapstructure:"TOP_K"`
-	TopP                     float32 `mapstructure:"TOP_P"`
-	NumPredict               int     `mapstructure:"NUM_PREDICT"`
-	UseKFormat               bool    `mapstructure:"USE_K_FORMAT"`
+	GeminiServiceAccountPath string  `mapstructure:"GEMINI_SERVICE_ACCOUNT_PATH" yaml:"GEMINI_SERVICE_ACCOUNT_PATH"`
+	GeminiProjectID          string  `mapstructure:"GEMINI_PROJECT_ID" yaml:"GEMINI_PROJECT_ID"`
+	GeminiLocation           string  `mapstructure:"GEMINI_LOCATION" yaml:"GEMINI_LOCATION"`
+	ParallelWorkers          int     `mapstructure:"PARALLEL_WORKERS" yaml:"PARALLEL_WORKERS"`
+	OllamaBaseURL            string  `mapstructure:"OLLAMA_BASE_URL" yaml:"OLLAMA_BASE_URL"`
+	Model                    string  `mapstructure:"MODEL" yaml:"MODEL"`
+	AiEngine                 string  `mapstructure:"AI_ENGINE" yaml:"AI_ENGINE"`
+	Temperature              float32 `mapstructure:"TEMPERATURE" yaml:"TEMPERATURE"`
+	TopK                     float32 `mapstructure:"TOP_K" yaml:"TOP_K"`
+	TopP                     float32 `mapstructure:"TOP_P" yaml:"TOP_P"`
+	NumPredict               int     `mapstructure:"NUM_PREDICT" yaml:"NUM_PREDICT"`
+	UseKFormat               bool    `mapstructure:"USE_K_FORMAT" yaml:"USE_K_FORMAT"`
 }
 
 func (c Config) guessAi() string {

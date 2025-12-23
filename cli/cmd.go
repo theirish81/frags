@@ -41,7 +41,7 @@ var (
 
 var rootCmd = cobra.Command{
 	Use:   filepath.Base(os.Args[0]),
-	Short: "CLI for Frags. Run a Frags session from a YAML file.",
+	Short: "CLI for the Frags agent",
 }
 
 func init() {
@@ -49,6 +49,7 @@ func init() {
 	rootCmd.AddCommand(askCmd)
 	rootCmd.AddCommand(renderCmd)
 	rootCmd.AddCommand(scriptCmd)
+	rootCmd.AddCommand(configCmd)
 
 }
 

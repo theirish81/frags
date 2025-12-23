@@ -19,50 +19,44 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
 	"gopkg.in/yaml.v3"
 )
 
-var renderCmd = &cobra.Command{
-	Use:   "render <path/to/data.json>",
-	Short: "Render a YAML/JSON data file into a document using a template",
-	Args:  cobra.ExactArgs(1),
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Prints the current configuration",
 	Run: func(cmd *cobra.Command, args []string) {
-		data, err := os.ReadFile(args[0])
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		if templatePath == "" {
-			cmd.PrintErrln("template path must be specified")
-			return
-		}
-		format = formatTemplate
-		progMap := frags.ProgMap{}
-		if err := yaml.Unmarshal(data, &progMap); err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		text, err := renderResult(progMap)
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		// write to file or stdout
-		if output != "" {
-			if err := os.WriteFile(output, text, 0o644); err != nil {
-				cmd.PrintErrln(err)
-			}
-			return
-		}
-		fmt.Print(string(text))
-	},
-}
+		globalConfig, _ := yaml.Marshal(cfg)
+		fmt.Println("==== GLOBAL CONFIG ====")
+		fmt.Println(string(globalConfig))
 
-func init() {
-	renderCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file")
-	renderCmd.Flags().StringVarP(&output, "output", "o", "", "Output file")
+		mcpConfig, err := parseMcpConfig()
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		fx, err := prepareMcpFunctions(mcpConfig)
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		tools := frags.Tools{}
+		for name, _ := range mcpConfig.McpServers {
+			tools = append(tools, frags.Tool{
+				ServerName: name,
+				Type:       frags.ToolTypeMCP,
+			})
+		}
+
+		toolsText, _ := yaml.Marshal(tools)
+		fmt.Println("==== TOOLS CONFIG ====")
+		fmt.Println(string(toolsText))
+
+		functionsText, _ := yaml.Marshal(fx)
+		fmt.Println("==== FUNCTIONS CONFIG ====")
+		fmt.Println(string(functionsText))
+	},
 }
