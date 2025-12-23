@@ -248,12 +248,12 @@ func convertTextContent(content *mcp.TextContent) any {
 	if content == nil {
 		return ""
 	}
-	out := make(map[string]any)
-	if err := json.Unmarshal([]byte(content.Text), &out); err == nil {
-		return out
+	theMap := make(map[string]any)
+	if err := json.Unmarshal([]byte(content.Text), &theMap); err == nil {
+		return theMap
 	}
 	slice := make([]any, 0)
-	if err := mapstructure.Decode([]byte(content.Text), &slice); err == nil {
+	if err := json.Unmarshal([]byte(content.Text), &slice); err == nil {
 		return slice
 	}
 	return content.Text
