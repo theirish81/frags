@@ -17,7 +17,10 @@
 
 package frags
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"strings"
+)
 
 const ExtensionPDF = ".pdf"
 const ExtensionTXT = ".txt"
@@ -34,7 +37,7 @@ const MediaCsv = "text/plain"
 
 // GetMediaType returns the media type for a given file extension
 func GetMediaType(filename string) string {
-	switch filepath.Ext(filename) {
+	switch strings.ToLower(filepath.Ext(filename)) {
 	case ExtensionPDF:
 		return MediaPDF
 	case ExtensionTXT:
