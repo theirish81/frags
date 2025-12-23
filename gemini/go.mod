@@ -6,7 +6,7 @@ toolchain go1.24.8
 
 require (
 	github.com/jinzhu/copier v0.4.0
-	github.com/theirish81/frags v0.9.0
+	github.com/theirish81/frags v0.10.0
 	google.golang.org/genai v1.40.0
 )
 
