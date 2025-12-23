@@ -74,11 +74,11 @@ func (t *Tools) HasType(tt ToolType) bool {
 
 // Function represents a function that can be called by the AI model.
 type Function struct {
-	Func        func(data map[string]any) (map[string]any, error)
-	Name        string
-	Server      string
-	Description string
-	Schema      *Schema
+	Func        func(data map[string]any) (map[string]any, error) `yaml:"-"`
+	Name        string                                            `yaml:"name"`
+	Server      string                                            `yaml:"server"`
+	Description string                                            `yaml:"description"`
+	Schema      *Schema                                           `yaml:"schema"`
 }
 
 // Run runs the function, applying any transformers defined in the runner.
@@ -96,6 +96,14 @@ func (f Function) Run(args map[string]any, runner ExportableRunner) (map[string]
 
 // Functions is a map of functions, indexed by name.
 type Functions map[string]Function
+
+func (f Functions) String() string {
+	var keys []string
+	for k := range f {
+		keys = append(keys, k)
+	}
+	return fmt.Sprintf("%v", keys)
+}
 
 // Get returns a function by name.
 func (f Functions) Get(name string) Function {
