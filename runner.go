@@ -160,7 +160,8 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 		close(r.sessionChan)
 	}()
 	r.dataStructure = initDataStructure[T]()
-	if err := r.sessionManager.ResolveSchema(); err != nil {
+	r.sessionManager.initNullSchema()
+	if err := r.sessionManager.Schema.Resolve(r.sessionManager.Components); err != nil {
 		return r.dataStructure, errors.New("failed to resolve schema")
 	}
 	if r.sessionManager.SystemPrompt != nil {
@@ -420,9 +421,16 @@ func (r *Runner[T]) RunFunction(name string, args map[string]any) (map[string]an
 }
 
 func (r *Runner[T]) Transformers() *Transformers {
+	if r.sessionManager.Transformers == nil {
+		return &Transformers{}
+	}
 	return r.sessionManager.Transformers
 }
 
 func (r *Runner[T]) ScriptEngine() ScriptEngine {
+	if r.scriptEngine == nil {
+		r.logger.Warn("no script engine provided, using dummy engine")
+		return &DummyScriptEngine{}
+	}
 	return r.scriptEngine
 }

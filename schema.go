@@ -1,9 +1,28 @@
+/*
+ * Copyright (C) 2025 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package frags
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -32,7 +51,7 @@ type Schema struct {
 	Required         []string           `json:"required,omitempty" yaml:"required,omitempty"`
 	Title            string             `json:"title,omitempty" yaml:"title,omitempty"`
 	Type             string             `json:"type,omitempty" yaml:"type,omitempty"`
-	XPhase           *int               `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
+	XPhase           int                `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
 	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
 	Ref              *string            `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 }
@@ -51,7 +70,7 @@ func (s *Schema) GetPhase(phase int) (Schema, error) {
 	px := make(map[string]*Schema)
 	req := make([]string, 0)
 	for k, v := range clonedSchema.Properties {
-		if v.XPhase != nil && *v.XPhase == phase {
+		if v.XPhase == phase {
 			px[k] = v
 			if slices.Contains(clonedSchema.Required, k) {
 				req = append(req, k)
@@ -67,10 +86,8 @@ func (s *Schema) GetPhase(phase int) (Schema, error) {
 func (s *Schema) GetPhaseIndexes() []int {
 	idx := make([]int, 0)
 	for _, v := range s.Properties {
-		if v.XPhase != nil {
-			if !slices.Contains(idx, *v.XPhase) {
-				idx = append(idx, *v.XPhase)
-			}
+		if !slices.Contains(idx, v.XPhase) {
+			idx = append(idx, v.XPhase)
 		}
 	}
 	sort.Ints(idx)
@@ -109,4 +126,67 @@ func (s *Schema) GetSession(sessionID string) (Schema, error) {
 	clonedSchema.Properties = px
 	clonedSchema.Required = req
 	return clonedSchema, nil
+}
+
+// Resolve resolves all the references in the schema.
+func (s *Schema) Resolve(components Components) error {
+	return s.resolve(s, components, make(map[string]bool))
+}
+
+// resolve resolves all the references in the schema (recursive function)
+func (s *Schema) resolve(schema *Schema, components Components, visited map[string]bool) error {
+	if schema == nil {
+		return nil
+	}
+	if schema.Ref != nil {
+		ref := *schema.Ref
+		if visited[ref] {
+			return nil
+		}
+		if strings.HasPrefix(ref, "#/components/schemas/") {
+			visited[ref] = true
+			defer func() { delete(visited, ref) }()
+			schemaName := strings.TrimPrefix(ref, "#/components/schemas/")
+			if resolvedSchema, ok := components.Schemas[schemaName]; ok {
+				originalXPhase := schema.XPhase
+				originalXSession := schema.XSession
+
+				*schema = resolvedSchema
+
+				schema.XPhase = originalXPhase
+				schema.XSession = originalXSession
+				schema.Ref = nil
+
+				if err := s.resolve(schema, components, visited); err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("schema not found: %s", ref)
+			}
+		}
+	}
+
+	if schema.Properties != nil {
+		for _, propSchema := range schema.Properties {
+			if err := s.resolve(propSchema, components, visited); err != nil {
+				return err
+			}
+		}
+	}
+
+	if schema.Items != nil {
+		if err := s.resolve(schema.Items, components, visited); err != nil {
+			return err
+		}
+	}
+
+	if schema.AnyOf != nil {
+		for _, anyOfSchema := range schema.AnyOf {
+			if err := s.resolve(anyOfSchema, components, visited); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

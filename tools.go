@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2025 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package frags
 
 import (
@@ -16,17 +33,18 @@ const (
 
 // Tool defines a tool that can be used in a session.
 // Name is either the tool name of the function name
+// ServerName is only used for MCP tools
 // Description is the tool description. Optional, as the tool should already have a description, fill if you wish
 // to override the default
 // Type is either internet_search or function
-// InputSchema is used only for functions, and defines the parameters of the function. Optional, as the tool should
-// already have parameters, fill if you wish to override the default
+// InputSchema defines the input schema for the tool. When used in a session, it is meant to work as an override of
+// the default value provided by MCP or the developer.
 type Tool struct {
 	Name        string   `json:"name" yaml:"name"`
 	ServerName  string   `json:"server_name" yaml:"serverName"`
 	Description string   `json:"description" yaml:"description"`
 	Type        ToolType `json:"type" yaml:"type"`
-	InputSchema *Schema  `json:"inputSchema" yaml:"input_schema"`
+	InputSchema *Schema  `json:"input_schema" yaml:"inputSchema"`
 }
 
 func (t Tool) String() string {
@@ -43,6 +61,8 @@ func (t Tool) String() string {
 
 type Tools []Tool
 
+// HasType returns true if the tool list contains a tool of the given type. This is useful for "special" tools like
+// internet_search, in which the type is all it needs.
 func (t *Tools) HasType(tt ToolType) bool {
 	for _, tool := range *t {
 		if tool.Type == tt {
@@ -54,26 +74,36 @@ func (t *Tools) HasType(tt ToolType) bool {
 
 // Function represents a function that can be called by the AI model.
 type Function struct {
-	Func        func(data map[string]any) (map[string]any, error)
-	Name        string
-	Server      string
-	Description string
-	Schema      *Schema
+	Func        func(data map[string]any) (map[string]any, error) `yaml:"-"`
+	Name        string                                            `yaml:"name"`
+	Server      string                                            `yaml:"server"`
+	Description string                                            `yaml:"description"`
+	Schema      *Schema                                           `yaml:"schema"`
 }
 
-func (f Function) Run(data map[string]any, runner ExportableRunner) (map[string]any, error) {
-	data, err := f.Func(data)
+// Run runs the function, applying any transformers defined in the runner.
+func (f Function) Run(args map[string]any, runner ExportableRunner) (map[string]any, error) {
+	args, err := runner.Transformers().FilterOnFunctionInput(f.Name).Transform(args, runner)
 	if err != nil {
 		return nil, err
 	}
-	if runner.Transformers() != nil {
-		return runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(data, runner)
+	data, err := f.Func(args)
+	if err != nil {
+		return nil, err
 	}
-	return data, nil
+	return runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(data, runner)
 }
 
 // Functions is a map of functions, indexed by name.
 type Functions map[string]Function
+
+func (f Functions) String() string {
+	var keys []string
+	for k := range f {
+		keys = append(keys, k)
+	}
+	return fmt.Sprintf("%v", keys)
+}
 
 // Get returns a function by name.
 func (f Functions) Get(name string) Function {
@@ -91,6 +121,10 @@ func (f Functions) ListByServer(server string) Functions {
 	return out
 }
 
+// FunctionCall Represents a function invocation. NOTE: description is meant to explain to LLM what the output data is
+// about when the function is called by an entity that's not the LLM itself.
+// IMPORTANT: if Code is not nil, this will trigger the execution of the scripting engine. If the engine is nil, nothing
+// will happen.
 type FunctionCall struct {
 	Name        string         `yaml:"name" json:"name"`
 	Code        *string        `yaml:"code" json:"code"`
@@ -100,7 +134,7 @@ type FunctionCall struct {
 
 type FunctionCalls []FunctionCall
 
-// RunPreCallsToTextContext runs the pre-call functions, and composes a textual context to be prepended to the
+// RunPreCallsToTextContext runs the pre-call functions and composes a textual context to be prepended to the
 // actual prompt.
 func (r *Runner[T]) RunPreCallsToTextContext(ctx context.Context, session Session) (string, error) {
 	preCallsText := ""
