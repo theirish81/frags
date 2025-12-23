@@ -160,7 +160,7 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 		close(r.sessionChan)
 	}()
 	r.dataStructure = initDataStructure[T]()
-	if err := r.sessionManager.ResolveSchema(); err != nil {
+	if err := r.sessionManager.Schema.Resolve(r.sessionManager.Components); err != nil {
 		return r.dataStructure, errors.New("failed to resolve schema")
 	}
 	if r.sessionManager.SystemPrompt != nil {
