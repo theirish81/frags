@@ -51,7 +51,7 @@ type Schema struct {
 	Required         []string           `json:"required,omitempty" yaml:"required,omitempty"`
 	Title            string             `json:"title,omitempty" yaml:"title,omitempty"`
 	Type             string             `json:"type,omitempty" yaml:"type,omitempty"`
-	XPhase           *int               `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
+	XPhase           int                `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
 	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
 	Ref              *string            `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 }
@@ -70,7 +70,7 @@ func (s *Schema) GetPhase(phase int) (Schema, error) {
 	px := make(map[string]*Schema)
 	req := make([]string, 0)
 	for k, v := range clonedSchema.Properties {
-		if v.XPhase != nil && *v.XPhase == phase {
+		if v.XPhase == phase {
 			px[k] = v
 			if slices.Contains(clonedSchema.Required, k) {
 				req = append(req, k)
@@ -86,10 +86,8 @@ func (s *Schema) GetPhase(phase int) (Schema, error) {
 func (s *Schema) GetPhaseIndexes() []int {
 	idx := make([]int, 0)
 	for _, v := range s.Properties {
-		if v.XPhase != nil {
-			if !slices.Contains(idx, *v.XPhase) {
-				idx = append(idx, *v.XPhase)
-			}
+		if !slices.Contains(idx, v.XPhase) {
+			idx = append(idx, v.XPhase)
 		}
 	}
 	sort.Ints(idx)

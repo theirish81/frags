@@ -89,7 +89,7 @@ type SessionManager struct {
 	SystemPrompt *string       `yaml:"systemPrompt" json:"system_prompt"`
 	Components   Components    `yaml:"components" json:"components"`
 	Sessions     Sessions      `yaml:"sessions" json:"sessions"`
-	Schema       Schema        `yaml:"schema" json:"schema"`
+	Schema       *Schema       `yaml:"schema" json:"schema"`
 }
 
 // Components holds the reusable components of the sessions and schema
@@ -110,10 +110,27 @@ func (s *SessionManager) SetSession(sessionID string, session Session) {
 
 // SetSchema sets the schema in the SessionManager.
 func (s *SessionManager) SetSchema(schema Schema) {
-	s.Schema = schema
+	s.Schema = &schema
 }
 
 // FromYAML unmarshals a YAML document into the SessionManager.
 func (s *SessionManager) FromYAML(data []byte) error {
 	return yaml.Unmarshal(data, s)
+}
+
+func (s *SessionManager) initNullSchema() {
+	if s.Schema == nil {
+		schema := Schema{
+			Type:       "object",
+			Properties: map[string]*Schema{},
+		}
+		for k, _ := range s.Sessions {
+			schema.Properties[k] = &Schema{
+				Type:     "string",
+				XSession: strPtr(k),
+				XPhase:   0,
+			}
+		}
+		s.Schema = &schema
+	}
 }

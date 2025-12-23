@@ -23,11 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var zero = 0
-var one = 1
-var ctxFoo = "foo"
-var ctxBar = "bar"
-
 func TestSchema_GetPhase(t *testing.T) {
 	s := Schema{
 		Description: "this is a test",
@@ -35,11 +30,11 @@ func TestSchema_GetPhase(t *testing.T) {
 		Properties: map[string]*Schema{
 			"p1": {
 				Type:   "string",
-				XPhase: &zero,
+				XPhase: 0,
 			},
 			"p2": {
 				Type:   "integer",
-				XPhase: &one,
+				XPhase: 1,
 			},
 		},
 	}
@@ -63,22 +58,22 @@ func TestSchema_GetContext(t *testing.T) {
 		Properties: map[string]*Schema{
 			"p1": {
 				Type:     "string",
-				XSession: &ctxFoo,
+				XSession: strPtr("foo"),
 			},
 			"p2": {
 				Type:     "integer",
-				XSession: &ctxBar,
+				XSession: strPtr("bar"),
 			},
 		},
 	}
 
-	px1, err := s.GetSession(ctxFoo)
+	px1, err := s.GetSession("foo")
 	assert.Nil(t, err)
 	assert.Equal(t, "string", px1.Properties["p1"].Type)
 	assert.Len(t, px1.Properties, 1)
 	assert.Equal(t, []string{"p1"}, px1.Required)
 
-	px2, err := s.GetSession(ctxBar)
+	px2, err := s.GetSession("bar")
 	assert.Nil(t, err)
 	assert.Equal(t, "integer", px2.Properties["p2"].Type)
 	assert.Len(t, px2.Properties, 1)
@@ -95,22 +90,22 @@ func TestSchema_GetContextGetPhaseCombined(t *testing.T) {
 			"p1": {
 				Type:     "string",
 				XSession: &ctxFoo,
-				XPhase:   &zero,
+				XPhase:   0,
 			},
 			"p2": {
 				Type:     "integer",
 				XSession: &ctxFoo,
-				XPhase:   &one,
+				XPhase:   1,
 			},
 			"p3": {
 				Type:     "string",
 				XSession: &ctxBar,
-				XPhase:   &zero,
+				XPhase:   0,
 			},
 			"p4": {
 				Type:     "integer",
 				XSession: &ctxBar,
-				XPhase:   &one,
+				XPhase:   1,
 			},
 		},
 	}
@@ -303,7 +298,7 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 		Properties: map[string]*Schema{
 			"shipping_address": {
 				Ref:      &ref,
-				XPhase:   &phase,
+				XPhase:   phase,
 				XSession: &session,
 			},
 		},
@@ -315,7 +310,7 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 	addressSchema := schema.Properties["shipping_address"]
 	assert.Nil(t, addressSchema.Ref)
 	assert.Equal(t, "object", addressSchema.Type)
-	assert.Equal(t, phase, *addressSchema.XPhase)
+	assert.Equal(t, phase, addressSchema.XPhase)
 	assert.Equal(t, session, *addressSchema.XSession)
 	assert.Equal(t, "string", addressSchema.Properties["street"].Type)
 }
