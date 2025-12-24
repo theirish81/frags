@@ -40,11 +40,12 @@ const (
 // InputSchema defines the input schema for the tool. When used in a session, it is meant to work as an override of
 // the default value provided by MCP or the developer.
 type Tool struct {
-	Name        string   `json:"name" yaml:"name"`
-	ServerName  string   `json:"server_name" yaml:"serverName"`
-	Description string   `json:"description" yaml:"description"`
-	Type        ToolType `json:"type" yaml:"type"`
-	InputSchema *Schema  `json:"input_schema" yaml:"inputSchema"`
+	Name        string    `json:"name" yaml:"name"`
+	Collection  string    `json:"-" yaml:"-"`
+	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
+	Type        ToolType  `json:"type" yaml:"type"`
+	InputSchema *Schema   `json:"input_schema,omitempty" yaml:"inputSchema,omitempty"`
+	Allowlist   *[]string `json:"allowlist,omitempty" yaml:"allowlist,omitempty"`
 }
 
 func (t Tool) String() string {
@@ -54,7 +55,7 @@ func (t Tool) String() string {
 	case ToolTypeFunction:
 		return fmt.Sprintf("%s/%s", t.Type, t.Name)
 	case ToolTypeMCP:
-		return fmt.Sprintf("%s/%s", t.Type, t.ServerName)
+		return fmt.Sprintf("%s/%s", t.Type, t.Collection)
 	}
 	return ""
 }
@@ -76,9 +77,13 @@ func (t *Tools) HasType(tt ToolType) bool {
 type Function struct {
 	Func        func(data map[string]any) (map[string]any, error) `yaml:"-"`
 	Name        string                                            `yaml:"name"`
-	Server      string                                            `yaml:"server"`
+	Collection  string                                            `yaml:"collection"`
 	Description string                                            `yaml:"description"`
 	Schema      *Schema                                           `yaml:"schema"`
+}
+
+func (f Function) String() string {
+	return fmt.Sprintf("%s:%s", f.Collection, f.Name)
 }
 
 // Run runs the function, applying any transformers defined in the runner.
@@ -98,11 +103,11 @@ func (f Function) Run(args map[string]any, runner ExportableRunner) (map[string]
 type Functions map[string]Function
 
 func (f Functions) String() string {
-	var keys []string
-	for k := range f {
-		keys = append(keys, k)
+	vals := make([]string, 0)
+	for _, v := range f {
+		vals = append(vals, v.String())
 	}
-	return fmt.Sprintf("%v", keys)
+	return fmt.Sprintf("%v", vals)
 }
 
 // Get returns a function by name.
@@ -110,11 +115,11 @@ func (f Functions) Get(name string) Function {
 	return f[name]
 }
 
-// ListByServer returns a subset of functions, filtered by (MCP) server.
-func (f Functions) ListByServer(server string) Functions {
+// ListByCollection returns a subset of functions, filtered by (MCP) server.
+func (f Functions) ListByCollection(collection string) Functions {
 	out := Functions{}
 	for k, v := range f {
-		if v.Server == server {
+		if v.Collection == collection {
 			out[k] = v
 		}
 	}

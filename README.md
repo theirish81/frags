@@ -390,8 +390,8 @@ sessions:
     prePrompt: search for "frags" in bigQuery, table "services"
     prompt: adapt the discovered information to the schema
     tools:
-      - type: mcp
-        serverName: bigQuery
+      - name: bigQuery
+        type: mcp
 ## continues with schema...
 ```
 

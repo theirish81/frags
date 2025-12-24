@@ -186,7 +186,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 		functions[t.Name] = Function{
 			Name:        t.Name,
 			Description: t.Description,
-			Server:      c.Name,
+			Collection:  c.Name,
 			Schema:      t.InputSchema,
 			Func: func(data map[string]any) (map[string]any, error) {
 				res, err := c.Run(context.Background(), t.Name, data)
