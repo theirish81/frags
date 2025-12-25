@@ -99,10 +99,10 @@ func EvaluateBooleanExpression(expression string, scope EvalScope) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	if b, ok := res.(bool); ok && b {
-		return true, nil
+	if b, ok := res.(bool); ok {
+		return b, nil
 	}
-	return false, nil
+	return false, errors.New("return type is not a boolean")
 }
 
 // EvaluateArrayExpression evaluates an array expression, expecting the target to be an array.
@@ -127,8 +127,8 @@ func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) 
 	}
 }
 
-// EvaluateArgsTemplates will evaluate all **first level** strings as templates, in a given map of arguments.
-func EvaluateArgsTemplates(args map[string]any, scope EvalScope) (map[string]any, error) {
+// EvaluateMapValues will evaluate all **first level** strings as templates in a given map of arguments.
+func EvaluateMapValues(args map[string]any, scope EvalScope) (map[string]any, error) {
 	if args == nil {
 		return nil, nil
 	}

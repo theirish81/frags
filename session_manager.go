@@ -85,11 +85,12 @@ type Sessions map[string]Session
 
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {
-	Transformers *Transformers `json:"transformers" yaml:"transformers"`
-	SystemPrompt *string       `yaml:"systemPrompt" json:"system_prompt"`
-	Components   Components    `yaml:"components" json:"components"`
-	Sessions     Sessions      `yaml:"sessions" json:"sessions"`
-	Schema       *Schema       `yaml:"schema" json:"schema"`
+	Transformers *Transformers  `json:"transformers" yaml:"transformers"`
+	SystemPrompt *string        `yaml:"systemPrompt" json:"system_prompt"`
+	Components   Components     `yaml:"components" json:"components"`
+	Sessions     Sessions       `yaml:"sessions" json:"sessions"`
+	Schema       *Schema        `yaml:"schema" json:"schema"`
+	Vars         map[string]any `yaml:"vars" json:"vars"`
 }
 
 // Components holds the reusable components of the sessions and schema

@@ -39,7 +39,7 @@ func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyChec
 		}
 
 		if dep.Expression != nil {
-			pass, err := EvaluateBooleanExpression(*dep.Expression, r.newEvalScope())
+			pass, err := EvaluateBooleanExpression(*dep.Expression, r.newEvalScope().WithVars(r.vars))
 			if err != nil {
 				return DependencyCheckUnsolvable, err
 			}
