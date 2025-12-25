@@ -119,18 +119,21 @@ func (s *SessionManager) FromYAML(data []byte) error {
 	return yaml.Unmarshal(data, s)
 }
 
+// initNullSchema initializes the schema if it is nil
 func (s *SessionManager) initNullSchema() {
 	if s.Schema == nil {
 		schema := Schema{
-			Type:       "object",
+			Type:       SchemaObject,
 			Properties: map[string]*Schema{},
+			Required:   make([]string, 0),
 		}
 		for k, _ := range s.Sessions {
 			schema.Properties[k] = &Schema{
-				Type:     "string",
+				Type:     SchemaString,
 				XSession: strPtr(k),
 				XPhase:   0,
 			}
+			schema.Required = append(schema.Required, k)
 		}
 		s.Schema = &schema
 	}

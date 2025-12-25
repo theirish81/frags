@@ -144,6 +144,7 @@ func EvaluateMapValues(args map[string]any, scope EvalScope) (map[string]any, er
 	return args, nil
 }
 
+// templateFuncs are the functions available in the templates.
 var templateFuncs = template.FuncMap{
 	"json": func(v any) string {
 		json, _ := json.MarshalIndent(v, "", " ")

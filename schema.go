@@ -27,6 +27,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const SchemaObject = "object"
+const SchemaString = "string"
+const SchemaInteger = "integer"
+const SchemaNumber = "number"
+const SchemaBoolean = "boolean"
+const SchemaArray = "array"
+
 // Schema represents a JSON schema with x-phase and x-session extensions.
 type Schema struct {
 	AnyOf            []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
