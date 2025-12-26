@@ -30,16 +30,11 @@ import (
 var runCmd = &cobra.Command{
 	Use:   "run <path/to/plan.yaml>",
 	Short: "Run a frags plan from a YAML file.",
+	Long:  "Run a frags plan from a YAML file. This is the main most complex functionality of Frags.",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// validate flags and input
 		if err := validateRunArgs(args); err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-
-		mcpConfig, err := parseMcpConfig()
-		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
@@ -71,13 +66,26 @@ var runCmd = &cobra.Command{
 		if err != nil {
 			cmd.PrintErrln(err)
 		}
-		fx, err := prepareMcpFunctions(mcpConfig)
+		mcpConfig, err := parseMcpConfig()
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		mcpTools := mcpConfig.McpTools()
+		defer func() {
+			_ = mcpTools.Close()
+		}()
+		if err := mcpTools.Connect(cmd.Context()); err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		fx, err := mcpTools.AsFunctions(cmd.Context())
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
 		ai.SetFunctions(fx)
-		log.Info("functions loaded", "functions", fx.String())
+		log.Info("available functions", "functions", fx)
 		ch := make(chan frags.ProgressMessage, 10)
 		go func() {
 			for msg := range ch {

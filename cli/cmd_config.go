@@ -21,13 +21,13 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/theirish81/frags"
 	"gopkg.in/yaml.v3"
 )
 
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Prints the current configuration",
+	Long:  "Prints the current configuration. It will additionally connect to the available MCP tools and print their function setup.",
 	Run: func(cmd *cobra.Command, args []string) {
 		globalConfig, _ := yaml.Marshal(cfg)
 		fmt.Println("==== GLOBAL CONFIG ====")
@@ -38,18 +38,17 @@ var configCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		fx, err := prepareMcpFunctions(mcpConfig)
+		mcpTools := mcpConfig.McpTools()
+		err = mcpTools.Connect(cmd.Context())
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
-		tools := frags.Tools{}
-		for name, _ := range mcpConfig.McpServers {
-			tools = append(tools, frags.Tool{
-				ServerName: name,
-				Type:       frags.ToolTypeMCP,
-			})
+		fx, err := mcpTools.AsFunctions(cmd.Context())
+		if err != nil {
+			cmd.PrintErrln(err)
 		}
+		tools := mcpConfig.Tools()
 
 		toolsText, _ := yaml.Marshal(tools)
 		fmt.Println("==== TOOLS CONFIG ====")

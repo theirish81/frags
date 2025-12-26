@@ -25,34 +25,49 @@ import (
 	"github.com/theirish81/frags"
 )
 
+var internetSearch bool
+var toolsEnabled bool
+
 var askCmd = &cobra.Command{
 	Use:   "ask <prompt>",
 	Short: "Ask a question to the AI, using the current Frags settings and tools.",
+	Long:  "Ask a question to the AI, using the current Frags settings and tools. This is a simulation of what plans do, so it's subject to the limitations imposed by generating structured output.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+
+		log := slog.Default()
+
+		ai, err := initAi(log)
 		mcpConfig, err := parseMcpConfig()
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
-
-		log := slog.Default()
-
-		ai, err := initAi(log)
-		fx, err := prepareMcpFunctions(mcpConfig)
-		tools := frags.Tools{}
-		for name, _ := range mcpConfig.McpServers {
-			tools = append(tools, frags.Tool{
-				ServerName: name,
-				Type:       frags.ToolTypeMCP,
-			})
+		mcpTools := mcpConfig.McpTools()
+		defer func() {
+			_ = mcpTools.Close()
+		}()
+		if err := mcpTools.Connect(cmd.Context()); err != nil {
+			cmd.PrintErrln(err)
+			return
 		}
+		fx, err := mcpTools.AsFunctions(cmd.Context())
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
 		ai.SetFunctions(fx)
-
+		tools := frags.Tools{}
+		if toolsEnabled {
+			tools = mcpConfig.Tools()
+		}
+		if internetSearch {
+			tools = append(tools, frags.Tool{
+				Name: "internet_search",
+				Type: frags.ToolTypeInternetSearch,
+			})
+		}
+		log.Info("available functions", "functions", fx)
 		mgr := frags.NewSessionManager()
 
 		var pp *string
@@ -103,4 +118,6 @@ func init() {
 	askCmd.Flags().StringVarP(&prePrompt, "pre-prompt", "p", "", "A prompt to run before the AI prompt")
 	askCmd.Flags().StringVarP(&systemPrompt, "system-prompt", "s", "", "The system prompt")
 	askCmd.Flags().StringSliceVarP(&uploads, "upload", "u", []string{}, "file path to upload (can be specified multiple times)")
+	askCmd.Flags().BoolVarP(&internetSearch, "internet-search", "i", false, "Enable internet search")
+	askCmd.Flags().BoolVarP(&toolsEnabled, "tools", "t", false, "Enable tools")
 }

@@ -28,7 +28,8 @@ import (
 
 var scriptCmd = &cobra.Command{
 	Use:   "script <path/to/script.js>",
-	Short: "Run a script (JavaScript) on the scripting engine in the Frags context. Useful for debugging scriptable components",
+	Short: "Run a script (JavaScript) on the scripting engine in the Frags context.",
+	Long:  "Run a script (JavaScript) on the scripting engine in the Frags context. The purpose is to allow for a scripting playground for transformers and scripted tools.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		data, err := os.ReadFile(args[0])
@@ -54,7 +55,12 @@ var scriptCmd = &cobra.Command{
 		if err != nil {
 			cmd.PrintErrln(err)
 		}
-		fx, err := prepareMcpFunctions(mcpConfig)
+		mcpTools := mcpConfig.McpTools()
+		if err = mcpTools.Connect(cmd.Context()); err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		fx, err := mcpTools.AsFunctions(cmd.Context())
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

@@ -29,6 +29,7 @@ import (
 var renderCmd = &cobra.Command{
 	Use:   "render <path/to/data.json>",
 	Short: "Render a YAML/JSON data file into a document using a template",
+	Long:  "Render a YAML/JSON data file into a document using a template. To be used in case your prefer generating the data output and only later make the output into a document, which is particularly useful during the design phase of the template.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		data, err := os.ReadFile(args[0])

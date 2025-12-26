@@ -18,7 +18,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 
@@ -33,23 +32,4 @@ func parseMcpConfig() (frags.McpConfig, error) {
 		}
 	}
 	return mcpConfig, nil
-}
-
-// prepareMcpFunctions creates a map of MCP functions from the configured servers.
-func prepareMcpFunctions(mcpConfig frags.McpConfig) (frags.Functions, error) {
-	fx := frags.Functions{}
-	for name, mcpServer := range mcpConfig.McpServers {
-		tool := frags.NewMcpTool(name)
-		if err := tool.Connect(context.Background(), mcpServer); err != nil {
-			return fx, err
-		}
-		functions, err := tool.AsFunctions(context.Background())
-		if err != nil {
-			return fx, err
-		}
-		for k, v := range functions {
-			fx[k] = v
-		}
-	}
-	return fx, nil
 }
