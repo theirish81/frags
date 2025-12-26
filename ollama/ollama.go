@@ -216,7 +216,7 @@ func (d *Ai) configureTools(tools frags.Tools) ([]ToolDefinition, error) {
 	tx := make([]ToolDefinition, 0)
 	for _, tool := range tools {
 		switch tool.Type {
-		case frags.ToolTypeMCP:
+		case frags.ToolTypeMCP, frags.ToolTypeCollection:
 			for k, v := range d.Functions.ListByCollection(tool.Name) {
 				if tool.Allowlist == nil || slices.Contains(*tool.Allowlist, k) {
 					tx = append(tx, ToolDefinition{
