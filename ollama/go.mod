@@ -2,7 +2,7 @@ module github.com/theirish81/frags/ollama
 
 go 1.24.8
 
-require github.com/theirish81/frags v0.10.0
+require github.com/theirish81/frags v0.11.0
 
 require (
 	github.com/avast/retry-go/v5 v5.0.0 // indirect

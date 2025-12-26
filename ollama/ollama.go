@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/theirish81/frags"
@@ -115,7 +116,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		},
 	}
 	request.Tools, _ = d.configureTools(tools)
-	d.log.Debug("configured tools", "ai", "ollama", "tools", tools)
+	d.log.Debug("configured tools", "ai", "ollama", "tools", request.Tools)
 	keepGoing := true
 	out := ""
 	for keepGoing {
@@ -216,15 +217,17 @@ func (d *Ai) configureTools(tools frags.Tools) ([]ToolDefinition, error) {
 	for _, tool := range tools {
 		switch tool.Type {
 		case frags.ToolTypeMCP:
-			for k, v := range d.Functions.ListByServer(tool.ServerName) {
-				tx = append(tx, ToolDefinition{
-					Type: "function",
-					Function: FunctionDef{
-						Name:        k,
-						Description: v.Description,
-						Parameters:  v.Schema,
-					},
-				})
+			for k, v := range d.Functions.ListByCollection(tool.Name) {
+				if tool.Allowlist == nil || slices.Contains(*tool.Allowlist, k) {
+					tx = append(tx, ToolDefinition{
+						Type: "function",
+						Function: FunctionDef{
+							Name:        k,
+							Description: v.Description,
+							Parameters:  v.Schema,
+						},
+					})
+				}
 			}
 		case frags.ToolTypeFunction:
 			if fx, found := d.Functions[tool.Name]; found {

@@ -1,6 +1,8 @@
 package ollama
 
-import "github.com/theirish81/frags"
+import (
+	"github.com/theirish81/frags"
+)
 
 // Message represents a message sent to the LLM.
 type Message struct {
@@ -24,6 +26,10 @@ type Request struct {
 type ToolDefinition struct {
 	Type     string      `json:"type" yaml:"type"`
 	Function FunctionDef `json:"function" yaml:"function"`
+}
+
+func (t ToolDefinition) String() string {
+	return t.Function.Name
 }
 
 // FunctionDef represents a function definition
