@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/jinzhu/copier"
 	"github.com/theirish81/frags"
@@ -134,9 +135,11 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 			keepGoing = true
 		} else {
 			keepGoing = false
-			d.content = append(d.content, res.Candidates[0].Content)
-			out = joinParts(res.Candidates[0].Content.Parts)
-			d.log.Debug("generated response", "ai", "gemini", "response", out)
+			candidate := res.Candidates[0]
+			d.content = append(d.content, candidate.Content)
+			out = joinParts(candidate.Content.Parts)
+			internetSearch := candidate.GroundingMetadata != nil
+			d.log.Debug("generated response", "ai", "gemini", "response", out, "internet_search", internetSearch)
 		}
 	}
 	return []byte(out), nil
@@ -167,8 +170,8 @@ func (d *Ai) configureTools(tools frags.Tools) ([]*genai.Tool, error) {
 					Parameters:  genAiPSchema,
 				})
 			}
-		case frags.ToolTypeMCP:
-			for k, v := range d.Functions.ListByServer(tool.ServerName) {
+		case frags.ToolTypeMCP, frags.ToolTypeCollection:
+			for k, v := range d.Functions.ListByCollection(tool.Name) {
 				var genAiPSchema *genai.Schema
 				if v.Schema != nil {
 					genAiPSchema = &genai.Schema{}
@@ -176,12 +179,14 @@ func (d *Ai) configureTools(tools frags.Tools) ([]*genai.Tool, error) {
 						return nil, err
 					}
 				}
+				if tool.Allowlist == nil || slices.Contains(*tool.Allowlist, k) {
+					fd = append(fd, &genai.FunctionDeclaration{
+						Name:        k,
+						Description: v.Description,
+						Parameters:  genAiPSchema,
+					})
+				}
 
-				fd = append(fd, &genai.FunctionDeclaration{
-					Name:        k,
-					Description: v.Description,
-					Parameters:  genAiPSchema,
-				})
 			}
 		case frags.ToolTypeInternetSearch:
 			tx = append(tx, &genai.Tool{
