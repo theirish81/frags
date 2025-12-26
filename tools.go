@@ -29,22 +29,24 @@ const (
 	ToolTypeInternetSearch ToolType = "internet_search"
 	ToolTypeFunction       ToolType = "function"
 	ToolTypeMCP            ToolType = "mcp"
+	ToolTypeCollection     ToolType = "collection"
 )
 
 // Tool defines a tool that can be used in a session.
 // Name is either the tool name of the function name
-// ServerName is only used for MCP tools
+// Collection gets populated during mcp/collection tool breakdown into single functions
 // Description is the tool description. Optional, as the tool should already have a description, fill if you wish
 // to override the default
-// Type is either internet_search or function
-// InputSchema defines the input schema for the tool. When used in a session, it is meant to work as an override of
-// the default value provided by MCP or the developer.
+// Type is either internet_search, function, mcp or collection
+// InputSchema defines the input schema for the tool. mcp and collection tools don't have an input schema.
+// Allowlist is a list of allowed functions when the tool is MCP or collection. If nil, all functions are allowed.
 type Tool struct {
-	Name        string   `json:"name" yaml:"name"`
-	ServerName  string   `json:"server_name" yaml:"serverName"`
-	Description string   `json:"description" yaml:"description"`
-	Type        ToolType `json:"type" yaml:"type"`
-	InputSchema *Schema  `json:"input_schema" yaml:"inputSchema"`
+	Name        string    `json:"name" yaml:"name"`
+	Collection  string    `json:"-" yaml:"-"`
+	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
+	Type        ToolType  `json:"type" yaml:"type"`
+	InputSchema *Schema   `json:"input_schema,omitempty" yaml:"inputSchema,omitempty"`
+	Allowlist   *[]string `json:"allowlist,omitempty" yaml:"allowlist,omitempty"`
 }
 
 func (t Tool) String() string {
@@ -53,8 +55,8 @@ func (t Tool) String() string {
 		return string(ToolTypeInternetSearch)
 	case ToolTypeFunction:
 		return fmt.Sprintf("%s/%s", t.Type, t.Name)
-	case ToolTypeMCP:
-		return fmt.Sprintf("%s/%s", t.Type, t.ServerName)
+	case ToolTypeMCP, ToolTypeCollection:
+		return fmt.Sprintf("%s/%s", t.Type, t.Collection)
 	}
 	return ""
 }
@@ -73,12 +75,20 @@ func (t *Tools) HasType(tt ToolType) bool {
 }
 
 // Function represents a function that can be called by the AI model.
+// Name is the function name.
+// Collection is the MCP server or collection that contains the function.
+// Description is the function description
+// Schema is the input schema for the function.
 type Function struct {
 	Func        func(data map[string]any) (map[string]any, error) `yaml:"-"`
 	Name        string                                            `yaml:"name"`
-	Server      string                                            `yaml:"server"`
+	Collection  string                                            `yaml:"collection"`
 	Description string                                            `yaml:"description"`
 	Schema      *Schema                                           `yaml:"schema"`
+}
+
+func (f Function) String() string {
+	return fmt.Sprintf("%s:%s", f.Collection, f.Name)
 }
 
 // Run runs the function, applying any transformers defined in the runner.
@@ -98,11 +108,11 @@ func (f Function) Run(args map[string]any, runner ExportableRunner) (map[string]
 type Functions map[string]Function
 
 func (f Functions) String() string {
-	var keys []string
-	for k := range f {
-		keys = append(keys, k)
+	vals := make([]string, 0)
+	for _, v := range f {
+		vals = append(vals, v.String())
 	}
-	return fmt.Sprintf("%v", keys)
+	return fmt.Sprintf("%v", vals)
 }
 
 // Get returns a function by name.
@@ -110,11 +120,11 @@ func (f Functions) Get(name string) Function {
 	return f[name]
 }
 
-// ListByServer returns a subset of functions, filtered by (MCP) server.
-func (f Functions) ListByServer(server string) Functions {
+// ListByCollection returns a subset of functions, filtered by MCP server or collection
+func (f Functions) ListByCollection(collection string) Functions {
 	out := Functions{}
 	for k, v := range f {
-		if v.Server == server {
+		if v.Collection == collection {
 			out[k] = v
 		}
 	}
@@ -145,7 +155,7 @@ func (r *Runner[T]) RunPreCallsToTextContext(ctx context.Context, session Sessio
 				return preCallsText, ctx.Err()
 			}
 			var err error
-			c.Args, err = EvaluateArgsTemplates(c.Args, r.newEvalScope().WithVars(session.Vars))
+			c.Args, err = EvaluateMapValues(c.Args, r.newEvalScope().WithVars(r.vars).WithVars(session.Vars))
 			if err != nil {
 				return preCallsText, err
 			}
@@ -165,4 +175,30 @@ func (r *Runner[T]) RunPreCallsToTextContext(ctx context.Context, session Sessio
 		}
 	}
 	return preCallsText, nil
+}
+
+// Collection is a collection of functions
+type Collection struct {
+	Name        string
+	Description string
+	functions   Functions
+}
+
+func (c *Collection) AddFunction(f Function) {
+	f.Collection = c.Name
+	c.functions[f.Name] = f
+}
+
+func (c *Collection) Functions() Functions {
+	return c.functions
+}
+
+// AsTool returns a Tool representation of the collection
+func (c *Collection) AsTool() Tool {
+	return Tool{
+		Name:        c.Name,
+		Collection:  c.Name,
+		Description: c.Description,
+		Type:        ToolTypeCollection,
+	}
 }

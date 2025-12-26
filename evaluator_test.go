@@ -24,42 +24,61 @@ import (
 )
 
 func TestEvaluateArrayExpression(t *testing.T) {
-	res, err := EvaluateArrayExpression(`bar`, EvalScope{
-		"bar": []string{"foo"},
-	})
-	assert.Nil(t, err)
-	assert.Equal(t, "foo", res[0])
+	t.Run("successfully evaluates an array expression", func(t *testing.T) {
+		res, err := EvaluateArrayExpression(`bar`, EvalScope{
+			"bar": []string{"foo"},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", res[0])
 
-	res, err = EvaluateArrayExpression(`bar`, EvalScope{
-		"bar": 123,
 	})
-	assert.NotNil(t, err)
+	t.Run("returns an error if the data does not resolve to an array", func(t *testing.T) {
+		_, err := EvaluateArrayExpression(`bar`, EvalScope{
+			"bar": 123,
+		})
+		assert.Error(t, err)
+	})
 
-	res, err = EvaluateArrayExpression(`val`, EvalScope{
-		"val": []s1{
-			{
-				S2: s2{
-					P1: 123,
+	t.Run("returns correct data type for the selected array", func(t *testing.T) {
+		res, err := EvaluateArrayExpression(`val`, EvalScope{
+			"val": []s1{
+				{
+					S2: s2{
+						P1: 123,
+					},
 				},
 			},
-		},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, float64(123), res[0].(s1).S2.P1)
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, float64(123), res[0].(s1).S2.P1)
 }
 
 func TestEvaluateBooleanExpression(t *testing.T) {
-	res, err := EvaluateBooleanExpression(`"foo" in bar`, EvalScope{
-		"bar": []string{"foo"},
+	t.Run("evaluates a true boolean expression", func(t *testing.T) {
+		res, err := EvaluateBooleanExpression(`"foo" in bar`, EvalScope{
+			"bar": []string{"foo"},
+		})
+		assert.NoError(t, err)
+		assert.True(t, res)
 	})
-	assert.Nil(t, err)
-	assert.True(t, res)
 
-	res, err = EvaluateBooleanExpression(`"fuz" in bar`, EvalScope{
-		"bar": []string{"foo"},
+	t.Run("evaluates a false boolean expression", func(t *testing.T) {
+		res, err := EvaluateBooleanExpression(`"fuz" in bar`, EvalScope{
+			"bar": []string{"foo"},
+		})
+		assert.NoError(t, err)
+		assert.False(t, res)
 	})
-	assert.Nil(t, err)
-	assert.False(t, res)
+
+	t.Run("fails to evaluate boolean", func(t *testing.T) {
+		res, err := EvaluateBooleanExpression(`bar`, EvalScope{
+			"bar": []string{"foo"},
+		})
+		assert.Error(t, err)
+		assert.False(t, res)
+	})
+
 }
 
 func TestEvaluateTemplate(t *testing.T) {
@@ -75,4 +94,31 @@ func TestEvaluateTemplate(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, "bar", res)
+}
+
+func TestEvalScope_WithVars(t *testing.T) {
+	scope := EvalScope{
+		"foo": "bar",
+	}
+	scope = scope.WithVars(map[string]any{
+		"buzz": "baz",
+	})
+	assert.Equal(t, "bar", scope["foo"])
+	assert.Equal(t, "baz", scope["buzz"])
+
+	scope = scope.WithVars(map[string]any{
+		"hey": "joe",
+	})
+	assert.Equal(t, "bar", scope["foo"])
+	assert.Equal(t, "baz", scope["buzz"])
+	assert.Equal(t, "joe", scope["hey"])
+
+	scope = scope.WithVars(map[string]any{
+		"hey": "mario",
+		"red": "ball",
+	})
+	assert.Equal(t, "bar", scope["foo"])
+	assert.Equal(t, "baz", scope["buzz"])
+	assert.Equal(t, "mario", scope["hey"])
+	assert.Equal(t, "ball", scope["red"])
 }

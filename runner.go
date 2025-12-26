@@ -52,6 +52,7 @@ type Runner[T any] struct {
 	progressChannel chan ProgressMessage
 	scriptEngine    ScriptEngine
 	kFormat         bool
+	vars            map[string]any
 }
 
 // SessionStatus is the status of a session.
@@ -145,6 +146,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 		progressChannel: opts.progressChannel,
 		kFormat:         opts.kFormat,
 		scriptEngine:    opts.scriptEngine,
+		vars:            make(map[string]any),
 	}
 }
 
@@ -159,13 +161,16 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	defer func() {
 		close(r.sessionChan)
 	}()
+	if r.sessionManager.Vars != nil {
+		r.vars = r.sessionManager.Vars
+	}
 	r.dataStructure = initDataStructure[T]()
 	r.sessionManager.initNullSchema()
 	if err := r.sessionManager.Schema.Resolve(r.sessionManager.Components); err != nil {
 		return r.dataStructure, errors.New("failed to resolve schema")
 	}
 	if r.sessionManager.SystemPrompt != nil {
-		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope())
+		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope().WithVars(r.vars))
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +248,8 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	}
 	iterator := make([]any, 1)
 	if session.IterateOn != nil {
-		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().WithVars(session.Vars)); err != nil {
+		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().WithVars(r.vars).
+			WithVars(session.Vars)); err != nil {
 			return err
 		}
 	}
@@ -254,7 +260,8 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 			// the context of the session.
-			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it).WithVars(session.Vars))
+			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithVars(r.vars).WithIterator(it).
+				WithVars(session.Vars))
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
@@ -289,7 +296,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				var data []byte
-				scope := r.newEvalScope().WithIterator(it).WithVars(session.Vars)
+				scope := r.newEvalScope().WithVars(r.vars).WithIterator(it).WithVars(session.Vars)
 				if idx == 0 {
 					prompt, err := session.RenderPrompt(scope)
 					if err != nil {

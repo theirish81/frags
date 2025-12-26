@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/jinzhu/copier"
@@ -35,6 +36,27 @@ type McpConfig struct {
 	McpServers map[string]McpServerConfig `json:"mcpServers"`
 }
 
+func (m McpConfig) McpTools() McpTools {
+	tools := make(McpTools, 0)
+	for name, server := range m.McpServers {
+		if !server.Disabled {
+			tools = append(tools, NewMcpTool(name, server))
+		}
+	}
+	return tools
+}
+
+func (m McpConfig) Tools() Tools {
+	tools := Tools{}
+	for name, _ := range m.McpServers {
+		tools = append(tools, Tool{
+			Name: name,
+			Type: ToolTypeMCP,
+		})
+	}
+	return tools
+}
+
 // McpServerConfig defines the configuration to connect to a MCP server
 type McpServerConfig struct {
 	Command   string            `json:"command"`
@@ -44,22 +66,25 @@ type McpServerConfig struct {
 	Transport string            `json:"transport"`
 	Url       string            `json:"url"`
 	Headers   map[string]string `json:"headers"`
+	Disabled  bool              `json:"disabled"`
 }
 
 // McpTool is a wrapper around the MCP client
 type McpTool struct {
-	Name    string
-	client  *mcp.Client
-	session *mcp.ClientSession
-	log     *slog.Logger
+	Name         string
+	serverConfig McpServerConfig
+	client       *mcp.Client
+	session      *mcp.ClientSession
+	log          *slog.Logger
 }
 
 // NewMcpTool creates a new MCP client wrapper
-func NewMcpTool(name string) McpTool {
+func NewMcpTool(name string, serverConfig McpServerConfig) *McpTool {
 	client := mcp.NewClient(&mcp.Implementation{Name: name, Version: "v1.0.0"}, nil)
-	return McpTool{
-		Name:   name,
-		client: client,
+	return &McpTool{
+		Name:         name,
+		serverConfig: serverConfig,
+		client:       client,
 		log: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		})),
@@ -67,42 +92,40 @@ func NewMcpTool(name string) McpTool {
 }
 
 // Connect connects to the MCP server
-func (c *McpTool) Connect(ctx context.Context, server McpServerConfig) error {
-	if len(server.Command) > 0 {
-		return c.ConnectStd(ctx, server)
+func (c *McpTool) Connect(ctx context.Context) error {
+	if len(c.serverConfig.Command) > 0 {
+		return c.ConnectStd(ctx)
 	}
-	if server.Transport == "sse" {
-		return c.ConnectSSE(ctx, server)
+	if c.serverConfig.Transport == "sse" {
+		return c.ConnectSSE(ctx)
 	}
-	return c.ConnectStreamableHttp(ctx, server)
+	return c.ConnectStreamableHttp(ctx)
 }
 
 // ConnectStd connects to the MCP server using a std/stdout transport
-func (c *McpTool) ConnectStd(ctx context.Context, server McpServerConfig) error {
+func (c *McpTool) ConnectStd(ctx context.Context) error {
 	var err error
-	cmd := exec.Command(server.Command, server.Args...)
+	cmd := exec.Command(c.serverConfig.Command, c.serverConfig.Args...)
 	cmd.Env = make([]string, 0)
-	for k, v := range server.Env {
+	for k, v := range c.serverConfig.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
-	if len(server.Cwd) > 0 {
-		cmd.Dir = server.Cwd
+	if len(c.serverConfig.Cwd) > 0 {
+		cmd.Dir = c.serverConfig.Cwd
 	}
 	c.session, err = c.client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
 	return err
 }
 
 // ConnectSSE connects to the MCP server using an SSE transport
-func (c *McpTool) ConnectSSE(ctx context.Context, server McpServerConfig) error {
+func (c *McpTool) ConnectSSE(ctx context.Context) error {
 	client := http.Client{
-		Transport: &McpTransport{
-			Base:    http.DefaultTransport,
-			Headers: server.Headers,
-		},
+		Timeout:   30 * time.Minute,
+		Transport: NewMcpTransport(c.serverConfig.Headers),
 	}
 	var err error
 	c.session, err = c.client.Connect(ctx, &mcp.SSEClientTransport{
-		Endpoint:   server.Url,
+		Endpoint:   c.serverConfig.Url,
 		HTTPClient: &client,
 	}, nil)
 	return err
@@ -110,21 +133,19 @@ func (c *McpTool) ConnectSSE(ctx context.Context, server McpServerConfig) error 
 
 // ConnectStreamableHttp connects to the MCP server using a Streamable HTTP transport, which is now the default.
 // In case of failure, it falls back to SSE transport
-func (c *McpTool) ConnectStreamableHttp(ctx context.Context, server McpServerConfig) error {
+func (c *McpTool) ConnectStreamableHttp(ctx context.Context) error {
 	client := http.Client{
-		Transport: &McpTransport{
-			Base:    http.DefaultTransport,
-			Headers: server.Headers,
-		},
+		Timeout:   30 * time.Minute,
+		Transport: NewMcpTransport(c.serverConfig.Headers),
 	}
 	var err error
 	c.session, err = c.client.Connect(ctx, &mcp.StreamableClientTransport{
-		Endpoint:   server.Url,
+		Endpoint:   c.serverConfig.Url,
 		HTTPClient: &client,
 	}, nil)
 	if err != nil {
 		c.log.Warn("Streamable HTTP transport failed, falling back to SSE transport", "error", err.Error())
-		return c.ConnectSSE(ctx, server)
+		return c.ConnectSSE(ctx)
 	}
 	return err
 }
@@ -186,7 +207,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 		functions[t.Name] = Function{
 			Name:        t.Name,
 			Description: t.Description,
-			Server:      c.Name,
+			Collection:  c.Name,
 			Schema:      t.InputSchema,
 			Func: func(data map[string]any) (map[string]any, error) {
 				res, err := c.Run(context.Background(), t.Name, data)
@@ -223,7 +244,44 @@ func (c *McpTool) Run(ctx context.Context, name string, arguments any) (any, err
 }
 
 func (c *McpTool) Close() error {
-	return c.session.Close()
+	if c.session != nil {
+		return c.session.Close()
+	}
+	return nil
+}
+
+type McpTools []*McpTool
+
+func (m McpTools) Connect(ctx context.Context) error {
+	for _, t := range m {
+		if err := t.Connect(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m McpTools) Close() error {
+	for _, t := range m {
+		if err := t.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m McpTools) AsFunctions(ctx context.Context) (Functions, error) {
+	functions := Functions{}
+	for _, t := range m {
+		fs, err := t.AsFunctions(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range fs {
+			functions[k] = v
+		}
+	}
+	return functions, nil
 }
 
 // convertContentArray deals with the fact that the returned content, when it's not explicitly structured, can be a
@@ -263,6 +321,18 @@ func convertTextContent(content *mcp.TextContent) any {
 type McpTransport struct {
 	Base    http.RoundTripper
 	Headers map[string]string
+}
+
+func NewMcpTransport(headers map[string]string) *McpTransport {
+	return &McpTransport{
+		Headers: headers,
+		Base: &http.Transport{
+			ResponseHeaderTimeout: 30 * time.Second,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
 }
 
 // RoundTrip adds default headers to the request
