@@ -31,42 +31,14 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// McpConfig defines the configuration for the MCP clients
-type McpConfig struct {
-	McpServers map[string]McpServerConfig `json:"mcpServers"`
-}
-
-func (m McpConfig) McpTools() McpTools {
+func (m McpServers) McpTools() McpTools {
 	tools := make(McpTools, 0)
-	for name, server := range m.McpServers {
+	for name, server := range m {
 		if !server.Disabled {
 			tools = append(tools, NewMcpTool(name, server))
 		}
 	}
 	return tools
-}
-
-func (m McpConfig) Tools() Tools {
-	tools := Tools{}
-	for name, _ := range m.McpServers {
-		tools = append(tools, Tool{
-			Name: name,
-			Type: ToolTypeMCP,
-		})
-	}
-	return tools
-}
-
-// McpServerConfig defines the configuration to connect to a MCP server
-type McpServerConfig struct {
-	Command   string            `json:"command"`
-	Args      []string          `json:"args"`
-	Env       map[string]string `json:"env"`
-	Cwd       string            `json:"cwd"`
-	Transport string            `json:"transport"`
-	Url       string            `json:"url"`
-	Headers   map[string]string `json:"headers"`
-	Disabled  bool              `json:"disabled"`
 }
 
 // McpTool is a wrapper around the MCP client
