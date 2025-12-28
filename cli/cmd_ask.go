@@ -38,36 +38,27 @@ var askCmd = &cobra.Command{
 		log := slog.Default()
 
 		ai, err := initAi(log)
-		mcpConfig, err := parseMcpConfig()
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		mcpTools := mcpConfig.McpTools()
-		defer func() {
-			_ = mcpTools.Close()
-		}()
-		if err := mcpTools.Connect(cmd.Context()); err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		fx, err := mcpTools.AsFunctions(cmd.Context())
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		ai.SetFunctions(fx)
-		tools := frags.Tools{}
+		toolDefinitions := frags.ToolDefinitions{}
+		functions := frags.Functions{}
 		if toolsEnabled {
-			tools = mcpConfig.Tools()
+			var mcpTools frags.McpTools
+			mcpTools, _, toolDefinitions, functions, err = loadMcpAndCollections(cmd.Context())
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			ai.SetFunctions(functions)
+			defer func() {
+				_ = mcpTools.Close()
+			}()
 		}
 		if internetSearch {
-			tools = append(tools, frags.Tool{
+			toolDefinitions = append(toolDefinitions, frags.ToolDefinition{
 				Name: "internet_search",
 				Type: frags.ToolTypeInternetSearch,
 			})
 		}
-		log.Info("available functions", "functions", fx)
+		log.Info("available functions", "functions", functions)
 		mgr := frags.NewSessionManager()
 
 		var pp *string
@@ -88,7 +79,7 @@ var askCmd = &cobra.Command{
 			"default": {
 				PrePrompt: pp,
 				Prompt:    args[0],
-				Tools:     tools,
+				Tools:     toolDefinitions,
 				Resources: resources,
 			},
 		}

@@ -66,26 +66,16 @@ var runCmd = &cobra.Command{
 		if err != nil {
 			cmd.PrintErrln(err)
 		}
-		mcpConfig, err := parseMcpConfig()
+		mcpTools, _, _, functions, err := loadMcpAndCollections(cmd.Context())
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
-		mcpTools := mcpConfig.McpTools()
 		defer func() {
 			_ = mcpTools.Close()
 		}()
-		if err := mcpTools.Connect(cmd.Context()); err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		fx, err := mcpTools.AsFunctions(cmd.Context())
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		ai.SetFunctions(fx)
-		log.Info("available functions", "functions", fx)
+		ai.SetFunctions(functions)
+		log.Info("available functions", "functions", functions)
 		ch := make(chan frags.ProgressMessage, 10)
 		go func() {
 			for msg := range ch {

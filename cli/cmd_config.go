@@ -33,28 +33,19 @@ var configCmd = &cobra.Command{
 		fmt.Println("==== GLOBAL CONFIG ====")
 		fmt.Println(string(globalConfig))
 
-		mcpConfig, err := parseMcpConfig()
+		mcpTools, _, toolDefinitions, functions, err := loadMcpAndCollections(cmd.Context())
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
-		mcpTools := mcpConfig.McpTools()
-		err = mcpTools.Connect(cmd.Context())
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		fx, err := mcpTools.AsFunctions(cmd.Context())
-		if err != nil {
-			cmd.PrintErrln(err)
-		}
-		tools := mcpConfig.Tools()
-
-		toolsText, _ := yaml.Marshal(tools)
+		defer func() {
+			_ = mcpTools.Close()
+		}()
+		toolsText, _ := yaml.Marshal(toolDefinitions)
 		fmt.Println("==== TOOLS CONFIG ====")
 		fmt.Println(string(toolsText))
 
-		functionsText, _ := yaml.Marshal(fx)
+		functionsText, _ := yaml.Marshal(functions)
 		fmt.Println("==== FUNCTIONS CONFIG ====")
 		fmt.Println(string(functionsText))
 	},
