@@ -31,7 +31,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func (m McpServers) McpTools() McpTools {
+func (m McpServerConfigs) McpTools() McpTools {
 	tools := make(McpTools, 0)
 	for name, server := range m {
 		if !server.Disabled {
@@ -123,8 +123,8 @@ func (c *McpTool) ConnectStreamableHttp(ctx context.Context) error {
 }
 
 // ListTools lists the tools available on the server
-func (c *McpTool) ListTools(ctx context.Context) (Tools, error) {
-	res := Tools{}
+func (c *McpTool) ListTools(ctx context.Context) (ToolDefinitions, error) {
+	res := ToolDefinitions{}
 	tools, err := c.session.ListTools(ctx, nil)
 	if err != nil {
 		return res, err
@@ -159,7 +159,7 @@ func (c *McpTool) ListTools(ctx context.Context) (Tools, error) {
 		if schema.Properties == nil {
 			sPointer = nil
 		}
-		res = append(res, Tool{
+		res = append(res, ToolDefinition{
 			Name:        t.Name,
 			Description: t.Description,
 			InputSchema: sPointer,

@@ -30,7 +30,7 @@ const (
 	ToolTypeCollection     ToolType = "collection"
 )
 
-// Tool defines a tool that can be used in a session. A tool can define a function, an MCP server or a collection.
+// ToolDefinition defines a tool that can be used in a session. A tool can define a function, an MCP server or a collection.
 // Name is either the tool name of the function name
 // Collection gets populated during mcp/collection tool breakdown into single functions
 // Description is the tool description. Optional, as the tool should already have a description, fill if you wish
@@ -38,7 +38,7 @@ const (
 // Type is either internet_search, function, mcp or collection
 // InputSchema defines the input schema for the tool. mcp and collection tools don't have an input schema.
 // Allowlist is a list of allowed functions when the tool is MCP or collection. If nil, all functions are allowed.
-type Tool struct {
+type ToolDefinition struct {
 	Name        string    `json:"name" yaml:"name"`
 	Collection  string    `json:"-" yaml:"-"`
 	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
@@ -47,7 +47,7 @@ type Tool struct {
 	Allowlist   *[]string `json:"allowlist,omitempty" yaml:"allowlist,omitempty"`
 }
 
-func (t Tool) String() string {
+func (t ToolDefinition) String() string {
 	switch t.Type {
 	case ToolTypeInternetSearch:
 		return string(ToolTypeInternetSearch)
@@ -59,12 +59,12 @@ func (t Tool) String() string {
 	return ""
 }
 
-// Tools is a list of tools
-type Tools []Tool
+// ToolDefinitions is a list of tools
+type ToolDefinitions []ToolDefinition
 
 // HasType returns true if the tool list contains a tool of the given type. This is useful for "special" tools like
 // internet_search, in which the type is all it needs.
-func (t *Tools) HasType(tt ToolType) bool {
+func (t *ToolDefinitions) HasType(tt ToolType) bool {
 	for _, tool := range *t {
 		if tool.Type == tt {
 			return true
@@ -78,6 +78,7 @@ func (t *Tools) HasType(tt ToolType) bool {
 type ToolsCollection interface {
 	Name() string
 	Description() string
-	Functions() Functions
-	AsTool() Tool
+	AsFunctions() Functions
 }
+
+type ToolCollections []ToolsCollection
