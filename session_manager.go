@@ -36,23 +36,23 @@ import (
 // code evaluations against the already extracted data, to determine whether the session can start.
 // Context defines whether the partially extracted data should be passed to the session.
 // Attempts defines the number of times each phase should be retried if it fails.
-// Tools defines the tools that can be used in this session.
+// ToolDefinitions defines the tools that can be used in this session.
 // IterateOn describes a variable (typically a list) over which we will iterate the session. The session will run
 // len(IterateOn) times. Use an github.com/expr-lang/expr expression.
 // Vars defines variables that are local to the session.
 type Session struct {
-	PreCalls        *FunctionCalls `json:"pre_calls" yaml:"preCalls"`
-	PrePrompt       *string        `json:"pre_prompt" yaml:"prePrompt"`
-	Prompt          string         `json:"prompt" yaml:"prompt"`
-	NextPhasePrompt string         `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
-	Resources       []Resource     `json:"resources" yaml:"resources"`
-	Timeout         *string        `json:"timeout" yaml:"timeout"`
-	DependsOn       Dependencies   `json:"depends_on" yaml:"dependsOn"`
-	Context         bool           `json:"context" yaml:"context"`
-	Attempts        int            `json:"attempts" yaml:"attempts"`
-	Tools           Tools          `json:"tools" yaml:"tools"`
-	IterateOn       *string        `json:"iterate_on" yaml:"iterateOn"`
-	Vars            map[string]any `json:"vars" yaml:"vars"`
+	PreCalls        *FunctionCalls  `json:"pre_calls" yaml:"preCalls"`
+	PrePrompt       *string         `json:"pre_prompt" yaml:"prePrompt"`
+	Prompt          string          `json:"prompt" yaml:"prompt"`
+	NextPhasePrompt string          `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
+	Resources       []Resource      `json:"resources" yaml:"resources"`
+	Timeout         *string         `json:"timeout" yaml:"timeout"`
+	DependsOn       Dependencies    `json:"depends_on" yaml:"dependsOn"`
+	Context         bool            `json:"context" yaml:"context"`
+	Attempts        int             `json:"attempts" yaml:"attempts"`
+	Tools           ToolDefinitions `json:"tools" yaml:"tools"`
+	IterateOn       *string         `json:"iterate_on" yaml:"iterateOn"`
+	Vars            map[string]any  `json:"vars" yaml:"vars"`
 }
 
 // RenderPrePrompt renders the pre-prompt (which may contain Go templates), with the given scope

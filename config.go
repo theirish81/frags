@@ -20,19 +20,12 @@ package frags
 // ToolsConfig defines the configuration for the MCP clients and collections. This serves no specific purpose
 // within Frags itself, but it can be used by integrating applications to standardize the configuration format.
 type ToolsConfig struct {
-	McpServers  McpServers       `json:"mcpServers"`
-	Collections ToolsCollections `json:"collections"`
+	McpServers  McpServerConfigs       `json:"mcpServers"`
+	Collections ToolsCollectionConfigs `json:"collections"`
 }
 
-func (m ToolsConfig) Tools() Tools {
-	tools := Tools{}
-	for name, _ := range m.McpServers {
-		tools = append(tools, Tool{
-			Name: name,
-			Type: ToolTypeMCP,
-		})
-	}
-	return tools
+func (t ToolsConfig) AsToolDefinitions() ToolDefinitions {
+	return append(t.McpServers.AsToolDefinitions(), t.Collections.AsToolDefinitions()...)
 }
 
 // CollectionConfig defines the configuration for a collection
@@ -41,7 +34,18 @@ type CollectionConfig struct {
 	Disabled bool              `json:"disabled"`
 }
 
-type ToolsCollections map[string]CollectionConfig
+type ToolsCollectionConfigs map[string]CollectionConfig
+
+func (t ToolsCollectionConfigs) AsToolDefinitions() ToolDefinitions {
+	tools := ToolDefinitions{}
+	for name, _ := range t {
+		tools = append(tools, ToolDefinition{
+			Name: name,
+			Type: ToolTypeCollection,
+		})
+	}
+	return tools
+}
 
 // McpServerConfig defines the configuration to connect to a MCP server
 type McpServerConfig struct {
@@ -55,5 +59,16 @@ type McpServerConfig struct {
 	Disabled  bool              `json:"disabled"`
 }
 
-// McpServers is a map of MCP servers
-type McpServers map[string]McpServerConfig
+// McpServerConfigs is a map of MCP servers
+type McpServerConfigs map[string]McpServerConfig
+
+func (m McpServerConfigs) AsToolDefinitions() ToolDefinitions {
+	tools := ToolDefinitions{}
+	for name, _ := range m {
+		tools = append(tools, ToolDefinition{
+			Name: name,
+			Type: ToolTypeMCP,
+		})
+	}
+	return tools
+}
