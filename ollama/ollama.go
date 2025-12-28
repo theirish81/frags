@@ -81,7 +81,7 @@ func (d *Ai) New() frags.Ai {
 }
 
 // Ask performs a query against the Ollama API, according to the Frags interface
-func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.Tools,
+func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.ToolDefinitions,
 	runner frags.ExportableRunner, resources ...frags.ResourceData) ([]byte, error) {
 	if len(d.systemPrompt) > 0 && len(d.messages) == 0 {
 		d.messages = append(d.messages, Message{
@@ -212,7 +212,7 @@ func (d *Ai) sendRequest(ctx context.Context, request Request) (Response, error)
 	return response, err
 }
 
-func (d *Ai) configureTools(tools frags.Tools) ([]ToolDefinition, error) {
+func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ToolDefinition, error) {
 	tx := make([]ToolDefinition, 0)
 	for _, tool := range tools {
 		switch tool.Type {

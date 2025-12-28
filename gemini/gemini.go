@@ -75,7 +75,7 @@ func (d *Ai) New() frags.Ai {
 }
 
 // Ask performs a query against the Gemini API, according to the Frags interface
-func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.Tools,
+func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.ToolDefinitions,
 	runner frags.ExportableRunner, resources ...frags.ResourceData) ([]byte, error) {
 	parts := make([]*genai.Part, 0)
 	for _, resource := range resources {
@@ -145,7 +145,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	return []byte(out), nil
 }
 
-func (d *Ai) configureTools(tools frags.Tools) ([]*genai.Tool, error) {
+func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) {
 	tx := make([]*genai.Tool, 0)
 	fd := make([]*genai.FunctionDeclaration, 0)
 	for _, tool := range tools {
