@@ -46,26 +46,16 @@ var scriptCmd = &cobra.Command{
 		} else {
 			log = slog.Default()
 		}
-		mcpConfig, err := parseMcpConfig()
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
 		ai, err := initAi(log)
-		if err != nil {
-			cmd.PrintErrln(err)
-		}
-		mcpTools := mcpConfig.McpTools()
-		if err = mcpTools.Connect(cmd.Context()); err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		fx, err := mcpTools.AsFunctions(cmd.Context())
+		mcpTools, _, _, functions, err := loadMcpAndCollections(cmd.Context())
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
-		ai.SetFunctions(fx)
+		defer func() {
+			_ = mcpTools.Close()
+		}()
+		ai.SetFunctions(functions)
 		runner := frags.NewRunner[frags.ProgMap](frags.NewSessionManager(), frags.NewFileResourceLoader("."), ai,
 			frags.WithLogger(log),
 			frags.WithScriptEngine(NewJavascriptScriptingEngine()),

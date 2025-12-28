@@ -18,18 +18,65 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 
 	"github.com/theirish81/frags"
+	"github.com/theirish81/fragsfunctions/fs"
+	"github.com/theirish81/fragsfunctions/postgres"
 )
 
-func parseMcpConfig() (frags.McpConfig, error) {
-	mcpConfig := frags.McpConfig{}
-	if data, err := os.ReadFile("mcp.json"); err == nil {
-		if err := json.Unmarshal(data, &mcpConfig); err != nil {
-			return mcpConfig, err
+func parseToolsConfig() (frags.ToolsConfig, error) {
+	toolsConfig := frags.ToolsConfig{}
+	if data, err := os.ReadFile("tools.json"); err == nil {
+		if err := json.Unmarshal(data, &toolsConfig); err != nil {
+			return toolsConfig, err
 		}
 	}
-	return mcpConfig, nil
+	return toolsConfig, nil
+}
+
+func loadMcpAndCollections(ctx context.Context) (frags.McpTools, []frags.ToolsCollection, frags.ToolDefinitions, frags.Functions, error) {
+	mcpConfig, err := parseToolsConfig()
+	mcpTools := make(frags.McpTools, 0)
+	toolCollections := make([]frags.ToolsCollection, 0)
+	toolDefinitions := make(frags.ToolDefinitions, 0)
+	functions := make(frags.Functions, 0)
+	if err != nil {
+		return mcpTools, toolCollections, toolDefinitions, functions, err
+	}
+	toolDefinitions = mcpConfig.AsToolDefinitions()
+	mcpTools = mcpConfig.McpServers.McpTools()
+	if err = mcpTools.Connect(ctx); err != nil {
+		return mcpTools, toolCollections, toolDefinitions, functions, err
+	}
+	functions, err = mcpTools.AsFunctions(ctx)
+	if err != nil {
+		return mcpTools, toolCollections, toolDefinitions, functions, err
+	}
+	for k, v := range mcpConfig.Collections {
+		if v.Disabled {
+			continue
+		}
+		switch k {
+		case "fs":
+			t := fs.New()
+			for k, v := range t.AsFunctions() {
+				functions[k] = v
+			}
+			toolCollections = append(toolCollections, t)
+		case "postgres":
+			c, err := postgres.New(ctx, v.Params["postgres_url"])
+			if err != nil {
+				return mcpTools, toolCollections, toolDefinitions, functions, err
+			}
+			for k, v := range c.AsFunctions() {
+				functions[k] = v
+			}
+			toolCollections = append(toolCollections, c)
+		}
+	}
+	return mcpTools, toolCollections, toolDefinitions, functions, nil
+
 }
