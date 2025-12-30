@@ -19,6 +19,7 @@ package chatgpt
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -59,14 +60,19 @@ func NewHttpClient(baseURL string, apiKey string) *HttpClient {
 	}
 }
 
-func (c *HttpClient) PostResponses(content any) (Response, error) {
+func (c *HttpClient) PostResponses(ctx context.Context, content any) (Response, error) {
 	response := Response{}
 	data, err := json.Marshal(content)
 	if err != nil {
 		return response, err
 	}
 	reader := bytes.NewReader(data)
-	res, err := c.Post(c.baseURL+"/responses", "application/json", reader)
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/responses", reader)
+	if err != nil {
+		return response, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	res, err := c.Do(req)
 	if err != nil {
 		return response, err
 	}
@@ -85,7 +91,7 @@ func (c *HttpClient) PostResponses(content any) (Response, error) {
 	return response, err
 }
 
-func (c *HttpClient) FileUpload(filename string, content []byte) (FileDescriptor, error) {
+func (c *HttpClient) FileUpload(ctx context.Context, filename string, content []byte) (FileDescriptor, error) {
 	fd := FileDescriptor{}
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -112,8 +118,12 @@ func (c *HttpClient) FileUpload(filename string, content []byte) (FileDescriptor
 	if err := writer.Close(); err != nil {
 		return fd, err
 	}
-
-	res, err := c.Client.Post(c.baseURL+"/files", writer.FormDataContentType(), &body)
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/files", &body)
+	if err != nil {
+		return fd, err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	res, err := c.Client.Do(req)
 	if err != nil {
 		return fd, err
 	}

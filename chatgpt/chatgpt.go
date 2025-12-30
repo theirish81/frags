@@ -105,7 +105,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	for _, r := range resources {
 		fid, ok := d.files[r.Identifier]
 		if !ok {
-			fd, err := d.httpClient.FileUpload(r.Identifier, r.Data)
+			fd, err := d.httpClient.FileUpload(ctx, r.Identifier, r.Data)
 			if err != nil {
 				return nil, err
 			}
@@ -120,7 +120,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	for keepGoing {
 		req := NewResponseRequest(d.config.Model, d.content, chatGptTools, schema)
 
-		response, err := d.httpClient.PostResponses(req)
+		response, err := d.httpClient.PostResponses(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +156,7 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ChatGptTool, error) 
 				}
 				oaTools = append(oaTools, ChatGptTool{
 					Name:        tool.Name,
-					Type:        "function",
+					Type:        PartTypeFunction,
 					Description: description,
 					Parameters:  pSchema,
 				})
@@ -165,7 +165,7 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ChatGptTool, error) 
 			for k, v := range d.Functions.ListByCollection(tool.Name) {
 				if tool.Allowlist == nil || slices.Contains(*tool.Allowlist, k) {
 					oaTools = append(oaTools, ChatGptTool{
-						Type:        "function",
+						Type:        PartTypeFunction,
 						Name:        k,
 						Description: v.Description,
 						Parameters:  v.Schema,
@@ -193,7 +193,7 @@ func (d *Ai) handleFunctionCalls(responseMessage Response, runner frags.Exportab
 			return err
 		}
 		d.content = append(d.content, Message{
-			Type:   "function_call_output",
+			Type:   PartTypeFunctionCallOutput,
 			CallID: fc.CallID,
 			Output: string(data),
 		})

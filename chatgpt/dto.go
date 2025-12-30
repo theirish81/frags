@@ -6,6 +6,10 @@ import (
 
 const PartTypeInputText = "input_text"
 const PartTypeFunctionCall = "function_call"
+const PartTypeFunctionCallOutput = "function_call_output"
+const PartTypeJsonSchema = "json_schema"
+const PartTypeInputFile = "input_file"
+const PartTypeFunction = "function"
 const RoleUser = "user"
 
 type Text struct {
@@ -32,7 +36,7 @@ func NewResponseRequest(model string, input []Message, tools []ChatGptTool, sche
 		req.Text = &Text{
 			Format: &ResponseFormat{
 				Name:   "response",
-				Type:   "json_schema",
+				Type:   PartTypeJsonSchema,
 				Schema: schema,
 			},
 		}
@@ -81,7 +85,7 @@ type ContentParts []ContentPart
 
 func (c *ContentParts) InsertFileMessage(fileId string) {
 	*c = append([]ContentPart{{
-		Type:   "input_file",
+		Type:   PartTypeInputFile,
 		FileID: fileId,
 	}}, *c...)
 }
