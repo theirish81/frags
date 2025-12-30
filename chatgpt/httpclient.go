@@ -54,7 +54,7 @@ func NewHttpClient(baseURL string, apiKey string) *HttpClient {
 	return &HttpClient{
 		baseURL: baseURL,
 		Client: http.Client{
-			Timeout:   60 * time.Second,
+			Timeout:   120 * time.Second,
 			Transport: NewTransport(apiKey),
 		},
 	}

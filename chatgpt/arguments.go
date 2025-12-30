@@ -28,6 +28,15 @@ type ArgsUnion struct {
 	Map    map[string]any
 }
 
+func (a *ArgsUnion) GetMap() map[string]any {
+	if a.Map != nil {
+		return a.Map
+	}
+	out := make(map[string]any)
+	_ = json.Unmarshal([]byte(*a.String), &out)
+	return out
+}
+
 // --- Unmarshal ---
 
 func (a *ArgsUnion) UnmarshalJSON(data []byte) error {

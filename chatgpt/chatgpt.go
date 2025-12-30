@@ -25,7 +25,6 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/openai/openai-go/v3"
 	"github.com/theirish81/frags"
 )
 
@@ -33,7 +32,7 @@ const temperature float32 = 0.1
 const topK float32 = 40
 const topP float32 = 0.9
 
-const defaultModel = openai.ChatModelGPT5
+const defaultModel = "gpt-5"
 
 type Ai struct {
 	apiKey       string
@@ -118,7 +117,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	keepGoing := true
 	out := ""
 	for keepGoing {
-		req := NewResponseRequest(d.config.Model, d.content, chatGptTools, schema)
+		req := NewResponseRequest(d.config.Model, d.content, d.systemPrompt, chatGptTools, schema)
 
 		response, err := d.httpClient.PostResponses(ctx, req)
 		if err != nil {
@@ -172,6 +171,10 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ChatGptTool, error) 
 					})
 				}
 			}
+		case frags.ToolTypeInternetSearch:
+			oaTools = append(oaTools, ChatGptTool{
+				Type: "web_search",
+			})
 		}
 
 	}
@@ -184,7 +187,7 @@ func (d *Ai) SetFunctions(functions frags.Functions) {
 
 func (d *Ai) handleFunctionCalls(responseMessage Response, runner frags.ExportableRunner) error {
 	for _, fc := range responseMessage.FunctionCalls() {
-		res, err := d.RunFunction(frags.FunctionCall{Name: fc.Name, Args: fc.Arguments.Map}, runner)
+		res, err := d.RunFunction(frags.FunctionCall{Name: fc.Name, Args: fc.Arguments.GetMap()}, runner)
 		if err != nil {
 			return err
 		}
@@ -204,9 +207,9 @@ func (d *Ai) handleFunctionCalls(responseMessage Response, runner frags.Exportab
 func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (map[string]any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
 		functionSignature := fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args)
-		d.log.Debug("invoking function", "ai", "gemini", "function", functionSignature)
+		d.log.Debug("invoking function", "ai", "chatgpt", "function", functionSignature)
 		res, err := fx.Run(functionCall.Args, runner)
-		d.log.Debug("function result", "ai", "gemini", "function", functionSignature, "result", res, "error", err)
+		d.log.Debug("function result", "ai", "chatgpt", "function", functionSignature, "result", res, "error", err)
 		return res, err
 	}
 	return nil, errors.New("function not found")

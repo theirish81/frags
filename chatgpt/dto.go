@@ -36,6 +36,7 @@ type Text struct {
 // ResponseRequest represents a request to the Responses API
 type ResponseRequest struct {
 	Model              string        `json:"model"`
+	Instructions       string        `json:"instructions"`
 	Input              Messages      `json:"input"`
 	Text               *Text         `json:"text,omitempty"`
 	Tools              []ChatGptTool `json:"tools,omitempty"`
@@ -43,11 +44,12 @@ type ResponseRequest struct {
 	PreviousResponseID string        `json:"previous_response_id,omitempty"`
 }
 
-func NewResponseRequest(model string, input []Message, tools []ChatGptTool, schema *frags.Schema) ResponseRequest {
+func NewResponseRequest(model string, input []Message, instructions string, tools []ChatGptTool, schema *frags.Schema) ResponseRequest {
 	req := ResponseRequest{
-		Model: model,
-		Input: input,
-		Tools: tools,
+		Model:        model,
+		Input:        input,
+		Tools:        tools,
+		Instructions: instructions,
 	}
 	if schema != nil {
 		req.Text = &Text{
