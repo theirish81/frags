@@ -1,0 +1,85 @@
+/*
+ * Copyright (C) 2025 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package chatgpt
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"time"
+)
+
+type HttpClient struct {
+	http.Client
+	baseURL string
+}
+
+type Transport struct {
+	defaultRoundtripper http.RoundTripper
+	apiKey              string
+}
+
+func (t Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("Authorization", "Bearer "+t.apiKey)
+	return t.defaultRoundtripper.RoundTrip(req)
+}
+
+func NewTransport(apiKey string) *Transport {
+	return &Transport{
+		apiKey:              apiKey,
+		defaultRoundtripper: http.DefaultTransport,
+	}
+}
+
+func NewHttpClient(baseURL string, apiKey string) *HttpClient {
+	return &HttpClient{
+		baseURL: baseURL,
+		Client: http.Client{
+			Timeout:   60 * time.Second,
+			Transport: NewTransport(apiKey),
+		},
+	}
+}
+
+func (c *HttpClient) PostResponses(content any) (Response, error) {
+	response := Response{}
+	data, err := json.Marshal(content)
+	if err != nil {
+		return response, err
+	}
+	reader := bytes.NewReader(data)
+	res, err := c.Post(c.baseURL+"/responses", "application/json", reader)
+	if err != nil {
+		return response, err
+	}
+	defer func() {
+		_ = res.Body.Close()
+	}()
+	data, err = io.ReadAll(res.Body)
+	if err != nil {
+		return response, err
+	}
+	if res.StatusCode >= 400 {
+		return response, errors.New(string(data))
+	}
+
+	err = json.Unmarshal(data, &response)
+	return response, err
+}

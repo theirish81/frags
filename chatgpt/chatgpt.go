@@ -18,16 +18,12 @@
 package chatgpt
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"slices"
-	"time"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/theirish81/frags"
@@ -44,12 +40,13 @@ const defaultModel = openai.ChatModelGPT5
 type Ai struct {
 	apiKey       string
 	baseURL      string
-	httpClient   *http.Client
+	httpClient   *HttpClient
 	systemPrompt string
 	config       Config
-	content      []InputItem
+	content      []Message
 	Functions    frags.Functions
 	log          *slog.Logger
+	files        map[string]string
 }
 type Config struct {
 	Model       string  `yaml:"model" json:"model"`
@@ -73,15 +70,14 @@ func (d *Ai) SetSystemPrompt(prompt string) {
 
 func NewAI(baseURL string, apiKey string, config Config, log *slog.Logger) *Ai {
 	return &Ai{
-		apiKey:    apiKey,
-		baseURL:   baseURL,
-		config:    config,
-		content:   make([]InputItem, 0),
-		Functions: frags.Functions{},
-		log:       log,
-		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
-		},
+		apiKey:     apiKey,
+		baseURL:    baseURL,
+		config:     config,
+		content:    make([]Message, 0),
+		Functions:  frags.Functions{},
+		files:      make(map[string]string),
+		log:        log,
+		httpClient: NewHttpClient(baseURL, apiKey),
 	}
 }
 
@@ -91,10 +87,11 @@ func (d *Ai) New() frags.Ai {
 		httpClient:   d.httpClient,
 		baseURL:      d.baseURL,
 		apiKey:       d.apiKey,
-		content:      make([]InputItem, 0),
+		content:      make([]Message, 0),
 		Functions:    d.Functions,
 		config:       d.config,
 		systemPrompt: d.systemPrompt,
+		files:        d.files,
 		log:          d.log,
 	}
 }
@@ -105,74 +102,23 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	if err != nil {
 		return nil, err
 	}
-	d.content = append(d.content, InputItem{
-		Role: "user",
-		Content: []ContentPart{
-			{
-				Type: "input_text",
-				Text: text,
-			},
-		},
-	})
+	d.content = append(d.content, NewUserMessage(text))
 	keepGoing := true
 	out := ""
 	for keepGoing {
-		req := ResponseRequest{
-			Model: d.config.Model,
-			Input: d.content,
-			Tools: chatGptTools,
-		}
-		if schema != nil {
-			req.Text = &Text{
-				Format: &ResponseFormat{
-					Name:   "response",
-					Type:   "json_schema",
-					Schema: schema,
-				},
-			}
-		}
-		jsonData, err := json.Marshal(req)
+		req := NewResponseRequest(d.config.Model, d.content, chatGptTools, schema)
+
+		response, err := d.httpClient.PostResponses(req)
 		if err != nil {
-			return nil, fmt.Errorf("error marshaling request: %w", err)
+			return nil, err
 		}
-
-		httpReq, err := http.NewRequest("POST", d.baseURL+"/responses", bytes.NewBuffer(jsonData))
-		if err != nil {
-			return nil, fmt.Errorf("error creating HTTP request: %w", err)
-		}
-
-		httpReq.Header.Set("Content-Type", "application/json")
-		httpReq.Header.Set("Authorization", "Bearer "+d.apiKey)
-
-		resp, err := d.httpClient.Do(httpReq)
-		if err != nil {
-			return nil, fmt.Errorf("error sending request: %w", err)
-		}
-		defer func() {
-			_ = resp.Body.Close()
-		}()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("error reading response: %w", err)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
-		}
-
-		var response Response
-		if err := json.Unmarshal(body, &response); err != nil {
-			return nil, fmt.Errorf("error parsing response: %w", err)
-		}
-		item := response.Output[len(response.Output)-1]
-		d.content = append(d.content, item)
+		d.content = append(d.content, response.Output.Last())
 		if response.HasFunctionCalls() {
 			if err := d.handleFunctionCalls(response, runner); err != nil {
 				return nil, err
 			}
 		} else {
-			out = item.Content[0].Text
+			out = response.Output.Last().Content.First().Text
 			keepGoing = false
 		}
 
@@ -213,22 +159,9 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ChatGptTool, error) 
 					})
 				}
 			}
-			/*case frags.ToolTypeInternetSearch:
-			tx = append(tx, &genai.Tool{
-				GoogleSearch: &genai.GoogleSearch{},
-			})
-
-			*/
 		}
 
 	}
-	/*if len(fd) > 0 {
-		tx = append(tx, &genai.Tool{
-			FunctionDeclarations: fd,
-		})
-	}
-	return tx, nil
-	*/
 	return oaTools, nil
 }
 
@@ -246,7 +179,7 @@ func (d *Ai) handleFunctionCalls(responseMessage Response, runner frags.Exportab
 		if err != nil {
 			return err
 		}
-		d.content = append(d.content, InputItem{
+		d.content = append(d.content, Message{
 			Type:   "function_call_output",
 			CallID: fc.CallID,
 			Output: string(data),
