@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"time"
 )
@@ -82,4 +83,51 @@ func (c *HttpClient) PostResponses(content any) (Response, error) {
 
 	err = json.Unmarshal(data, &response)
 	return response, err
+}
+
+func (c *HttpClient) FileUpload(filename string, content []byte) (FileDescriptor, error) {
+	fd := FileDescriptor{}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("purpose", "assistants"); err != nil {
+		return fd, err
+	}
+
+	if err := writer.WriteField("expires_after[anchor]", "created_at"); err != nil {
+		return fd, err
+	}
+
+	if err := writer.WriteField("expires_after[seconds]", "3600"); err != nil {
+		return fd, err
+	}
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		return fd, err
+	}
+
+	if _, err := part.Write(content); err != nil {
+		return fd, err
+	}
+
+	if err := writer.Close(); err != nil {
+		return fd, err
+	}
+
+	res, err := c.Client.Post(c.baseURL+"/files", writer.FormDataContentType(), &body)
+	if err != nil {
+		return fd, err
+	}
+	defer func() {
+		_ = res.Body.Close()
+	}()
+	data, err := io.ReadAll(res.Body)
+	if res.StatusCode >= 400 {
+		return fd, errors.New(string(data))
+	}
+
+	if err != nil {
+		return fd, err
+	}
+	err = json.Unmarshal(data, &fd)
+	return fd, err
 }

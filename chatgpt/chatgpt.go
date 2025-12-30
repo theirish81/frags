@@ -33,8 +33,6 @@ const temperature float32 = 0.1
 const topK float32 = 40
 const topP float32 = 0.9
 
-const jsonContentType = "application/json"
-const textContentType = "text/plain"
 const defaultModel = openai.ChatModelGPT5
 
 type Ai struct {
@@ -43,7 +41,7 @@ type Ai struct {
 	httpClient   *HttpClient
 	systemPrompt string
 	config       Config
-	content      []Message
+	content      Messages
 	Functions    frags.Functions
 	log          *slog.Logger
 	files        map[string]string
@@ -98,11 +96,25 @@ func (d *Ai) New() frags.Ai {
 
 func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.ToolDefinitions,
 	runner frags.ExportableRunner, resources ...frags.ResourceData) ([]byte, error) {
+
 	chatGptTools, err := d.configureTools(tools)
 	if err != nil {
 		return nil, err
 	}
-	d.content = append(d.content, NewUserMessage(text))
+	msg := NewUserMessage(text)
+	for _, r := range resources {
+		fid, ok := d.files[r.Identifier]
+		if !ok {
+			fd, err := d.httpClient.FileUpload(r.Identifier, r.Data)
+			if err != nil {
+				return nil, err
+			}
+			fid = fd.Id
+			d.files[r.Identifier] = fd.Id
+		}
+		msg.Content.InsertFileMessage(fid)
+	}
+	d.content = append(d.content, msg)
 	keepGoing := true
 	out := ""
 	for keepGoing {
@@ -118,7 +130,8 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 				return nil, err
 			}
 		} else {
-			out = response.Output.Last().Content.First().Text
+			content := response.Output.Last().Content
+			out = content.First().Text
 			keepGoing = false
 		}
 

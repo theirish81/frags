@@ -1,29 +1,12 @@
 package chatgpt
 
 import (
-	"net/http"
-	"time"
-
 	"github.com/theirish81/frags"
 )
 
-// Client represents the client for OpenAI's Responses API
-type Client struct {
-	apiKey     string
-	baseURL    string
-	httpClient *http.Client
-}
-
-// NewClient creates a new instance of the OpenAI Responses client
-func NewClient(apiKey string) *Client {
-	return &Client{
-		apiKey:  apiKey,
-		baseURL: "https://api.openai.com/v1",
-		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
-		},
-	}
-}
+const PartTypeInputText = "input_text"
+const PartTypeFunctionCall = "function_call"
+const RoleUser = "user"
 
 type Text struct {
 	Format *ResponseFormat `json:"format,omitempty"`
@@ -70,10 +53,10 @@ type Message struct {
 
 func NewUserMessage(text string) Message {
 	return Message{
-		Role: "user",
+		Role: RoleUser,
 		Content: ContentParts{
 			{
-				Type: "input_text",
+				Type: PartTypeInputText,
 				Text: text,
 			},
 		},
@@ -82,8 +65,8 @@ func NewUserMessage(text string) Message {
 
 type Messages []Message
 
-func (m Messages) Last() Message {
-	return m[len(m)-1]
+func (m *Messages) Last() Message {
+	return (*m)[len(*m)-1]
 }
 
 // ContentPart represents a part of content (text, image, file)
@@ -96,8 +79,15 @@ type ContentPart struct {
 
 type ContentParts []ContentPart
 
-func (c ContentParts) First() ContentPart {
-	return c[0]
+func (c *ContentParts) InsertFileMessage(fileId string) {
+	*c = append([]ContentPart{{
+		Type:   "input_file",
+		FileID: fileId,
+	}}, *c...)
+}
+
+func (c *ContentParts) First() ContentPart {
+	return (*c)[0]
 }
 
 // ResponseFormat specifies the response format with JSON schema
@@ -127,7 +117,7 @@ type Response struct {
 
 func (r Response) HasFunctionCalls() bool {
 	for _, item := range r.Output {
-		if item.Type == "function_call" {
+		if item.Type == PartTypeFunctionCall {
 			return true
 		}
 	}
@@ -137,7 +127,7 @@ func (r Response) HasFunctionCalls() bool {
 func (r Response) FunctionCalls() []Message {
 	items := make([]Message, 0)
 	for _, item := range r.Output {
-		if item.Type == "function_call" {
+		if item.Type == PartTypeFunctionCall {
 			items = append(items, item)
 		}
 	}
@@ -150,4 +140,14 @@ type ChatOptions struct {
 	FileIDs         []string
 	Tools           []ChatGptTool
 	EnableWebSearch bool
+}
+
+type FileDescriptor struct {
+	Id        string `json:"id"`
+	Object    string `json:"object"`
+	Bytes     int    `json:"bytes"`
+	CreatedAt int    `json:"created_at"`
+	ExpiresAt int    `json:"expires_at"`
+	Filename  string `json:"filename"`
+	Purpose   string `json:"purpose"`
 }
