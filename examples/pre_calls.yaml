@@ -1,0 +1,34 @@
+## In this example, we already know we need to query the database for TV shows, so we do it in a pre-call.
+## then we use the retrieved data to parse it properly into the data structure we prefer.
+sessions:
+  tv_shows:
+    preCalls:
+      - name: postgres_query
+        args:
+          query: 'select * from tv_shows'
+    prompt: given the data we have, tell me what's on TV tonight in Italy
+schema:
+  type: object
+  required:
+    - tv_shows
+  properties:
+    tv_shows:
+      type: array
+      description: the list of TV shows and channels
+      x-session: tv_shows
+      items:
+        type: object
+        required:
+          - channel_name
+          - show_name
+          - time
+        properties:
+          channel_name:
+            type: string
+            description: the name of the channel the show will be airing on
+          show_name:
+            type: string
+            description: the name of the show
+          time:
+            type: string
+            description: the time the show will air

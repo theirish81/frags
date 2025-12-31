@@ -1,0 +1,60 @@
+## In this example we have 2 sessions, independent one from the other, each one with their own context and focus,
+## but collaborating to generate a unified data structure.
+## We also make use of shared schemas, as the data for lions and tigers are of the same type.
+
+components:
+  schemas:
+    classification:
+      type: object
+      required:
+        - scientific_name
+        - common_name
+        - taxonomy
+      properties:
+        scientific_name:
+          type: string
+        common_name:
+          type: string
+        taxonomy:
+          type: object
+          description: the full taxonomy of the animal
+          required:
+            - kingdom
+            - phylum
+            - class
+            - order
+            - family
+            - genus
+            - species
+          properties:
+            kingdom:
+              type: string
+            phylum:
+              type: string
+            class:
+              type: string
+            order:
+              type: string
+            family:
+              type: string
+            genus:
+              type: string
+            species:
+              type: string
+sessions:
+  lions:
+    prompt: extract these pieces of information about lions
+  tigers:
+    prompt: extract these pieces of information about tigers
+schema:
+  type: object
+  required:
+    - lions
+    - tigers
+  properties:
+    lions:
+      x-session: lions
+      $ref: '#/components/schemas/classification'
+    tigers:
+      x-session: tigers
+      $ref: '#/components/schemas/classification'

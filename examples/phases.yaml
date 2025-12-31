@@ -1,0 +1,59 @@
+## In this example, we only have one session, but the data generation happen in 2 different phases to increase
+## output token availability and focus. The phases, however, share the same context.
+sessions:
+  s1:
+    prompt: obtain and organize the required information about lions
+    nextPhasePrompt: also these pieces of information
+schema:
+  type: object
+  required:
+    - classification
+    - other_family_members
+  properties:
+    classification:
+      x-session: s1
+      x-phase: 0
+      description: the classification of the animal
+      type: object
+      required:
+        - scientific_name
+        - common_name
+        - taxonomy
+      properties:
+        scientific_name:
+          type: string
+        common_name:
+          type: string
+        taxonomy:
+          type: object
+          description: the full taxonomy of the animal
+          required:
+            - kingdom
+            - phylum
+            - class
+            - order
+            - family
+            - genus
+            - species
+          properties:
+            kingdom:
+              type: string
+            phylum:
+              type: string
+            class:
+              type: string
+            order:
+              type: string
+            family:
+              type: string
+            genus:
+              type: string
+            species:
+              type: string
+    other_family_members:
+      type: array
+      x-session: s1
+      x-phase: 1
+      description: other animals of the same family
+      items:
+        type: string

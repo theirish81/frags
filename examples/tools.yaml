@@ -1,0 +1,54 @@
+## In this example, the 'retrieve' session will use the 'internet_search' tool (if provided by the LLM) to search
+## for TV shows in prime time, tonight in Italy, store them in a proper array, and then have the 'store' session
+## inherit the data and use it to call the fs_write function (fs collection) to write a markdown file.
+## Note that 'context: true' makes the 'store' session aware of the data extracted by 'retrive', but does not carry
+## over the LLM context of retrieve, making the process more focused and leaner.
+##
+## Also notice how in both sessions, the tools are engaged in pre-prompt, rather than in the prompt itself, to maximize
+## compatibility across LLMs quirks and gotchas.
+sessions:
+  retrieve:
+    prePrompt: search the internet with the TV shows in prime time, tonight in Italy
+    prompt: organize the data in the provided data structure
+    tools:
+      - type: internet_search
+  store:
+    prePrompt: write the TV shows data in a file called shows.md. Format the content in markdown
+    prompt: annotate the outcome of the operation
+    context: true
+    tools:
+      - name: fs
+        type: collection
+    dependsOn:
+      - session: retrieve
+
+schema:
+  type: object
+  required:
+    - tv_shows
+    - outcome
+  properties:
+    tv_shows:
+      type: array
+      description: the list of TV shows and channels
+      x-session: retrieve
+      items:
+        type: object
+        required:
+          - channel_name
+          - show_name
+          - time
+        properties:
+          channel_name:
+            type: string
+            description: the name of the channel the show will be airing on
+          show_name:
+            type: string
+            description: the name of the show
+          time:
+            type: string
+            description: the time the show will air
+    outcome:
+      type: string
+      description: the outcome of the operation
+      x-session: store
