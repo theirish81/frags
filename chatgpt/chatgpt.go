@@ -28,10 +28,6 @@ import (
 	"github.com/theirish81/frags"
 )
 
-const temperature float32 = 0.1
-const topK float32 = 40
-const topP float32 = 0.9
-
 const defaultModel = "gpt-5"
 
 type Ai struct {
@@ -46,18 +42,12 @@ type Ai struct {
 	files        map[string]string
 }
 type Config struct {
-	Model       string  `yaml:"model" json:"model"`
-	Temperature float32 `yaml:"temperature" json:"temperature"`
-	TopK        float32 `yaml:"topK" json:"top_k"`
-	TopP        float32 `yaml:"topP" json:"top_p"`
+	Model string `yaml:"model" json:"model"`
 }
 
 func DefaultConfig() Config {
 	return Config{
-		Model:       defaultModel,
-		Temperature: temperature,
-		TopK:        topK,
-		TopP:        topP,
+		Model: defaultModel,
 	}
 }
 
