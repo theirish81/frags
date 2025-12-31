@@ -1,0 +1,256 @@
+## In this complex example, we analyze, extract and re-organize the data in a hospital discharge note paper.
+## This involves multiple concurrent and dependant sessions, phases and resources.
+
+
+## First we define some shared schemas. This is useful because we will reuse them 2 times.
+components:
+  schemas:
+    ## Information about the visit
+    visit_info:
+      type: object
+      required:
+        - visit_number
+        - discharge_diagnosis 
+      properties:
+        visit_number:
+          type: string
+        discharge_diagnosis:
+          type: string
+    ## Information about the diagnosis
+    diagnosis:
+      type: object
+      required:
+        - pre_existing
+        - developed
+      properties:
+        pre_existing:
+          type: array
+          description: pre-existing conditions
+          items:
+            type: string
+        developed:
+          type: array
+          description: newly developed conditions
+          items:
+            type: string
+    ## Information about a single medication
+    medication:
+      type: object
+      required:
+        - name
+        - dosage
+        - periodicity
+      properties:
+        name:
+          type: string
+          description: the name of the medication
+        dosage:
+          type: string
+          description: the dosage of the medication, including unit of measure
+        periodicity:
+          type: string
+          description: |-
+            how frequently and when the medication should be taken. Translate abbreviations and acronyms to full words
+            a common person would understand
+        type:
+          type: string
+          description: whether the medication is new, unchanged or adjusted
+          enum:
+            - unchanged
+            - adjusted
+            - new
+    ## Information about follow up instructions
+    follow_up_instructions:
+      type: array
+      description: follow up instructions for the patient or doctor
+      items:
+        type: string
+    ## Appointments to be scheduled or already scheduled
+    appointments:
+      type: array
+      description: appointments for the patient
+      items:
+        type: object
+        required:
+          - type
+          - with
+          - location
+          - department
+          - comments
+        properties:
+          type:
+            type: string
+            description: whether the patient should book a visit or the medical provider will call
+            enum:
+              - patient_to_be_called
+              - doctor_to_be_called
+          with:
+            type: string
+            description: department and/or doctor
+          location:
+            type: string
+            description: hospital or clinic
+          date_time:
+            type: string
+            format: date-time
+            description: date and time of the appointment IF AVAILABLE. Otherwise empty
+          department:
+            type: string
+            description: department or specialty
+          comments:
+            type: string
+            description: comments or instructions on the appointment
+    ## an explanation of what each medication does
+    medication_explanation:
+      type: array
+      items:
+        type: object
+        required:
+          - medication_name
+          - medication_description
+        properties:
+          medication_name:
+            type: string
+          medication_description:
+            type: string
+    ## a glossary of difficult or technical words
+    glossary:
+      type: array
+      items:
+        type: object
+        required:
+          - word
+          - explanation
+        properties:
+          word:
+            type: string
+          explanation:
+            type: string
+
+sessions:
+  ## Basic data
+  basic_extraction:
+    prompt: extract the patient details details from the attached discharge note
+    nextPhasePrompt: also these visit details
+    resources:
+      - identifier: discharge.pdf
+  ## Medications
+  medication_extraction:
+    prompt: extract the medications details from the attached discharge plan
+    resources:
+      - identifier: discharge.pdf
+  # Follow up instructions
+  follow_up_extraction:
+    prompt: extract the discharge plan details from the attached discharge plan
+    nextPhasePrompt: also these details
+    resources:
+      - identifier: discharge.pdf
+  ## Appointments
+  appointments_extraction:
+    prompt: extract the appointments from the attached discharge plan
+    resources:
+      - identifier: discharge.pdf
+  ## Derived from existing context, we provide a better explanation of the medications to the patient.
+  medication_explanation:
+    prompt: explain the medications
+    context: true
+    ## We need to wait for medication_extraction to finish, and there's no reason for this session to run if no
+    ## medications have been prescribed.
+    dependsOn:
+      - session: medication_extraction
+        expression: len(context.medications) > 0
+  ## We compose a glossary for the patient to use to better understand the notes
+  glossary_generation:
+    prompt: identify difficult or technical words in the provided context and create a glossary. Ignore medications as they're explained already
+    context: true
+    ## Obviously we need to wait for all the sessions to complete.
+    dependsOn:
+      - session: basic_extraction
+      - session: follow_up_extraction
+      - session: medication_explanation
+      - session: appointments_extraction
+  ## Finally, we imagine the patient to be Italian and not very fluent in English, so we provide a translated version,
+  ## following the same extract data structure
+  italian_translation:
+    prompt: translate the data into Italian
+    context: true
+    dependsOn:
+      - session: glossary_generation
+schema:
+  type: object
+  required:
+    - patient_info
+    - visit_info
+    - diagnosis
+    - medications
+    - follow_up_instructions_for_patient
+    - follow_up_instructions_for_doctor
+  properties:
+    patient_info:
+      type: object
+      x-session: basic_extraction
+      x-phase: 0
+      required:
+        - patient_name
+        - dob
+        - age
+      properties:
+        patient_name:
+          type: string
+        dob:
+          type: string
+          format: date
+        age:
+          type: integer
+    visit_info:
+      x-session: basic_extraction
+      x-phase: 1
+      $ref: '#/components/schemas/visit_info'
+    diagnosis:
+      x-session: basic_extraction
+      x-phase: 2
+      $ref: '#/components/schemas/diagnosis'
+    medications:
+      x-session: medication_extraction
+      x-phase: 0
+      type: array
+      items:
+        $ref: "#/components/schemas/medication"
+    follow_up_instructions_for_patient:
+      x-session: follow_up_extraction
+      x-phase: 0
+      $ref: "#/components/schemas/follow_up_instructions"
+    follow_up_instructions_for_doctor:
+      x-session: follow_up_extraction
+      x-phase: 1
+      $ref: "#/components/schemas/follow_up_instructions"
+    appointments:
+      x-session: appointments_extraction
+      x-phase: 0
+      $ref: "#/components/schemas/appointments"
+    medication_explanation:
+      x-session: medication_explanation
+      x-phase: 0
+      description: the explanation of the medications, provided in a language understandable by non medical professionals
+      $ref: "#/components/schemas/medication_explanation"
+    glossary:
+      x-session: glossary_generation
+      x-phase: 0
+      $ref: "#/components/schemas/glossary"
+    italian:
+      type: object
+      x-session: italian_translation
+      description: the translation to Italian of the extracted data
+      properties:
+        visit_info:
+          $ref: "#/components/schemas/visit_info"
+        diagnosis:
+          $ref: "#/components/schemas/diagnosis"
+        medications:
+          type: array
+          items:
+            $ref: "#/components/schemas/medication"
+        medication_explanation:
+          $ref: "#/components/schemas/medication_explanation"
+        glossary:
+          $ref: "#/components/schemas/glossary"
