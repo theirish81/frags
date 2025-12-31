@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/auth/credentials"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/chatgpt"
 	"github.com/theirish81/frags/gemini"
 	"github.com/theirish81/frags/ollama"
 	"google.golang.org/genai"
@@ -51,6 +52,10 @@ func initAi(log *slog.Logger) (frags.Ai, error) {
 			TopP:        cfg.TopP,
 			Model:       cfg.Model,
 			NumPredict:  cfg.NumPredict,
+		}, log), nil
+	case engineChatgpt:
+		return chatgpt.NewAI(cfg.ChatGptBaseURL, cfg.ChatGptApiKey, chatgpt.Config{
+			Model: cfg.Model,
 		}, log), nil
 	default:
 		return nil, errors.New("no AI is fully configured. Check your .env file")

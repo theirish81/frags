@@ -31,13 +31,16 @@ func main() {
 		data := make(map[string]any)
 		defCfg := gemini.DefaultConfig()
 		cfg.AiEngine = "gemini"
+		cfg.GeminiLocation = "global"
 		cfg.Model = defCfg.Model
 		cfg.TopK = defCfg.TopK
 		cfg.TopP = defCfg.TopP
 		cfg.Temperature = defCfg.Temperature
+		cfg.OllamaBaseURL = "http://localhost:11434"
 		cfg.ParallelWorkers = 1
 		cfg.NumPredict = 1024
 		cfg.UseKFormat = false
+		cfg.ChatGptBaseURL = "https://api.openai.com/v1"
 		_ = mapstructure.Decode(&cfg, &data)
 		_ = viper.MergeConfigMap(data)
 		viper.SetConfigType("env")

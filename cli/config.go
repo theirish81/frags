@@ -21,8 +21,9 @@ import "strings"
 
 // supported AI engines
 const (
-	engineGemini = "gemini"
-	engineOllama = "ollama"
+	engineGemini  = "gemini"
+	engineOllama  = "ollama"
+	engineChatgpt = "chatgpt"
 )
 
 // supported output formats
@@ -45,6 +46,8 @@ type Config struct {
 	TopP                     float32 `mapstructure:"TOP_P" yaml:"TOP_P"`
 	NumPredict               int     `mapstructure:"NUM_PREDICT" yaml:"NUM_PREDICT"`
 	UseKFormat               bool    `mapstructure:"USE_K_FORMAT" yaml:"USE_K_FORMAT"`
+	ChatGptApiKey            string  `mapstructure:"CHATGPT_API_KEY" yaml:"CHATGPT_API_KEY"`
+	ChatGptBaseURL           string  `mapstructure:"CHATGPT_BASE_URL" yaml:"CHATGPT_BASE_URL"`
 }
 
 func (c Config) guessAi() string {
@@ -53,12 +56,17 @@ func (c Config) guessAi() string {
 		return engineOllama
 	case engineGemini:
 		return engineGemini
+	case engineChatgpt:
+		return engineChatgpt
 	}
 	if c.OllamaBaseURL != "" && c.Model != "" {
 		return engineOllama
 	}
 	if c.GeminiServiceAccountPath != "" && c.GeminiProjectID != "" && c.GeminiLocation != "" {
 		return engineGemini
+	}
+	if c.ChatGptApiKey != "" && c.ChatGptBaseURL != "" {
+		return engineChatgpt
 	}
 	return ""
 }
