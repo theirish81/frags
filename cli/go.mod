@@ -8,7 +8,8 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.12.0
+	github.com/theirish81/frags v0.12.1
+	github.com/theirish81/frags/chatgpt v0.12.1
 	github.com/theirish81/frags/gemini v0.12.0
 	github.com/theirish81/frags/ollama v0.12.0
 	github.com/theirish81/fragsfunctions/fs v0.1.0
