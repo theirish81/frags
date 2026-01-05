@@ -43,9 +43,9 @@ import (
 type Session struct {
 	PreCalls        *FunctionCalls  `json:"pre_calls" yaml:"preCalls"`
 	PrePrompt       *string         `json:"pre_prompt" yaml:"prePrompt"`
-	Prompt          string          `json:"prompt" yaml:"prompt"`
+	Prompt          string          `json:"prompt" yaml:"prompt" validate:"required,min=3"`
 	NextPhasePrompt string          `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
-	Resources       []Resource      `json:"resources" yaml:"resources"`
+	Resources       []Resource      `json:"resources" yaml:"resources" validate:"dive"`
 	Timeout         *string         `json:"timeout" yaml:"timeout"`
 	DependsOn       Dependencies    `json:"depends_on" yaml:"dependsOn"`
 	Context         bool            `json:"context" yaml:"context"`
@@ -76,7 +76,7 @@ func (s *Session) RenderNextPhasePrompt(scope EvalScope) (string, error) {
 
 // Resource defines a resource to load, with an identifier and a map of parameters
 type Resource struct {
-	Identifier string            `json:"identifier" yaml:"identifier"`
+	Identifier string            `json:"identifier" yaml:"identifier" validate:"required,min=1"`
 	Params     map[string]string `json:"params" yaml:"params"`
 }
 
@@ -85,12 +85,28 @@ type Sessions map[string]Session
 
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {
-	Transformers *Transformers  `json:"transformers" yaml:"transformers"`
-	SystemPrompt *string        `yaml:"systemPrompt" json:"system_prompt"`
+	Parameters   Parameters     `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	Transformers *Transformers  `yaml:"transformers" json:"transformers,omitempty"`
+	SystemPrompt *string        `yaml:"systemPrompt" json:"system_prompt,omitempty"`
 	Components   Components     `yaml:"components" json:"components"`
-	Sessions     Sessions       `yaml:"sessions" json:"sessions"`
-	Schema       *Schema        `yaml:"schema" json:"schema"`
-	Vars         map[string]any `yaml:"vars" json:"vars"`
+	Sessions     Sessions       `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
+	Schema       *Schema        `yaml:"schema" json:"schema,omitempty"`
+	Vars         map[string]any `yaml:"vars" json:"vars,omitempty"`
+}
+
+type Parameter struct {
+	Name   string  `yaml:"name" json:"name"`
+	Schema *Schema `yaml:"schema" json:"schema"`
+}
+
+type Parameters []Parameter
+
+func (p Parameters) Validate(data any) error {
+	schema := Schema{Type: SchemaObject, Properties: map[string]*Schema{}}
+	for _, param := range p {
+		schema.Properties[param.Name] = param.Schema
+	}
+	return schema.Validate(data)
 }
 
 // Components holds the reusable components of the sessions and schema

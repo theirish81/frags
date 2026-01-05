@@ -14,6 +14,7 @@ sessions:
     dependsOn:
       - session: session_one
         expression: '"animal3" in context'
+    prompt: some prompt
 schema:
   properties:
     animal1:
