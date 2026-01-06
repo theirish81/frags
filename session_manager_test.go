@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
+	yaml2 "gopkg.in/yaml.v3"
 )
 
 func TestNewSessionManagerValidate(t *testing.T) {
@@ -80,21 +81,33 @@ func TestNewSessionManagerValidate(t *testing.T) {
 
 }
 
-/*func TestRunner_CheckRequirements(t *testing.T) {
+func TestSessionManager_initNullSchema(t *testing.T) {
 	mgr := NewSessionManager()
-	mgr.Sessions["foo"] = Session{Prompt: "foo"}
-	mgr.Requirements = []string{"a", "b"}
-	r := NewRunner[ProgMap](mgr, NewDummyResourceLoader(), NewDummyAi())
-	r.params = nil
-	assert.Error(t, r.checkParametersRequirements())
-
-	r.params = map[string]string{"a": "1", "b": "2"}
-	assert.NoError(t, r.checkParametersRequirements())
-
-	r.params = struct {
-		a string
-		b string
-	}{a: "1", b: "2"}
-	assert.NoError(t, r.checkParametersRequirements())
+	mgr.SetSession("foo", Session{Prompt: "foo"})
+	mgr.SetSession("bar", Session{Prompt: "bar"})
+	mgr.initNullSchema()
+	assert.NotNil(t, mgr.Schema.Properties["foo"])
+	assert.NotNil(t, mgr.Schema.Properties["bar"])
 }
-*/
+
+func TestParametersConfig_Validate(t *testing.T) {
+	cfg := ParametersConfig{
+		Parameters: Parameters{
+			{
+				Name: "foo",
+				Schema: &Schema{
+					Type: SchemaInteger,
+				},
+			},
+		},
+	}
+	assert.NoError(t, cfg.Validate(map[string]any{"foo": 123}))
+}
+
+func TestParametersConfig_UnmarshalYAML(t *testing.T) {
+	yaml := "- name: foo\n  schema:\n   type: integer"
+	px := ParametersConfig{}
+	err := yaml2.Unmarshal([]byte(yaml), &px)
+	assert.NoError(t, err)
+	assert.Equal(t, "foo", px.Parameters[0].Name)
+}
