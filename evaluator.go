@@ -57,6 +57,16 @@ func (e EvalScope) WithVars(vars map[string]any) EvalScope {
 	return e
 }
 
+// NewEvalScope is the EvalScope constructor, unbounded to a specific Runner.
+func NewEvalScope() EvalScope {
+	return EvalScope{
+		paramsAttr:     make(map[string]any),
+		contextAttr:    make(map[string]any),
+		componentsAttr: make(map[string]any),
+		varsAttr:       make(map[string]any),
+	}
+}
+
 // newEvalScope returns a new scope for evaluating expressions.
 func (r *Runner[T]) newEvalScope() EvalScope {
 	return EvalScope{
