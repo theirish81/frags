@@ -199,7 +199,7 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	return r.dataStructure, nil
 }
 func (r *Runner[T]) checkParametersRequirements() error {
-	if r.sessionManager.Parameters == nil || len(r.sessionManager.Parameters) == 0 {
+	if r.sessionManager.Parameters == nil || len(r.sessionManager.Parameters.Parameters) == 0 {
 		return nil
 	}
 	return r.sessionManager.Parameters.Validate(r.params)

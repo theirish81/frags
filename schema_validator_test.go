@@ -26,11 +26,11 @@ import (
 func TestSchema_Validate(t *testing.T) {
 	t.Run("base type", func(t *testing.T) {
 		s := Schema{Type: SchemaString}
-		err := s.Validate("foo")
+		err := s.Validate("foo", nil)
 		assert.NoError(t, err)
 
 		s = Schema{Type: SchemaInteger}
-		err = s.Validate("foo")
+		err = s.Validate("foo", nil)
 		assert.Error(t, err)
 	})
 	t.Run("map", func(t *testing.T) {
@@ -41,17 +41,17 @@ func TestSchema_Validate(t *testing.T) {
 				"bar": {Type: SchemaInteger},
 			},
 		}
-		err := s.Validate(map[string]any{"foo": "123", "bar": 123})
+		err := s.Validate(map[string]any{"foo": "123", "bar": 123}, nil)
 		assert.NoError(t, err)
 
-		err = s.Validate(map[string]any{"foo": "123"})
+		err = s.Validate(map[string]any{"foo": "123"}, nil)
 		assert.NoError(t, err)
 
-		err = s.Validate(map[string]any{"foo": 123})
+		err = s.Validate(map[string]any{"foo": 123}, nil)
 		assert.Error(t, err)
 
 		s.Required = []string{"foo", "bar"}
-		err = s.Validate(map[string]any{"foo": "123"})
+		err = s.Validate(map[string]any{"foo": "123"}, nil)
 		assert.Error(t, err)
 	})
 	t.Run("array", func(t *testing.T) {
@@ -59,7 +59,7 @@ func TestSchema_Validate(t *testing.T) {
 			Type:  SchemaArray,
 			Items: &Schema{Type: SchemaString},
 		}
-		err := s.Validate([]string{"foo", "bar"})
+		err := s.Validate([]string{"foo", "bar"}, nil)
 		assert.NoError(t, err)
 
 		s = Schema{
@@ -73,10 +73,10 @@ func TestSchema_Validate(t *testing.T) {
 				},
 			},
 		}
-		err = s.Validate([]map[string]any{{"foo": "123", "bar": 123}})
+		err = s.Validate([]map[string]any{{"foo": "123", "bar": 123}}, nil)
 		assert.NoError(t, err)
 
-		err = s.Validate([]map[string]any{{"foo": "123", "bar": 123}, {"foo": "123", "bar": "123"}})
+		err = s.Validate([]map[string]any{{"foo": "123", "bar": 123}, {"foo": "123", "bar": "123"}}, nil)
 		assert.Error(t, err)
 	})
 	t.Run("composite struct", func(t *testing.T) {
@@ -134,7 +134,61 @@ func TestSchema_Validate(t *testing.T) {
 				},
 			},
 		}
-		err := s.Validate(struct1)
+		err := s.Validate(struct1, nil)
 		assert.NoError(t, err)
 	})
+}
+
+func TestSchema_Validate_Soft(t *testing.T) {
+	t.Run("all matches", func(t *testing.T) {
+		s := Schema{
+			Type: SchemaObject,
+			Properties: map[string]*Schema{
+				"int":     {Type: SchemaInteger},
+				"str":     {Type: SchemaString},
+				"bool":    {Type: SchemaBoolean},
+				"realInt": {Type: SchemaInteger},
+			},
+		}
+		err := s.Validate(map[string]any{
+			"int":     "123",
+			"str":     "123",
+			"bool":    "true",
+			"realInt": 123,
+		}, &ValidatorOptions{SoftValidation: true})
+		assert.NoError(t, err)
+	})
+	t.Run("unmatched promise", func(t *testing.T) {
+		s := Schema{
+			Type: SchemaObject,
+			Properties: map[string]*Schema{
+				"int":  {Type: SchemaInteger},
+				"str":  {Type: SchemaString},
+				"bool": {Type: SchemaBoolean},
+			},
+		}
+		err := s.Validate(map[string]any{
+			"int":  "abc",
+			"str":  "123",
+			"bool": true,
+		}, &ValidatorOptions{SoftValidation: true})
+		assert.Error(t, err)
+	})
+	t.Run("unmatched promise", func(t *testing.T) {
+		s := Schema{
+			Type: SchemaObject,
+			Properties: map[string]*Schema{
+				"int":  {Type: SchemaInteger},
+				"str":  {Type: SchemaString},
+				"bool": {Type: SchemaBoolean},
+			},
+		}
+		err := s.Validate(map[string]any{
+			"int":  "123",
+			"str":  "123",
+			"bool": "foo",
+		}, &ValidatorOptions{SoftValidation: true})
+		assert.Error(t, err)
+	})
+
 }

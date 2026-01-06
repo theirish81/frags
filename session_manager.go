@@ -18,6 +18,8 @@
 package frags
 
 import (
+	"encoding/json"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -85,13 +87,13 @@ type Sessions map[string]Session
 
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {
-	Parameters   Parameters     `yaml:"parameters,omitempty" json:"parameters,omitempty"`
-	Transformers *Transformers  `yaml:"transformers" json:"transformers,omitempty"`
-	SystemPrompt *string        `yaml:"systemPrompt" json:"system_prompt,omitempty"`
-	Components   Components     `yaml:"components" json:"components"`
-	Sessions     Sessions       `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
-	Schema       *Schema        `yaml:"schema" json:"schema,omitempty"`
-	Vars         map[string]any `yaml:"vars" json:"vars,omitempty"`
+	Parameters   *ParametersConfig `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	Transformers *Transformers     `yaml:"transformers" json:"transformers,omitempty"`
+	SystemPrompt *string           `yaml:"systemPrompt" json:"system_prompt,omitempty"`
+	Components   Components        `yaml:"components" json:"components"`
+	Sessions     Sessions          `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
+	Schema       *Schema           `yaml:"schema" json:"schema,omitempty"`
+	Vars         map[string]any    `yaml:"vars" json:"vars,omitempty"`
 }
 
 type Parameter struct {
@@ -101,12 +103,46 @@ type Parameter struct {
 
 type Parameters []Parameter
 
-func (p Parameters) Validate(data any) error {
-	schema := Schema{Type: SchemaObject, Properties: map[string]*Schema{}}
-	for _, param := range p {
+// ParametersConfig holds a list of Parameters and a flag to allow loose type checking. We're using this to allow
+// less accurate input mechanisms (like a CLI) to input everything as strings, and still validate it against the
+// schema.
+type ParametersConfig struct {
+	Parameters
+	LooseType bool
+}
+
+func (p *ParametersConfig) SetLooseType(looseType bool) {
+	if p != nil {
+		p.LooseType = looseType
+	}
+}
+
+func (p *ParametersConfig) UnmarshalYAML(node *yaml.Node) error {
+	var params Parameters
+	if err := node.Decode(&params); err != nil {
+		return err
+	}
+	p.Parameters = params
+	return nil
+}
+
+// UnmarshalJSON allows unmarshaling a Parameters slice directly into ParametersConfig
+func (p *ParametersConfig) UnmarshalJSON(data []byte) error {
+	var params Parameters
+	if err := json.Unmarshal(data, &params); err != nil {
+		return err
+	}
+	p.Parameters = params
+	return nil
+}
+
+func (p *ParametersConfig) Validate(data any) error {
+	schema := Schema{Type: SchemaObject, Properties: map[string]*Schema{}, Required: make([]string, 0)}
+	for _, param := range p.Parameters {
+		schema.Required = append(schema.Required, param.Name)
 		schema.Properties[param.Name] = param.Schema
 	}
-	return schema.Validate(data)
+	return schema.Validate(data, &ValidatorOptions{SoftValidation: p.LooseType})
 }
 
 // Components holds the reusable components of the sessions and schema
