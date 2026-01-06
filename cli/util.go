@@ -23,15 +23,18 @@ import (
 	"strings"
 )
 
-// sliceToMap converts a slice of strings with the key=value format into a map of strings.
-func sliceToMap(s []string) (map[string]string, error) {
+// sliceToMap converts a slice of strings with the key=value format into a map of strings. If ignoreErrors is true,
+// strings that do not conform to the format are ignored
+func sliceToMap(s []string, ignoreErrors bool) (map[string]string, error) {
 	m := make(map[string]string, len(s))
 	for _, v := range s {
-		if matched, _ := regexp.Match("^[^=]+=[^=]+$", []byte(v)); !matched {
+		if matched, _ := regexp.Match("^[^=]+=[^=]+$", []byte(v)); matched {
+			kv := strings.SplitN(v, "=", 2)
+			m[kv[0]] = kv[1]
+		} else if !ignoreErrors {
 			return m, errors.New("invalid parameter format: " + v)
 		}
-		kv := strings.SplitN(v, "=", 2)
-		m[kv[0]] = kv[1]
+
 	}
 	return m, nil
 }

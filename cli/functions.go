@@ -24,6 +24,7 @@ import (
 
 	"github.com/theirish81/frags"
 	"github.com/theirish81/fragsfunctions/fs"
+	"github.com/theirish81/fragsfunctions/http"
 	"github.com/theirish81/fragsfunctions/postgres"
 )
 
@@ -71,6 +72,12 @@ func loadMcpAndCollections(ctx context.Context) (frags.McpTools, []frags.ToolsCo
 			if err != nil {
 				return mcpTools, toolCollections, toolDefinitions, functions, err
 			}
+			for k, v := range c.AsFunctions() {
+				functions[k] = v
+			}
+			toolCollections = append(toolCollections, c)
+		case "http":
+			c := http.New()
 			for k, v := range c.AsFunctions() {
 				functions[k] = v
 			}

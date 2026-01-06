@@ -61,10 +61,23 @@ var runCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
+		// parameters can only be strings via CLI, so we tell the parameter validator to enable loose type checking,
+		// that is, if a string contains a number, it will be parsed as a number if the schema expects it
+		sm.Parameters.SetLooseType(true)
+
+		// global vars can reference environment variables. Here's where we render global vars in case there's a
+		// reference to an env var.
+		if env, err := sliceToMap(os.Environ(), true); err != nil {
+			cmd.PrintErrln(err)
+			return
+		} else {
+			sm.Vars, err = frags.EvaluateMapValues(sm.Vars, frags.NewEvalScope().WithVars(frags.ConvertToMapAny[string](env)))
+		}
 
 		ai, err := initAi(log)
 		if err != nil {
 			cmd.PrintErrln(err)
+			return
 		}
 		mcpTools, _, _, functions, err := loadMcpAndCollections(cmd.Context())
 		if err != nil {
@@ -104,7 +117,7 @@ var runCmd = &cobra.Command{
 			frags.WithScriptEngine(NewJavascriptScriptingEngine()),
 		)
 
-		paramsMap, err := sliceToMap(params)
+		paramsMap, err := sliceToMap(params, false)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
