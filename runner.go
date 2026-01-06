@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v5"
+	"github.com/go-playground/validator/v10"
 )
 
 type ExportableRunner interface {
@@ -155,7 +156,13 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	if r.running {
 		return nil, errors.New("this frags instance is running")
 	}
+	if err := validator.New().Struct(r.sessionManager); err != nil {
+		return nil, err
+	}
 	r.params = params
+	if err := r.checkParametersRequirements(); err != nil {
+		return nil, err
+	}
 	r.running = true
 	r.sessionChan = make(chan sessionTask)
 	defer func() {
@@ -190,6 +197,12 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	}
 	r.running = false
 	return r.dataStructure, nil
+}
+func (r *Runner[T]) checkParametersRequirements() error {
+	if r.sessionManager.Parameters == nil || len(r.sessionManager.Parameters.Parameters) == 0 {
+		return nil
+	}
+	return r.sessionManager.Parameters.Validate(r.params)
 }
 
 // scanSessions keeps scanning sessions until completion, sending tasks to workers and orchestrating priority and

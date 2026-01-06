@@ -67,3 +67,12 @@ func parseDurationOrDefault(durationStr *string, defaultDuration time.Duration) 
 }
 
 func strPtr(s string) *string { return &s }
+
+// ConvertToMapAny converts a map[string]S to a map[string]any
+func ConvertToMapAny[S any](source map[string]S) map[string]any {
+	t := make(map[string]any)
+	for k, v := range source {
+		t[k] = v
+	}
+	return t
+}

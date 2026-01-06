@@ -18,6 +18,8 @@
 package frags
 
 import (
+	"encoding/json"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,9 +45,9 @@ import (
 type Session struct {
 	PreCalls        *FunctionCalls  `json:"pre_calls" yaml:"preCalls"`
 	PrePrompt       *string         `json:"pre_prompt" yaml:"prePrompt"`
-	Prompt          string          `json:"prompt" yaml:"prompt"`
+	Prompt          string          `json:"prompt" yaml:"prompt" validate:"required,min=3"`
 	NextPhasePrompt string          `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
-	Resources       []Resource      `json:"resources" yaml:"resources"`
+	Resources       []Resource      `json:"resources" yaml:"resources" validate:"dive"`
 	Timeout         *string         `json:"timeout" yaml:"timeout"`
 	DependsOn       Dependencies    `json:"depends_on" yaml:"dependsOn"`
 	Context         bool            `json:"context" yaml:"context"`
@@ -76,7 +78,7 @@ func (s *Session) RenderNextPhasePrompt(scope EvalScope) (string, error) {
 
 // Resource defines a resource to load, with an identifier and a map of parameters
 type Resource struct {
-	Identifier string            `json:"identifier" yaml:"identifier"`
+	Identifier string            `json:"identifier" yaml:"identifier" validate:"required,min=1"`
 	Params     map[string]string `json:"params" yaml:"params"`
 }
 
@@ -85,12 +87,62 @@ type Sessions map[string]Session
 
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {
-	Transformers *Transformers  `json:"transformers" yaml:"transformers"`
-	SystemPrompt *string        `yaml:"systemPrompt" json:"system_prompt"`
-	Components   Components     `yaml:"components" json:"components"`
-	Sessions     Sessions       `yaml:"sessions" json:"sessions"`
-	Schema       *Schema        `yaml:"schema" json:"schema"`
-	Vars         map[string]any `yaml:"vars" json:"vars"`
+	Parameters   *ParametersConfig `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	Transformers *Transformers     `yaml:"transformers" json:"transformers,omitempty"`
+	SystemPrompt *string           `yaml:"systemPrompt" json:"system_prompt,omitempty"`
+	Components   Components        `yaml:"components" json:"components"`
+	Sessions     Sessions          `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
+	Schema       *Schema           `yaml:"schema" json:"schema,omitempty"`
+	Vars         map[string]any    `yaml:"vars" json:"vars,omitempty"`
+}
+
+type Parameter struct {
+	Name   string  `yaml:"name" json:"name"`
+	Schema *Schema `yaml:"schema" json:"schema"`
+}
+
+type Parameters []Parameter
+
+// ParametersConfig holds a list of Parameters and a flag to allow loose type checking. We're using this to allow
+// less accurate input mechanisms (like a CLI) to input everything as strings, and still validate it against the
+// schema.
+type ParametersConfig struct {
+	Parameters
+	LooseType bool
+}
+
+func (p *ParametersConfig) SetLooseType(looseType bool) {
+	if p != nil {
+		p.LooseType = looseType
+	}
+}
+
+func (p *ParametersConfig) UnmarshalYAML(node *yaml.Node) error {
+	var params Parameters
+	if err := node.Decode(&params); err != nil {
+		return err
+	}
+	p.Parameters = params
+	return nil
+}
+
+// UnmarshalJSON allows unmarshaling a Parameters slice directly into ParametersConfig
+func (p *ParametersConfig) UnmarshalJSON(data []byte) error {
+	var params Parameters
+	if err := json.Unmarshal(data, &params); err != nil {
+		return err
+	}
+	p.Parameters = params
+	return nil
+}
+
+func (p *ParametersConfig) Validate(data any) error {
+	schema := Schema{Type: SchemaObject, Properties: map[string]*Schema{}, Required: make([]string, 0)}
+	for _, param := range p.Parameters {
+		schema.Required = append(schema.Required, param.Name)
+		schema.Properties[param.Name] = param.Schema
+	}
+	return schema.Validate(data, &ValidatorOptions{SoftValidation: p.LooseType})
 }
 
 // Components holds the reusable components of the sessions and schema
