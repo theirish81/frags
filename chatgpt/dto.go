@@ -102,6 +102,13 @@ type ContentPart struct {
 
 type ContentParts []ContentPart
 
+func (c *ContentParts) InsertTextPart(text string) {
+	*c = append([]ContentPart{{
+		Type: PartTypeInputText,
+		Text: text,
+	}}, *c...)
+}
+
 func (c *ContentParts) InsertFileMessage(fileId string) {
 	*c = append([]ContentPart{{
 		Type:   PartTypeInputFile,
