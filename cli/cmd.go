@@ -33,6 +33,8 @@ var (
 	prePrompt    string
 	systemPrompt string
 	uploads      []string
+	port         int
+	rootDir      string
 )
 
 var rootCmd = cobra.Command{
@@ -50,5 +52,4 @@ func init() {
 	rootCmd.AddCommand(scriptCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(web)
-
 }

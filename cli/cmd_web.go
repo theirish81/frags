@@ -34,9 +34,6 @@ import (
 	"github.com/theirish81/frags"
 )
 
-var port int
-var rootDir string
-
 type executeRequest struct {
 	Tools      frags.ToolsConfig `json:"tools"`
 	Plan       string            `json:"plan"`
