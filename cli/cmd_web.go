@@ -101,7 +101,7 @@ safe environments.`,
 
 var webRun = &cobra.Command{
 	Use:   "run",
-	Short: "run a Frags web server for the run mode.",
+	Short: "Run a Frags web server for the run mode.",
 	Long: `
 Run a Frags web server for the run mode. In the run mode, you will be required to provide the plan file name in the
 request. The plans will be loaded from the selected directory. Tools settings will be global and governed by the
@@ -170,6 +170,7 @@ func init() {
 	web.AddCommand(webRun)
 }
 
+// addRequestLoggerMiddleware adds a middleware that logs each request.
 func addRequestLoggerMiddleware(e *echo.Echo, log *slog.Logger) {
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogStatus:   true,
@@ -194,6 +195,7 @@ func addRequestLoggerMiddleware(e *echo.Echo, log *slog.Logger) {
 	}))
 }
 
+// checkTraversalPath checks if the given filename is safe to use in a file system traversal.
 func checkTraversalPath(filename string) error {
 	if strings.Contains(filename, "..") ||
 		strings.HasPrefix(filename, "/") ||
@@ -203,6 +205,7 @@ func checkTraversalPath(filename string) error {
 	return nil
 }
 
+// filesMapToResourceLoader converts a map of files to a frags.ResourceLoader.
 func filesMapToResourceLoader(files map[string]string) (frags.ResourceLoader, error) {
 	loader := frags.NewBytesLoader()
 	for k, v := range files {

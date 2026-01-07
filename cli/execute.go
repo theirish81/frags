@@ -27,6 +27,7 @@ import (
 	"github.com/theirish81/frags"
 )
 
+// execute executes the plan using the specified parameters
 func execute(ctx context.Context, sm frags.SessionManager, paramsMap map[string]any, toolConfig frags.ToolsConfig,
 	rl frags.ResourceLoader, log *slog.Logger) (*frags.ProgMap, error) {
 	// parameters can only be strings via CLI, so we tell the parameter validator to enable loose type checking,

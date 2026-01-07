@@ -29,7 +29,7 @@ import (
 
 var runCmd = &cobra.Command{
 	Use:   "run <path/to/plan.yaml>",
-	Short: "run a frags plan from a YAML file.",
+	Short: "Run a frags plan from a YAML file.",
 	Long:  `Run a frags plan from a YAML file. This is frags CLI core functionality.`,
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -48,7 +48,6 @@ var runCmd = &cobra.Command{
 			log = slog.Default()
 		}
 
-		// read session YAML
 		planData, err := os.ReadFile(args[0])
 		if err != nil {
 			cmd.PrintErrln(err)

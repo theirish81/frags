@@ -29,8 +29,10 @@ import (
 var scriptCmd = &cobra.Command{
 	Use:   "script <path/to/script.js>",
 	Short: "Run a script (JavaScript) on the scripting engine in the Frags context.",
-	Long:  "Run a script (JavaScript) on the scripting engine in the Frags context. The purpose is to allow for a scripting playground for transformers and scripted tools.",
-	Args:  cobra.ExactArgs(1),
+	Long: `
+Run a script (JavaScript) on the scripting engine in the Frags context. The purpose is to allow for a
+scripting playground for transformers and scripted tools.`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		data, err := os.ReadFile(args[0])
 		if err != nil {

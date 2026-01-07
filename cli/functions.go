@@ -29,6 +29,7 @@ import (
 	"github.com/theirish81/fragsfunctions/postgres"
 )
 
+// readToolsFile reads the tools configuration file and returns the parsed configuration
 func readToolsFile() (frags.ToolsConfig, error) {
 	data, err := os.ReadFile("tools.json")
 	if errors.Is(err, os.ErrNotExist) {
@@ -37,12 +38,14 @@ func readToolsFile() (frags.ToolsConfig, error) {
 	return parseToolsConfig(data)
 }
 
+// parseToolsConfig parses the tools configuration file and returns the parsed configuration
 func parseToolsConfig(data []byte) (frags.ToolsConfig, error) {
 	config := frags.ToolsConfig{}
 	err := json.Unmarshal(data, &config)
 	return config, err
 }
 
+// connectMcpAndCollections connects to the MCP servers and returns the tools
 func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig) (frags.McpTools, []frags.ToolsCollection, frags.ToolDefinitions, frags.Functions, error) {
 	mcpTools := make(frags.McpTools, 0)
 	toolCollections := make([]frags.ToolsCollection, 0)
@@ -86,5 +89,4 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig
 		}
 	}
 	return mcpTools, toolCollections, toolDefinitions, functions, nil
-
 }

@@ -31,10 +31,11 @@ var toolsEnabled bool
 var askCmd = &cobra.Command{
 	Use:   "ask <prompt>",
 	Short: "Ask a question to the AI, using the current Frags settings and tools.",
-	Long:  "Ask a question to the AI, using the current Frags settings and tools. This is a simulation of what plans do, so it's subject to the limitations imposed by generating structured output.",
-	Args:  cobra.ExactArgs(1),
+	Long: `
+Ask a question to the AI, using the current Frags settings and tools. This is a simulation of what plans do,
+so it's subject to the limitations imposed by generating structured output.`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-
 		log := slog.Default()
 		toolDefinitions := frags.ToolDefinitions{}
 		toolsConfig := frags.ToolsConfig{}
