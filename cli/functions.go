@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 
 	"github.com/theirish81/frags"
@@ -28,35 +29,35 @@ import (
 	"github.com/theirish81/fragsfunctions/postgres"
 )
 
-func parseToolsConfig() (frags.ToolsConfig, error) {
-	toolsConfig := frags.ToolsConfig{}
-	if data, err := os.ReadFile("tools.json"); err == nil {
-		if err := json.Unmarshal(data, &toolsConfig); err != nil {
-			return toolsConfig, err
-		}
+func readToolsFile() (frags.ToolsConfig, error) {
+	data, err := os.ReadFile("tools.json")
+	if errors.Is(err, os.ErrNotExist) {
+		data = []byte("{}")
 	}
-	return toolsConfig, nil
+	return parseToolsConfig(data)
 }
 
-func loadMcpAndCollections(ctx context.Context) (frags.McpTools, []frags.ToolsCollection, frags.ToolDefinitions, frags.Functions, error) {
-	mcpConfig, err := parseToolsConfig()
+func parseToolsConfig(data []byte) (frags.ToolsConfig, error) {
+	config := frags.ToolsConfig{}
+	err := json.Unmarshal(data, &config)
+	return config, err
+}
+
+func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig) (frags.McpTools, []frags.ToolsCollection, frags.ToolDefinitions, frags.Functions, error) {
 	mcpTools := make(frags.McpTools, 0)
 	toolCollections := make([]frags.ToolsCollection, 0)
 	toolDefinitions := make(frags.ToolDefinitions, 0)
 	functions := make(frags.Functions, 0)
+	toolDefinitions = toolsConfig.AsToolDefinitions()
+	mcpTools = toolsConfig.McpServers.McpTools()
+	if err := mcpTools.Connect(ctx); err != nil {
+		return mcpTools, toolCollections, toolDefinitions, functions, err
+	}
+	functions, err := mcpTools.AsFunctions(ctx)
 	if err != nil {
 		return mcpTools, toolCollections, toolDefinitions, functions, err
 	}
-	toolDefinitions = mcpConfig.AsToolDefinitions()
-	mcpTools = mcpConfig.McpServers.McpTools()
-	if err = mcpTools.Connect(ctx); err != nil {
-		return mcpTools, toolCollections, toolDefinitions, functions, err
-	}
-	functions, err = mcpTools.AsFunctions(ctx)
-	if err != nil {
-		return mcpTools, toolCollections, toolDefinitions, functions, err
-	}
-	for k, v := range mcpConfig.Collections {
+	for k, v := range toolsConfig.Collections {
 		if v.Disabled {
 			continue
 		}

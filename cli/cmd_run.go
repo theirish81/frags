@@ -29,8 +29,8 @@ import (
 
 var runCmd = &cobra.Command{
 	Use:   "run <path/to/plan.yaml>",
-	Short: "Run a frags plan from a YAML file.",
-	Long:  "Run a frags plan from a YAML file. This is the main most complex functionality of Frags.",
+	Short: "run a frags plan from a YAML file.",
+	Long:  `Run a frags plan from a YAML file. This is frags CLI core functionality.`,
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// validate flags and input
@@ -49,82 +49,28 @@ var runCmd = &cobra.Command{
 		}
 
 		// read session YAML
-		data, err := os.ReadFile(args[0])
+		planData, err := os.ReadFile(args[0])
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
-
-		// build session manager from YAML
 		sm := frags.NewSessionManager()
-		if err := sm.FromYAML(data); err != nil {
+		if err := sm.FromYAML(planData); err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
-		// parameters can only be strings via CLI, so we tell the parameter validator to enable loose type checking,
-		// that is, if a string contains a number, it will be parsed as a number if the schema expects it
-		sm.Parameters.SetLooseType(true)
 
-		// global vars can reference environment variables. Here's where we render global vars in case there's a
-		// reference to an env var.
-		if env, err := sliceToMap(os.Environ(), true); err != nil {
-			cmd.PrintErrln(err)
-			return
-		} else {
-			sm.Vars, err = frags.EvaluateMapValues(sm.Vars, frags.NewEvalScope().WithVars(frags.ConvertToMapAny[string](env)))
-		}
-
-		ai, err := initAi(log)
+		toolsConfig, err := readToolsFile()
 		if err != nil {
 			cmd.PrintErrln(err)
-			return
 		}
-		mcpTools, _, _, functions, err := loadMcpAndCollections(cmd.Context())
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		defer func() {
-			_ = mcpTools.Close()
-		}()
-		ai.SetFunctions(functions)
-		log.Info("available functions", "functions", functions)
-		ch := make(chan frags.ProgressMessage, 10)
-		go func() {
-			for msg := range ch {
-				if msg.Error == nil {
-					log.Info(string(msg.Action), "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration)
-				} else {
-					log.Error(string(msg.Action), "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration, "error", msg.Error)
-				}
-			}
-		}()
-
-		dir := filepath.Dir(args[0])
-		workers := cfg.ParallelWorkers
-		if workers <= 0 {
-			workers = 1
-		}
-
-		runner := frags.NewRunner[frags.ProgMap](
-			sm,
-			frags.NewFileResourceLoader(dir),
-			ai,
-			frags.WithSessionWorkers(workers),
-			frags.WithLogger(log),
-			frags.WithProgressChannel(ch),
-			frags.WithUseKFormat(cfg.UseKFormat),
-			frags.WithScriptEngine(NewJavascriptScriptingEngine()),
-		)
-
 		paramsMap, err := sliceToMap(params, false)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
-
-		// execute
-		result, err := runner.Run(paramsMap)
+		result, err := execute(cmd.Context(), sm, paramsMap, toolsConfig,
+			frags.NewFileResourceLoader(filepath.Dir(args[0])), log)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

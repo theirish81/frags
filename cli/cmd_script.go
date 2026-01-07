@@ -47,7 +47,12 @@ var scriptCmd = &cobra.Command{
 			log = slog.Default()
 		}
 		ai, err := initAi(log)
-		mcpTools, _, _, functions, err := loadMcpAndCollections(cmd.Context())
+		toolsConfig, err := readToolsFile()
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		mcpTools, _, _, functions, err := connectMcpAndCollections(cmd.Context(), toolsConfig)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

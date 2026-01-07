@@ -25,8 +25,8 @@ import (
 
 // sliceToMap converts a slice of strings with the key=value format into a map of strings. If ignoreErrors is true,
 // strings that do not conform to the format are ignored
-func sliceToMap(s []string, ignoreErrors bool) (map[string]string, error) {
-	m := make(map[string]string, len(s))
+func sliceToMap(s []string, ignoreErrors bool) (map[string]any, error) {
+	m := make(map[string]any, len(s))
 	for _, v := range s {
 		if matched, _ := regexp.Match("^[^=]+=[^=]+$", []byte(v)); matched {
 			kv := strings.SplitN(v, "=", 2)

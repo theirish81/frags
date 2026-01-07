@@ -33,7 +33,12 @@ var configCmd = &cobra.Command{
 		fmt.Println("==== GLOBAL CONFIG ====")
 		fmt.Println(string(globalConfig))
 
-		mcpTools, _, toolDefinitions, functions, err := loadMcpAndCollections(cmd.Context())
+		toolsConfig, err := readToolsFile()
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		mcpTools, _, toolDefinitions, functions, err := connectMcpAndCollections(cmd.Context(), toolsConfig)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
