@@ -92,16 +92,21 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	}
 	msg := NewUserMessage(text)
 	for _, r := range resources {
-		fid, ok := d.files[r.Identifier]
-		if !ok {
-			fd, err := d.httpClient.FileUpload(ctx, r.Identifier, r.Data)
-			if err != nil {
-				return nil, err
+		switch r.MediaType {
+		case "text/plain":
+			msg.Content.InsertTextPart(fmt.Sprintf("=== %s === \n%s ===\n", r.Identifier, string(r.Data)))
+		default:
+			fid, ok := d.files[r.Identifier]
+			if !ok {
+				fd, err := d.httpClient.FileUpload(ctx, r.Identifier, r.Data)
+				if err != nil {
+					return nil, err
+				}
+				fid = fd.Id
+				d.files[r.Identifier] = fd.Id
 			}
-			fid = fd.Id
-			d.files[r.Identifier] = fd.Id
+			msg.Content.InsertFileMessage(fid)
 		}
-		msg.Content.InsertFileMessage(fid)
 	}
 	d.content = append(d.content, msg)
 	keepGoing := true
