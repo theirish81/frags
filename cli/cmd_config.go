@@ -26,14 +26,21 @@ import (
 
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Prints the current configuration",
-	Long:  "Prints the current configuration. It will additionally connect to the available MCP tools and print their function setup.",
+	Short: "Print the current configuration",
+	Long: `
+Prints the current configuration. It will additionally connect to the available MCP tools and print their function
+setup.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		globalConfig, _ := yaml.Marshal(cfg)
 		fmt.Println("==== GLOBAL CONFIG ====")
 		fmt.Println(string(globalConfig))
 
-		mcpTools, _, toolDefinitions, functions, err := loadMcpAndCollections(cmd.Context())
+		toolsConfig, err := readToolsFile()
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		mcpTools, _, toolDefinitions, functions, err := connectMcpAndCollections(cmd.Context(), toolsConfig)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

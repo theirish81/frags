@@ -18,8 +18,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
+	"text/template"
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
@@ -29,8 +32,10 @@ import (
 var renderCmd = &cobra.Command{
 	Use:   "render <path/to/data.json>",
 	Short: "Render a YAML/JSON data file into a document using a template",
-	Long:  "Render a YAML/JSON data file into a document using a template. To be used in case your prefer generating the data output and only later make the output into a document, which is particularly useful during the design phase of the template.",
-	Args:  cobra.ExactArgs(1),
+	Long: `
+Render a YAML/JSON data file into a document using a template. To be used in case your prefer generating the data output
+and only later make the output into a document, which is particularly useful during the design phase of the template.`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		data, err := os.ReadFile(args[0])
 		if err != nil {
@@ -66,4 +71,31 @@ var renderCmd = &cobra.Command{
 func init() {
 	renderCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file")
 	renderCmd.Flags().StringVarP(&output, "output", "o", "", "Output file")
+}
+
+// renderResult serializes the runner result according to the chosen format.
+func renderResult(out any) ([]byte, error) {
+	switch format {
+	case formatJSON:
+		return json.MarshalIndent(out, "", " ")
+	case formatTemplate:
+		if _, err := os.Stat(templatePath); err != nil {
+			return nil, err
+		}
+		tplText, err := os.ReadFile(templatePath)
+		if err != nil {
+			return nil, err
+		}
+		tpl, err := template.New("template").Parse(string(tplText))
+		if err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := tpl.Execute(&buf, out); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	default: // yaml
+		return yaml.Marshal(out)
+	}
 }

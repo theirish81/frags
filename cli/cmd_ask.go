@@ -31,26 +31,20 @@ var toolsEnabled bool
 var askCmd = &cobra.Command{
 	Use:   "ask <prompt>",
 	Short: "Ask a question to the AI, using the current Frags settings and tools.",
-	Long:  "Ask a question to the AI, using the current Frags settings and tools. This is a simulation of what plans do, so it's subject to the limitations imposed by generating structured output.",
-	Args:  cobra.ExactArgs(1),
+	Long: `
+Ask a question to the AI, using the current Frags settings and tools. This is a simulation of what plans do,
+so it's subject to the limitations imposed by generating structured output.`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-
 		log := slog.Default()
-
-		ai, err := initAi(log)
 		toolDefinitions := frags.ToolDefinitions{}
-		functions := frags.Functions{}
+		toolsConfig := frags.ToolsConfig{}
 		if toolsEnabled {
-			var mcpTools frags.McpTools
-			mcpTools, _, toolDefinitions, functions, err = loadMcpAndCollections(cmd.Context())
+			var err error
+			toolsConfig, err = readToolsFile()
 			if err != nil {
 				cmd.PrintErrln(err)
-				return
 			}
-			ai.SetFunctions(functions)
-			defer func() {
-				_ = mcpTools.Close()
-			}()
 		}
 		if internetSearch {
 			toolDefinitions = append(toolDefinitions, frags.ToolDefinition{
@@ -58,7 +52,6 @@ var askCmd = &cobra.Command{
 				Type: frags.ToolTypeInternetSearch,
 			})
 		}
-		log.Info("available functions", "functions", functions)
 		mgr := frags.NewSessionManager()
 
 		var pp *string
@@ -84,19 +77,19 @@ var askCmd = &cobra.Command{
 			},
 		}
 		mgr.Schema = &frags.Schema{
-			Type:     "object",
+			Type:     frags.SchemaObject,
 			Required: []string{"answer"},
 			Properties: map[string]*frags.Schema{
 				"answer": {
-					Type:        "string",
+					Type:        frags.SchemaString,
 					Description: "the answer to the prompt",
 					XSession:    strPtr("default"),
 					XPhase:      0,
 				},
 			},
 		}
-		runner := frags.NewRunner[frags.ProgMap](mgr, frags.NewFileResourceLoader("."), ai, frags.WithLogger(log))
-		out, err := runner.Run(nil)
+		out, err := execute(cmd.Context(), mgr, make(map[string]any), toolsConfig,
+			frags.NewFileResourceLoader("./"), log)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

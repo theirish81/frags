@@ -18,14 +18,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
-	"text/template"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -37,11 +33,16 @@ var (
 	prePrompt    string
 	systemPrompt string
 	uploads      []string
+	port         int
+	rootDir      string
 )
 
 var rootCmd = cobra.Command{
 	Use:   filepath.Base(os.Args[0]),
-	Short: "CLI for the Frags agent",
+	Short: "the Frags agent as a CLI",
+	Long: `
+Frags is an advanced AI agent for complex data workflows—retrieval, transformation, extraction, and aggregation. Highly
+customizable and extensible, it prioritizes precision.`,
 }
 
 func init() {
@@ -50,32 +51,5 @@ func init() {
 	rootCmd.AddCommand(renderCmd)
 	rootCmd.AddCommand(scriptCmd)
 	rootCmd.AddCommand(configCmd)
-
-}
-
-// renderResult serializes the runner result according to the chosen format.
-func renderResult(out any) ([]byte, error) {
-	switch format {
-	case formatJSON:
-		return json.MarshalIndent(out, "", " ")
-	case formatTemplate:
-		if _, err := os.Stat(templatePath); err != nil {
-			return nil, err
-		}
-		tplText, err := os.ReadFile(templatePath)
-		if err != nil {
-			return nil, err
-		}
-		tpl, err := template.New("template").Parse(string(tplText))
-		if err != nil {
-			return nil, err
-		}
-		var buf bytes.Buffer
-		if err := tpl.Execute(&buf, out); err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
-	default: // yaml
-		return yaml.Marshal(out)
-	}
+	rootCmd.AddCommand(web)
 }

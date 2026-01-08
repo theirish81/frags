@@ -29,8 +29,10 @@ import (
 var scriptCmd = &cobra.Command{
 	Use:   "script <path/to/script.js>",
 	Short: "Run a script (JavaScript) on the scripting engine in the Frags context.",
-	Long:  "Run a script (JavaScript) on the scripting engine in the Frags context. The purpose is to allow for a scripting playground for transformers and scripted tools.",
-	Args:  cobra.ExactArgs(1),
+	Long: `
+Run a script (JavaScript) on the scripting engine in the Frags context. The purpose is to allow for a
+scripting playground for transformers and scripted tools.`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		data, err := os.ReadFile(args[0])
 		if err != nil {
@@ -47,7 +49,12 @@ var scriptCmd = &cobra.Command{
 			log = slog.Default()
 		}
 		ai, err := initAi(log)
-		mcpTools, _, _, functions, err := loadMcpAndCollections(cmd.Context())
+		toolsConfig, err := readToolsFile()
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		mcpTools, _, _, functions, err := connectMcpAndCollections(cmd.Context(), toolsConfig)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

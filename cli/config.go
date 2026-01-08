@@ -50,6 +50,7 @@ type Config struct {
 	ChatGptBaseURL           string  `mapstructure:"CHATGPT_BASE_URL" yaml:"CHATGPT_BASE_URL"`
 }
 
+// guessAi tries to guess the AI engine based on the configuration.
 func (c Config) guessAi() string {
 	switch strings.ToLower(c.AiEngine) {
 	case engineOllama:

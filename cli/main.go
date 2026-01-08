@@ -27,6 +27,7 @@ import (
 
 func main() {
 	viper.SetConfigFile(".env")
+	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
 		data := make(map[string]any)
 		defCfg := gemini.DefaultConfig()
