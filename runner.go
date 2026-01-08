@@ -269,6 +269,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	for itIdx, it := range iterator {
 		// here we're creating a new instance of the AI for this session, so it has no state.
 		ai := r.ai.New()
+		localResources := resources
 		if session.PrePrompt != nil {
 			// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
@@ -285,11 +286,13 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 					return err
 				}
+
 				r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
-				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r); err != nil {
+				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, localResources...); err != nil {
 					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 					return err
 				}
+				localResources = make([]ResourceData, 0)
 				r.sendProgress(progressActionEnd, sessionID, -1, itIdx, nil)
 			}
 		}
@@ -325,7 +328,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 							return err
 						}
 					}
-					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r, resources...)
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r, localResources...)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
@@ -336,7 +339,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
 					}
-					data, err = ai.Ask(ctx, prompt, &phaseSchema, session.Tools, r)
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
