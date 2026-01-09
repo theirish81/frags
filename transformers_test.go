@@ -59,7 +59,7 @@ func TestTransformer_Transform(t *testing.T) {
 			},
 		}, &Runner[any]{})
 		assert.Nil(t, err)
-		assert.Equal(t, anyToResultMap([]any{map[string]any{"first_name": "John", "last_name": "Doe"}}), res)
+		assert.Equal(t, AnyToResultMap([]any{map[string]any{"first_name": "John", "last_name": "Doe"}}), res)
 	})
 	t.Run("JSONATA transform a regular map", func(t *testing.T) {
 		tx := Transformer{
@@ -79,7 +79,7 @@ func TestTransformer_Transform(t *testing.T) {
 			{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
 		}, &Runner[any]{})
 		assert.Nil(t, err)
-		assert.Equal(t, map[string]any{"result": []any{map[string]any{"first_name": "John", "last_name": "Doe"}}}, res)
+		assert.Equal(t, []any{map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
 	t.Run("JSON Parser+JSONATA transform a regular map", func(t *testing.T) {
 		px := JsonParser
@@ -101,7 +101,7 @@ func TestTransformer_Transform(t *testing.T) {
 		}
 		res, err := tx.Transform(`[{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}]`, &Runner[any]{})
 		assert.Nil(t, err)
-		assert.Equal(t, map[string]any{"result": []any{map[string]any{"first_name": "John", "last_name": "Doe"}}}, res)
+		assert.Equal(t, []any{map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
 	t.Run("CSV Parser+JSONATA transform a regular array", func(t *testing.T) {
 		px := CsvParser
@@ -112,7 +112,7 @@ func TestTransformer_Transform(t *testing.T) {
 		}
 		res, err := tx.Transform(`John,Doe`, &Runner[any]{})
 		assert.Nil(t, err)
-		assert.Equal(t, map[string]any{"result": []any{map[string]any{"first_name": "John", "last_name": "Doe"}}}, res)
+		assert.Equal(t, []any{map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
 
 }

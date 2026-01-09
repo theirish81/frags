@@ -41,16 +41,19 @@ func (f Function) String() string {
 }
 
 // Run runs the function, applying any transformers defined in the runner.
-func (f Function) Run(args map[string]any, runner ExportableRunner) (map[string]any, error) {
-	args, err := runner.Transformers().FilterOnFunctionInput(f.Name).Transform(args, runner)
+func (f Function) Run(args map[string]any, runner ExportableRunner) (any, error) {
+	ax, err := runner.Transformers().FilterOnFunctionInput(f.Name).Transform(args, runner)
 	if err != nil {
 		return nil, err
 	}
-	data, err := f.Func(args)
+	if !isMapAny(ax) {
+		return nil, fmt.Errorf("expected map[string]any, got %T", ax)
+	}
+	ax, err = f.Func(ax.(map[string]any))
 	if err != nil {
 		return nil, err
 	}
-	return runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(data, runner)
+	return runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(ax, runner)
 }
 
 // Functions is a map of functions, indexed by name.

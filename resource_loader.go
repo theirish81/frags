@@ -28,7 +28,7 @@ type ResourceData struct {
 	Identifier        string
 	MediaType         string
 	ByteContent       []byte
-	StructuredContent *map[string]any
+	StructuredContent *any
 	In                ResourceDestination
 	Var               *string
 }

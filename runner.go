@@ -34,7 +34,7 @@ import (
 
 type ExportableRunner interface {
 	Transformers() *Transformers
-	RunFunction(name string, args map[string]any) (map[string]any, error)
+	RunFunction(name string, args map[string]any) (any, error)
 	ScriptEngine() ScriptEngine
 }
 
@@ -504,7 +504,7 @@ func (r *Runner[T]) IsCompleted() bool {
 	return true
 }
 
-func (r *Runner[T]) RunFunction(name string, args map[string]any) (map[string]any, error) {
+func (r *Runner[T]) RunFunction(name string, args map[string]any) (any, error) {
 	return r.ai.RunFunction(FunctionCall{Name: name, Args: args}, r)
 }
 

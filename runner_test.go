@@ -76,15 +76,15 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 	ai := NewDummyAi()
 	runner := NewRunner[map[string]string](mgr, NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
 	res, err := runner.loadSessionResources(mgr.Sessions["s1"])
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "stuff.json", res[0].Identifier)
 	assert.Equal(t, MediaJson, res[0].MediaType)
 	fmt.Println(string(res[0].ByteContent))
-	out := map[string]any{}
+	out := make([]any, 0)
 	err = json.Unmarshal(res[0].ByteContent, &out)
 	assert.Nil(t, err)
 	assert.Equal(t, []any{
 		map[string]any{"first_name": "john", "last_name": "doe"},
 		map[string]any{"first_name": "bill", "last_name": "murray"},
-	}, out["result"])
+	}, out)
 }

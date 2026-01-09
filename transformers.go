@@ -77,7 +77,7 @@ func (t Transformers) FilterOnResource(name string) Transformers {
 }
 
 // Transform applies the transformation to the given data
-func (t Transformer) Transform(data any, runner ExportableRunner) (map[string]any, error) {
+func (t Transformer) Transform(data any, runner ExportableRunner) (any, error) {
 	// If a parser is configured, then we try to parse whatever is in data as a JSON or as a CSV. If we fail, then
 	// we're done and we bail out
 	if t.Parser != nil {
@@ -120,11 +120,11 @@ func (t Transformer) Transform(data any, runner ExportableRunner) (map[string]an
 			return emptyMap, err
 		}
 	}
-	return anyToResultMap(data), nil
+	return data, nil
 }
 
 // Transform applies all the transformations to the given data
-func (t Transformers) Transform(data map[string]any, runner ExportableRunner) (map[string]any, error) {
+func (t Transformers) Transform(data any, runner ExportableRunner) (any, error) {
 	tmp := data
 	var err error
 	for _, tx := range t {

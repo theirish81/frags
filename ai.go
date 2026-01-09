@@ -28,7 +28,7 @@ type Ai interface {
 	Ask(ctx context.Context, text string, schema *Schema, tools ToolDefinitions, runner ExportableRunner, resources ...ResourceData) ([]byte, error)
 	New() Ai
 	SetFunctions(functions Functions)
-	RunFunction(functionCall FunctionCall, runner ExportableRunner) (map[string]any, error)
+	RunFunction(functionCall FunctionCall, runner ExportableRunner) (any, error)
 	SetSystemPrompt(systemPrompt string)
 }
 
@@ -57,7 +57,7 @@ func (d *DummyAi) Ask(_ context.Context, text string, schema *Schema, _ ToolDefi
 
 func (d *DummyAi) SetFunctions(_ Functions) {}
 func (d *DummyAi) SetSystemPrompt(_ string) {}
-func (d *DummyAi) RunFunction(_ FunctionCall, _ ExportableRunner) (map[string]any, error) {
+func (d *DummyAi) RunFunction(_ FunctionCall, _ ExportableRunner) (any, error) {
 	return nil, nil
 }
 
