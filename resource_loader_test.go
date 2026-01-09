@@ -36,7 +36,7 @@ func TestFileResourceLoader(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, identifier, resource.Identifier)
-		assert.Equal(t, expectedContent, resource.Data)
+		assert.Equal(t, expectedContent, resource.ByteContent)
 		assert.Equal(t, MediaText, resource.MediaType)
 	})
 
@@ -53,9 +53,9 @@ func TestBytesLoader(t *testing.T) {
 	t.Run("successfully loads a pre-set resource", func(t *testing.T) {
 		loader := NewBytesLoader()
 		expectedResource := ResourceData{
-			Identifier: "in-memory-resource",
-			Data:       []byte("This is some data in memory."),
-			MediaType:  MediaText,
+			Identifier:  "in-memory-resource",
+			ByteContent: []byte("This is some data in memory."),
+			MediaType:   MediaText,
 		}
 		loader.SetResource(expectedResource)
 
@@ -75,7 +75,7 @@ func TestBytesLoader(t *testing.T) {
 func TestMultiResourceLoader(t *testing.T) {
 	fileLoader := NewFileResourceLoader("./test_data")
 	bytesLoader := NewBytesLoader()
-	inMemoryResource := ResourceData{Identifier: "ram.txt", Data: []byte("data from ram"), MediaType: MediaText}
+	inMemoryResource := ResourceData{Identifier: "ram.txt", ByteContent: []byte("data from ram"), MediaType: MediaText}
 	bytesLoader.SetResource(inMemoryResource)
 
 	multiLoader := NewMultiResourceLoader()
@@ -88,7 +88,7 @@ func TestMultiResourceLoader(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, "story.txt", resource.Identifier)
-		assert.Equal(t, expectedContent, resource.Data)
+		assert.Equal(t, expectedContent, resource.ByteContent)
 	})
 
 	t.Run("successfully loads from bytes loader", func(t *testing.T) {

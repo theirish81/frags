@@ -26,37 +26,95 @@ import (
 )
 
 func TestTransformer_Transform(t *testing.T) {
-	tx := Transformer{
-		Name:    "foo",
-		Jsonata: strPtr(`result.{"first_name":first_name,"last_name":last_name}`),
-	}
-	res, err := tx.Transform(map[string]any{
-		"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-	}, &Runner[any]{})
-	assert.Nil(t, err)
-	assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
-
-	tx = Transformer{
-		Name:    "foo",
-		Jsonata: strPtr(`{ "result": {"first_name":result.first_name, "last_name":result.last_name }}`),
-	}
-	res, err = tx.Transform(map[string]any{
-		"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-	}, &Runner[any]{})
-	assert.Nil(t, err)
-	assert.Equal(t, map[string]any{"result": map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
-
-	tx = Transformer{
-		Name:    "foo",
-		Jsonata: strPtr(`{ "result": [result.{"first_name":first_name, "last_name":last_name }]}`),
-	}
-	res, err = tx.Transform(map[string]any{
-		"result": []map[string]any{
+	t.Run("JSONATA transform a result map", func(t *testing.T) {
+		tx := Transformer{
+			Name:    "foo",
+			Jsonata: strPtr(`result.{"first_name":first_name,"last_name":last_name}`),
+		}
+		res, err := tx.Transform(map[string]any{
+			"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
+		}, &Runner[any]{})
+		assert.Nil(t, err)
+		assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
+	})
+	t.Run("JSONATA transform a map, alternative syntax", func(t *testing.T) {
+		tx := Transformer{
+			Name:    "foo",
+			Jsonata: strPtr(`{ "result": {"first_name":result.first_name, "last_name":result.last_name }}`),
+		}
+		res, err := tx.Transform(map[string]any{
+			"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
+		}, &Runner[any]{})
+		assert.Nil(t, err)
+		assert.Equal(t, map[string]any{"result": map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
+	})
+	t.Run("JSONATA transform a result map containing an array", func(t *testing.T) {
+		tx := Transformer{
+			Name:    "foo",
+			Jsonata: strPtr(`{ "result": [result.{"first_name":first_name, "last_name":last_name }]}`),
+		}
+		res, err := tx.Transform(map[string]any{
+			"result": []map[string]any{
+				{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
+			},
+		}, &Runner[any]{})
+		assert.Nil(t, err)
+		assert.Equal(t, anyToResultMap([]any{map[string]any{"first_name": "John", "last_name": "Doe"}}), res)
+	})
+	t.Run("JSONATA transform a regular map", func(t *testing.T) {
+		tx := Transformer{
+			Name:    "foo",
+			Jsonata: strPtr(`{"first_name":first_name,"last_name":last_name}`),
+		}
+		res, err := tx.Transform(map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}, &Runner[any]{})
+		assert.Nil(t, err)
+		assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
+	})
+	t.Run("JSONATA transform a regular array", func(t *testing.T) {
+		tx := Transformer{
+			Name:    "foo",
+			Jsonata: strPtr(`[{"first_name":first_name, "last_name":last_name }]`),
+		}
+		res, err := tx.Transform([]map[string]any{
 			{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-		},
-	}, &Runner[any]{})
-	assert.Nil(t, err)
-	assert.Equal(t, map[string]any{"result": []any{map[string]any{"first_name": "John", "last_name": "Doe"}}}, res)
+		}, &Runner[any]{})
+		assert.Nil(t, err)
+		assert.Equal(t, map[string]any{"result": []any{map[string]any{"first_name": "John", "last_name": "Doe"}}}, res)
+	})
+	t.Run("JSON Parser+JSONATA transform a regular map", func(t *testing.T) {
+		px := JsonParser
+		tx := Transformer{
+			Name:    "foo",
+			Jsonata: strPtr(`{"first_name":first_name,"last_name":last_name}`),
+			Parser:  &px,
+		}
+		res, err := tx.Transform(`{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}`, &Runner[any]{})
+		assert.Nil(t, err)
+		assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
+	})
+	t.Run("JSON Parser+JSONATA transform a regular array", func(t *testing.T) {
+		px := JsonParser
+		tx := Transformer{
+			Name:    "foo",
+			Jsonata: strPtr(`[{"first_name":first_name, "last_name":last_name }]`),
+			Parser:  &px,
+		}
+		res, err := tx.Transform(`[{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}]`, &Runner[any]{})
+		assert.Nil(t, err)
+		assert.Equal(t, map[string]any{"result": []any{map[string]any{"first_name": "John", "last_name": "Doe"}}}, res)
+	})
+	t.Run("CSV Parser+JSONATA transform a regular array", func(t *testing.T) {
+		px := CsvParser
+		tx := Transformer{
+			Name:    "foo",
+			Jsonata: strPtr(`$[].{"first_name":$[0], "last_name":$[1] }`),
+			Parser:  &px,
+		}
+		res, err := tx.Transform(`John,Doe`, &Runner[any]{})
+		assert.Nil(t, err)
+		assert.Equal(t, map[string]any{"result": []any{map[string]any{"first_name": "John", "last_name": "Doe"}}}, res)
+	})
+
 }
 
 func TestTransformer_Transform2(t *testing.T) {

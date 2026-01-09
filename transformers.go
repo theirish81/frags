@@ -17,7 +17,17 @@
 
 package frags
 
-import "github.com/blues/jsonata-go"
+import (
+	"github.com/blues/jsonata-go"
+	"github.com/jmespath/go-jmespath"
+)
+
+type Parser string
+
+const (
+	JsonParser Parser = "json"
+	CsvParser  Parser = "csv"
+)
 
 // Transformer is a functionality that given a certain input, transforms it into another output using either a
 // Jsonata expression or a custom script (if the scripting engine is available). The transformer will run on specific
@@ -26,7 +36,10 @@ type Transformer struct {
 	Name             string  `yaml:"name" json:"name"`
 	OnFunctionInput  *string `yaml:"onFunctionInput" json:"on_function_input"`
 	OnFunctionOutput *string `yaml:"onFunctionOutput" json:"on_function_output"`
+	OnResource       *string `yaml:"onResource" json:"on_resource"`
 	Jsonata          *string `yaml:"jsonata" json:"jsonata"`
+	JmesPath         *string `yaml:"jmesPath" json:"jmesPath"`
+	Parser           *Parser `yaml:"parser" json:"parser"`
 	Code             *string `yaml:"code" json:"code"`
 }
 
@@ -53,26 +66,61 @@ func (t Transformers) FilterOnFunctionInput(name string) Transformers {
 	return t2
 }
 
+func (t Transformers) FilterOnResource(name string) Transformers {
+	t2 := make(Transformers, 0)
+	for _, t := range t {
+		if t.OnResource != nil && *t.OnResource == name {
+			t2 = append(t2, t)
+		}
+	}
+	return t2
+}
+
 // Transform applies the transformation to the given data
-func (t Transformer) Transform(data map[string]any, runner ExportableRunner) (map[string]any, error) {
+func (t Transformer) Transform(data any, runner ExportableRunner) (map[string]any, error) {
+	// If a parser is configured, then we try to parse whatever is in data as a JSON or as a CSV. If we fail, then
+	// we're done and we bail out
+	if t.Parser != nil {
+		switch *t.Parser {
+		case JsonParser:
+			var err error
+			data, err = parseJSON(data)
+			if err != nil {
+				return emptyMap, err
+			}
+		case CsvParser:
+			var err error
+			data, err = parseCSV(data)
+			if err != nil {
+				return emptyMap, err
+			}
+		}
+	}
+	// if JSONata is configured...
 	if t.Jsonata != nil {
 		script, err := jsonata.Compile(*t.Jsonata)
 		if err != nil {
-			return data, err
+			return emptyMap, err
 		}
-		res, err := script.Eval(data)
+		data, err = script.Eval(data)
 		if err != nil {
-			return data, err
+			return emptyMap, err
 		}
-		if typed, ok := res.(map[string]any); ok {
-			return typed, nil
+	}
+	if t.JmesPath != nil {
+		var err error
+		data, err = jmespath.Search(*t.JmesPath, data)
+		if err != nil {
+			return emptyMap, err
 		}
-		return map[string]any{"result": res}, nil
 	}
 	if t.Code != nil {
-		return runner.ScriptEngine().RunCode(*t.Code, data, runner)
+		var err error
+		if data, err = runner.ScriptEngine().RunCode(*t.Code, data, runner); err != nil {
+			return emptyMap, err
+		}
 	}
-	return data, nil
+	return anyToResultMap(data), nil
 }
 
 // Transform applies all the transformations to the given data

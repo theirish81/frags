@@ -19,14 +19,17 @@ package frags
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
 	"github.com/avast/retry-go/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/samber/lo"
 )
 
 type ExportableRunner interface {
@@ -248,10 +251,20 @@ func (r *Runner[T]) scanSessions() error {
 
 // runSession runs a session.
 func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Session) error {
+	if session.Vars == nil {
+		session.Vars = make(map[string]any)
+	}
+	// load all the referenced resources
 	resources, err := r.loadSessionResources(session)
 	if err != nil {
 		return err
 	}
+	// for all the resources that are destined to be loaded into memory, we get them and set them into Session.Vars
+	r.setVarResourcesDataToMemory(r.filterVarResourcesData(resources), session)
+
+	// for all the resources that are destined to be loaded into the AI, we remove the others and keep the for later use
+	resources = r.filterAiResources(resources)
+
 	sessionSchema, err := r.sessionManager.Schema.GetSession(sessionID)
 	if err != nil {
 		return err
@@ -379,9 +392,59 @@ func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error
 		if err != nil {
 			return resources, err
 		}
+		resourceData.Var = resource.Var
+		if resource.In != nil {
+			resourceData.In = *resource.In
+		} else {
+			resourceData.In = AiResourceDestination
+		}
+
+		for _, t := range r.Transformers().FilterOnResource(resource.Identifier) {
+			data, err := t.Transform(resourceData.ByteContent, r)
+			if err != nil {
+				return resources, err
+			}
+			resourceData.StructuredContent = &data
+			newData, err := json.Marshal(data)
+			if err != nil {
+				return resources, err
+			}
+			resourceData.ByteContent = newData
+			resourceData.Identifier = replaceExtension(resource.Identifier, ExtensionJson)
+			resourceData.MediaType = MediaJson
+		}
 		resources = append(resources, resourceData)
 	}
 	return resources, nil
+}
+
+func (r *Runner[T]) filterAiResources(resources []ResourceData) []ResourceData {
+	return lo.Filter(resources, func(res ResourceData, index int) bool {
+		return res.In == AiResourceDestination
+	})
+}
+
+func (r *Runner[T]) filterVarResourcesData(resources []ResourceData) []ResourceData {
+	return lo.Filter(resources, func(res ResourceData, index int) bool {
+		return res.In == VarsResourceDestination
+	})
+}
+
+func (r *Runner[T]) setVarResourcesDataToMemory(resources []ResourceData, session Session) {
+	for _, resourceData := range resources {
+		vx := ""
+		if resourceData.Var != nil {
+			vx = *resourceData.Var
+		} else {
+			re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
+			vx = re.ReplaceAllString(resourceData.Identifier, "_")
+		}
+		if resourceData.StructuredContent == nil {
+			session.Vars[vx] = string(resourceData.ByteContent)
+		} else {
+			session.Vars[vx] = resourceData.StructuredContent
+		}
+	}
 }
 
 // runSessionWorker runs a session worker.

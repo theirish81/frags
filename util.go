@@ -18,10 +18,17 @@
 package frags
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
+	"errors"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 )
+
+var emptyMap = make(map[string]any)
 
 // ProgMap is a custom map type that allows for incremental unmarshaling of JSON data.
 // Instead of replacing the entire map contents during unmarshaling, it merges new key-value
@@ -75,4 +82,54 @@ func ConvertToMapAny[S any](source map[string]S) map[string]any {
 		t[k] = v
 	}
 	return t
+}
+
+func anyToResultMap(data any) map[string]any {
+	switch t := data.(type) {
+	case map[string]any:
+		return t
+	default:
+		return map[string]any{"result": data}
+	}
+}
+
+func parseJSON(data any) (any, error) {
+	switch t := data.(type) {
+	case map[string]any:
+		return t, nil
+	case []any:
+		return t, nil
+	case []byte:
+		mapOut := make(map[string]any)
+		if err := json.Unmarshal([]byte(t), &mapOut); err == nil {
+			return mapOut, nil
+		}
+		sliceOut := make([]any, 0)
+		if err := json.Unmarshal([]byte(t), &sliceOut); err == nil {
+			return sliceOut, nil
+		}
+	case string:
+		return parseJSON([]byte(t))
+	}
+	return nil, errors.New("cannot parse this from anything into anything")
+}
+
+func parseCSV(data any) ([][]string, error) {
+	switch t := data.(type) {
+	case string:
+		reader := csv.NewReader(strings.NewReader(t))
+		return reader.ReadAll()
+	case []byte:
+		reader := csv.NewReader(bytes.NewReader(t))
+		return reader.ReadAll()
+	}
+	return nil, errors.New("cannot parse this from CSV into anything")
+}
+
+func replaceExtension(filename, newExt string) string {
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		return filename + newExt
+	}
+	return filename[:len(filename)-len(ext)] + newExt
 }

@@ -76,10 +76,19 @@ func (s *Session) RenderNextPhasePrompt(scope EvalScope) (string, error) {
 	return EvaluateTemplate(s.NextPhasePrompt, scope)
 }
 
+type ResourceDestination string
+
+const (
+	AiResourceDestination   ResourceDestination = "ai"
+	VarsResourceDestination ResourceDestination = "vars"
+)
+
 // Resource defines a resource to load, with an identifier and a map of parameters
 type Resource struct {
-	Identifier string            `json:"identifier" yaml:"identifier" validate:"required,min=1"`
-	Params     map[string]string `json:"params" yaml:"params"`
+	Identifier string               `json:"identifier" yaml:"identifier" validate:"required,min=1"`
+	Params     map[string]string    `json:"params" yaml:"params"`
+	In         *ResourceDestination `json:"in" yaml:"in"`
+	Var        *string              `json:"var" yaml:"var"`
 }
 
 // Sessions is a map of session IDs to sessions.
