@@ -260,7 +260,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 		return err
 	}
 	// for all the resources that are destined to be loaded into memory, we get them and set them into Session.Vars
-	r.setVarResourcesDataToMemory(r.filterVarResourcesData(resources), session)
+	resourceVars := r.resourcesDataToVars(r.filterVarResourcesData(resources))
 
 	// for all the resources that are destined to be loaded into the AI, we remove the others and keep the for later use
 	resources = r.filterAiResources(resources)
@@ -275,7 +275,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	iterator := make([]any, 1)
 	if session.IterateOn != nil {
 		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().WithVars(r.vars).
-			WithVars(session.Vars)); err != nil {
+			WithVars(session.Vars).WithVars(resourceVars)); err != nil {
 			return err
 		}
 	}
@@ -288,7 +288,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 			// the context of the session.
 			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithVars(r.vars).WithIterator(it).
-				WithVars(session.Vars))
+				WithVars(session.Vars).WithVars(resourceVars))
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
@@ -325,7 +325,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				var data []byte
-				scope := r.newEvalScope().WithVars(r.vars).WithIterator(it).WithVars(session.Vars)
+				scope := r.newEvalScope().WithVars(r.vars).WithIterator(it).WithVars(session.Vars).WithVars(resourceVars)
 				if idx == 0 {
 					prompt, err := session.RenderPrompt(scope)
 					if err != nil {
@@ -430,7 +430,8 @@ func (r *Runner[T]) filterVarResourcesData(resources []ResourceData) []ResourceD
 	})
 }
 
-func (r *Runner[T]) setVarResourcesDataToMemory(resources []ResourceData, session Session) {
+func (r *Runner[T]) resourcesDataToVars(resources []ResourceData) map[string]any {
+	res := make(map[string]any)
 	for _, resourceData := range resources {
 		vx := ""
 		if resourceData.Var != nil {
@@ -440,11 +441,12 @@ func (r *Runner[T]) setVarResourcesDataToMemory(resources []ResourceData, sessio
 			vx = re.ReplaceAllString(resourceData.Identifier, "_")
 		}
 		if resourceData.StructuredContent == nil {
-			session.Vars[vx] = string(resourceData.ByteContent)
+			res[vx] = string(resourceData.ByteContent)
 		} else {
-			session.Vars[vx] = resourceData.StructuredContent
+			res[vx] = resourceData.StructuredContent
 		}
 	}
+	return res
 }
 
 // runSessionWorker runs a session worker.
