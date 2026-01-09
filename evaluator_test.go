@@ -97,28 +97,23 @@ func TestEvaluateTemplate(t *testing.T) {
 }
 
 func TestEvalScope_WithVars(t *testing.T) {
-	scope := EvalScope{
-		"foo": "bar",
-	}
+	scope := NewEvalScope()
 	scope = scope.WithVars(map[string]any{
 		"buzz": "baz",
 	})
-	assert.Equal(t, "bar", scope["foo"])
-	assert.Equal(t, "baz", scope["buzz"])
+	assert.Equal(t, "baz", scope.Vars()["buzz"])
 
 	scope = scope.WithVars(map[string]any{
 		"hey": "joe",
 	})
-	assert.Equal(t, "bar", scope["foo"])
-	assert.Equal(t, "baz", scope["buzz"])
-	assert.Equal(t, "joe", scope["hey"])
+	assert.Equal(t, "baz", scope.Vars()["buzz"])
+	assert.Equal(t, "joe", scope.Vars()["hey"])
 
 	scope = scope.WithVars(map[string]any{
 		"hey": "mario",
 		"red": "ball",
 	})
-	assert.Equal(t, "bar", scope["foo"])
-	assert.Equal(t, "baz", scope["buzz"])
-	assert.Equal(t, "mario", scope["hey"])
-	assert.Equal(t, "ball", scope["red"])
+	assert.Equal(t, "baz", scope.Vars()["buzz"])
+	assert.Equal(t, "mario", scope.Vars()["hey"])
+	assert.Equal(t, "ball", scope.Vars()["red"])
 }

@@ -48,13 +48,16 @@ func (e EvalScope) WithIterator(it any) EvalScope {
 // WithVars clones the scope and adds the vars.
 func (e EvalScope) WithVars(vars map[string]any) EvalScope {
 	if vars == nil {
-		e[varsAttr] = make(map[string]any)
-	} else {
-		for k, v := range vars {
-			e[k] = v
-		}
+		return e
+	}
+
+	for k, v := range vars {
+		e[varsAttr].(map[string]any)[k] = v
 	}
 	return e
+}
+func (e EvalScope) Vars() map[string]any {
+	return e[varsAttr].(map[string]any)
 }
 
 // NewEvalScope is the EvalScope constructor, unbounded to a specific Runner.
