@@ -26,6 +26,7 @@ const ExtensionPDF = ".pdf"
 const ExtensionTXT = ".txt"
 const ExtensionMD = ".md"
 const ExtensionCSV = ".csv"
+const ExtensionJson = ".json"
 
 // NOTE: while markdown and csv technically have their own content types, we use text/plain because the LLM either
 // doesn't care, or even likes it better.
@@ -34,6 +35,7 @@ const MediaPDF = "application/pdf"
 const MediaText = "text/plain"
 const MediaMarkdown = "text/plain"
 const MediaCsv = "text/plain"
+const MediaJson = "application/plain"
 
 // GetMediaType returns the media type for a given file extension
 func GetMediaType(filename string) string {
@@ -46,6 +48,8 @@ func GetMediaType(filename string) string {
 		return MediaMarkdown
 	case ExtensionCSV:
 		return MediaCsv
+	case ExtensionJson:
+		return MediaJson
 	}
 	return MediaText
 }
