@@ -35,7 +35,7 @@ const MediaPDF = "application/pdf"
 const MediaText = "text/plain"
 const MediaMarkdown = "text/plain"
 const MediaCsv = "text/plain"
-const MediaJson = "application/plain"
+const MediaJson = "text/plain"
 
 // GetMediaType returns the media type for a given file extension
 func GetMediaType(filename string) string {
