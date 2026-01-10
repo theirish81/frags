@@ -21,8 +21,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
 	"regexp"
 	"sync"
 	"time"
@@ -388,6 +390,7 @@ func (r *Runner[T]) ListQueued() Sessions {
 func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error) {
 	resources := make([]ResourceData, 0)
 	for _, resource := range session.Resources {
+		// the resource identifier can be a template, so we evaluate it here
 		identifier, err := EvaluateTemplate(resource.Identifier, r.newEvalScope().WithVars(session.Vars))
 		if err != nil {
 			return resources, err
@@ -396,6 +399,8 @@ func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error
 		if err != nil {
 			return resources, err
 		}
+		// We set the resource's Var. If none is defined, then AiResourceDestination is used. This will determine
+		// whether the resource will end up in memory or in the Ai context
 		resourceData.Var = resource.Var
 		if resource.In != nil {
 			resourceData.In = *resource.In
@@ -403,19 +408,26 @@ func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error
 			resourceData.In = AiResourceDestination
 		}
 
+		// For each filter that has an OnResource hook for this resource identifier
 		for _, t := range r.Transformers().FilterOnResource(resource.Identifier) {
-			data, err := t.Transform(resourceData.ByteContent, r)
+			var data any = resourceData.ByteContent
+			if resourceData.StructuredContent != nil {
+				data = *resourceData.StructuredContent
+			}
+			data, err := t.Transform(data, r)
 			if err != nil {
 				return resources, err
 			}
 			resourceData.StructuredContent = &data
-			newData, err := json.Marshal(data)
-			if err != nil {
-				return resources, err
+			switch toConcreteValue(reflect.ValueOf(data)).Kind() {
+			case reflect.Slice, reflect.Array, reflect.Map:
+				var err error
+				if resourceData.ByteContent, err = json.Marshal(data); err != nil {
+					return resources, err
+				}
+			default:
+				resourceData.ByteContent = []byte(fmt.Sprintf("%v", data))
 			}
-			resourceData.ByteContent = newData
-			resourceData.Identifier = replaceExtension(resource.Identifier, ExtensionJson)
-			resourceData.MediaType = MediaJson
 		}
 		resources = append(resources, resourceData)
 	}
