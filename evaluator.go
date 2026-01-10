@@ -56,6 +56,8 @@ func (e EvalScope) WithVars(vars map[string]any) EvalScope {
 	}
 	return e
 }
+
+// Vars returns the vars map.
 func (e EvalScope) Vars() map[string]any {
 	return e[varsAttr].(map[string]any)
 }
