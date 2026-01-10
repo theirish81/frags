@@ -29,11 +29,11 @@ import (
 // Description is the function description
 // Schema is the input schema for the function.
 type Function struct {
-	Func        func(data map[string]any) (map[string]any, error) `yaml:"-"`
-	Name        string                                            `yaml:"name"`
-	Collection  string                                            `yaml:"collection"`
-	Description string                                            `yaml:"description"`
-	Schema      *Schema                                           `yaml:"schema"`
+	Func        func(data map[string]any) (any, error) `yaml:"-"`
+	Name        string                                 `yaml:"name"`
+	Collection  string                                 `yaml:"collection"`
+	Description string                                 `yaml:"description"`
+	Schema      *Schema                                `yaml:"schema"`
 }
 
 func (f Function) String() string {
