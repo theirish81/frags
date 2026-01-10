@@ -18,41 +18,10 @@
 package frags
 
 import (
-	"encoding/json"
+	"path/filepath"
 	"reflect"
 	"time"
 )
-
-// ProgMap is a custom map type that allows for incremental unmarshaling of JSON data.
-// Instead of replacing the entire map contents during unmarshaling, it merges new key-value
-// pairs into the existing map, preserving any entries that aren't overwritten by the incoming JSON.
-type ProgMap map[string]any
-
-// UnmarshalJSON implements json.Unmarshaler to merge incoming JSON data into the existing map
-// rather than replacing it entirely. This allows for progressive/incremental updates where
-// new fields are added without losing existing fields not present in the incoming JSON.
-func (p *ProgMap) UnmarshalJSON(data []byte) error {
-	newData := make(map[string]any)
-	if err := json.Unmarshal(data, &newData); err != nil {
-		return err
-	}
-	for k, v := range newData {
-		(*p)[k] = v
-	}
-	return nil
-}
-
-// initDataStructure initializes the data structure, assuming it's either a map or a struct
-func initDataStructure[T any]() *T {
-	var v T
-	val := reflect.ValueOf(&v).Elem()
-	if val.Kind() == reflect.Map {
-		val.Set(reflect.MakeMap(val.Type()))
-		return &v
-	} else {
-		return new(T)
-	}
-}
 
 // parseDurationOrDefault parses a duration string into a time.Duration, or returns the default duration if parsing fails
 func parseDurationOrDefault(durationStr *string, defaultDuration time.Duration) time.Duration {
@@ -66,13 +35,25 @@ func parseDurationOrDefault(durationStr *string, defaultDuration time.Duration) 
 	return parsedDuration
 }
 
+// strPtr returns a pointer to a string
 func strPtr(s string) *string { return &s }
 
-// ConvertToMapAny converts a map[string]S to a map[string]any
-func ConvertToMapAny[S any](source map[string]S) map[string]any {
-	t := make(map[string]any)
-	for k, v := range source {
-		t[k] = v
+// replaceExtension replaces the extension of a filename with a new one
+func replaceExtension(filename, newExt string) string {
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		return filename + newExt
 	}
-	return t
+	return filename[:len(filename)-len(ext)] + newExt
+}
+
+// toConcreteValue returns the concrete value of a reflect.Value It gives up after 5 levels of indirection as a
+// deadlock safety measure.
+func toConcreteValue(rv reflect.Value) reflect.Value {
+	i := 0
+	for (rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface) && i < 5 {
+		i++
+		rv = rv.Elem()
+	}
+	return rv
 }

@@ -25,9 +25,12 @@ import (
 
 // ResourceData is a piece of data the LLM can use.
 type ResourceData struct {
-	Identifier string
-	Data       []byte
-	MediaType  string
+	Identifier        string
+	MediaType         string
+	ByteContent       []byte
+	StructuredContent *any
+	In                ResourceDestination
+	Var               *string
 }
 
 // ResourceLoader is a generic interface for loading resources.
@@ -52,7 +55,7 @@ func (l *FileResourceLoader) LoadResource(identifier string, _ map[string]string
 	if err != nil {
 		return ResourceData{}, err
 	}
-	resource.Data = fileData
+	resource.ByteContent = fileData
 	return resource, nil
 }
 
@@ -118,8 +121,8 @@ func NewDummyResourceLoader() *DummyResourceLoader {
 // LoadResource returns an empty resource.
 func (l *DummyResourceLoader) LoadResource(identifier string, params map[string]string) (ResourceData, error) {
 	return ResourceData{
-		Identifier: identifier,
-		MediaType:  GetMediaType(identifier),
-		Data:       make([]byte, 0),
+		Identifier:  identifier,
+		MediaType:   GetMediaType(identifier),
+		ByteContent: make([]byte, 0),
 	}, nil
 }

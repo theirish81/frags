@@ -11,7 +11,9 @@ require (
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/jinzhu/copier v0.4.0
+	github.com/jmespath/go-jmespath v0.4.0
 	github.com/modelcontextprotocol/go-sdk v1.2.0
+	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
 )

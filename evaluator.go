@@ -48,13 +48,16 @@ func (e EvalScope) WithIterator(it any) EvalScope {
 // WithVars clones the scope and adds the vars.
 func (e EvalScope) WithVars(vars map[string]any) EvalScope {
 	if vars == nil {
-		e[varsAttr] = make(map[string]any)
-	} else {
-		for k, v := range vars {
-			e[k] = v
-		}
+		return e
+	}
+
+	for k, v := range vars {
+		e[varsAttr].(map[string]any)[k] = v
 	}
 	return e
+}
+func (e EvalScope) Vars() map[string]any {
+	return e[varsAttr].(map[string]any)
 }
 
 // NewEvalScope is the EvalScope constructor, unbounded to a specific Runner.
@@ -125,15 +128,15 @@ func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) 
 	if err != nil {
 		return nil, err
 	}
-	rv := reflect.ValueOf(res)
-	if rv.Kind() != reflect.Slice {
-		return nil, errors.New("expression did not evaluate to an array")
-	} else {
+	rv := toConcreteValue(reflect.ValueOf(res))
+	if rv.Kind() == reflect.Slice {
 		result := make([]any, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
 			result[i] = rv.Index(i).Interface()
 		}
 		return result, nil
+	} else {
+		return nil, errors.New("expression did not evaluate to an array")
 	}
 }
 

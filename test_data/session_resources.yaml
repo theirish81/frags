@@ -1,0 +1,10 @@
+transformers:
+  - name: csv
+    onResource: stuff.csv
+    parser: csv
+    jsonata: '$[].{"first_name":$[0], "last_name":$[1] }'
+sessions:
+  s1:
+    prompt: test
+    resources:
+      - identifier: stuff.csv

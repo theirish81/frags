@@ -181,18 +181,8 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 			Description: t.Description,
 			Collection:  c.Name,
 			Schema:      t.InputSchema,
-			Func: func(data map[string]any) (map[string]any, error) {
-				res, err := c.Run(context.Background(), t.Name, data)
-				if err != nil {
-					return nil, err
-				}
-				// here we ALWAYS return a map, regardless of the type of the result
-				switch t := res.(type) {
-				case map[string]any:
-					return t, nil
-				default:
-					return map[string]any{"result": res}, nil
-				}
+			Func: func(data map[string]any) (any, error) {
+				return c.Run(context.Background(), t.Name, data)
 			},
 		}
 	}
