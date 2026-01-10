@@ -80,7 +80,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	parts := make([]*genai.Part, 0)
 	for _, resource := range resources {
 		d.log.Debug("adding file resource", "ai", "gemini", "resource", resource.Identifier)
-		parts = append(parts, genai.NewPartFromBytes(resource.Data, resource.MediaType))
+		parts = append(parts, genai.NewPartFromBytes(resource.ByteContent, resource.MediaType))
 	}
 	parts = append(parts, genai.NewPartFromText(text))
 	genAiSchema := &genai.Schema{}
@@ -129,7 +129,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 				if ferr != nil {
 					return nil, ferr
 				} else {
-					d.content = append(d.content, genai.NewContentFromFunctionResponse(fc.Name, fres, genai.RoleUser))
+					d.content = append(d.content, genai.NewContentFromFunctionResponse(fc.Name, frags.AnyToResultMap(fres), genai.RoleUser))
 				}
 			}
 			keepGoing = true
@@ -214,7 +214,7 @@ func joinParts(parts []*genai.Part) string {
 	return out
 }
 
-func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (map[string]any, error) {
+func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
 		functionSignature := fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args)
 		d.log.Debug("invoking function", "ai", "gemini", "function", functionSignature)

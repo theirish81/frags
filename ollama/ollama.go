@@ -94,10 +94,10 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		Role:    "user",
 	}
 	for _, r := range resources {
-		if r.MediaType != "text/plain" {
+		if r.MediaType != frags.MediaText {
 			return nil, errors.New("ollama only supports text resources")
 		}
-		message.Content += message.Content + " === " + r.Identifier + " === \n" + string(r.Data) + "\n"
+		message.Content += message.Content + " === " + r.Identifier + " === \n" + string(r.ByteContent) + "\n"
 		d.log.Debug("adding file resource", "ai", "ollama", "resource", r.Identifier)
 	}
 	message.Content += "\n" + text
@@ -253,7 +253,7 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ToolDefinition, erro
 	return tx, nil
 }
 
-func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (map[string]any, error) {
+func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
 		d.log.Debug("invoking function", "ai", "ollama", "function", fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args))
 		res, err := fx.Run(functionCall.Args, runner)
