@@ -93,12 +93,14 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	msg := NewUserMessage(text)
 	for _, r := range resources {
 		switch r.MediaType {
-		case "text/plain":
-			msg.Content.InsertTextPart(fmt.Sprintf("=== %s === \n%s ===\n", r.Identifier, string(r.Data)))
+		case frags.MediaText:
+			// For some unexplainable reasons, the Upload API doesn't like text files, so the best thing we can do is
+			// attach them to the message itself.
+			msg.Content.InsertTextPart(fmt.Sprintf("=== %s === \n%s ===\n", r.Identifier, string(r.ByteContent)))
 		default:
 			fid, ok := d.files[r.Identifier]
 			if !ok {
-				fd, err := d.httpClient.FileUpload(ctx, r.Identifier, r.Data)
+				fd, err := d.httpClient.FileUpload(ctx, r.Identifier, r.ByteContent)
 				if err != nil {
 					return nil, err
 				}
@@ -199,7 +201,7 @@ func (d *Ai) handleFunctionCalls(responseMessage Response, runner frags.Exportab
 	return nil
 }
 
-func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (map[string]any, error) {
+func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
 		functionSignature := fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args)
 		d.log.Debug("invoking function", "ai", "chatgpt", "function", functionSignature)
