@@ -388,7 +388,11 @@ func (r *Runner[T]) ListQueued() Sessions {
 func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error) {
 	resources := make([]ResourceData, 0)
 	for _, resource := range session.Resources {
-		resourceData, err := r.resourceLoader.LoadResource(resource.Identifier, resource.Params)
+		identifier, err := EvaluateTemplate(resource.Identifier, r.newEvalScope().WithVars(session.Vars))
+		if err != nil {
+			return resources, err
+		}
+		resourceData, err := r.resourceLoader.LoadResource(identifier, resource.Params)
 		if err != nil {
 			return resources, err
 		}

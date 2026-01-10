@@ -75,6 +75,7 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 	assert.Nil(t, err)
 	ai := NewDummyAi()
 	runner := NewRunner[map[string]string](mgr, NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
+	runner.dataStructure = &map[string]string{}
 	res, err := runner.loadSessionResources(mgr.Sessions["s1"])
 	assert.NoError(t, err)
 	assert.Equal(t, "stuff.json", res[0].Identifier)
