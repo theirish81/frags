@@ -41,7 +41,7 @@ func execute(ctx context.Context, sm frags.SessionManager, paramsMap map[string]
 	}), true); err != nil {
 		return nil, err
 	} else {
-		sm.Vars, err = frags.EvaluateMapValues(sm.Vars, frags.NewEvalScope().WithVars(frags.ConvertToMapAny[any](env)))
+		sm.Vars, err = frags.EvaluateMapValues(sm.Vars, frags.NewEvalScope().WithVars(env))
 	}
 
 	ai, err := initAi(log)

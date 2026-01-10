@@ -211,9 +211,9 @@ func filesMapToResourceLoader(files map[string]string) (frags.ResourceLoader, er
 			return nil, err
 		}
 		loader.SetResource(frags.ResourceData{
-			Identifier: k,
-			MediaType:  frags.GetMediaType(k),
-			Data:       decoded,
+			Identifier:  k,
+			MediaType:   frags.GetMediaType(k),
+			ByteContent: decoded,
 		})
 	}
 	return loader, nil
