@@ -18,9 +18,12 @@
 package frags
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 )
 
 // ResourceData is a piece of data the LLM can use.
@@ -31,6 +34,35 @@ type ResourceData struct {
 	StructuredContent *any
 	In                ResourceDestination
 	Var               *string
+}
+
+// SetContent sets the content of the resource data. If the input is structured content, then the value is stored in
+// the StructuredContent field and is JSON-marshaled to the ByteContent field. If it's a raw type or a slice of bytes,
+// then the ByteContent field is set directly and StructuredContent is nil. The objective is when StructuredContent
+// has value, then ByteContent contains its JSON representation, but when a raw value needs to be stored, then
+// StructuredContent is nil and ByteContent contains the raw value.
+func (r *ResourceData) SetContent(data any) error {
+	switch toConcreteValue(reflect.ValueOf(data)).Kind() {
+	case reflect.Slice, reflect.Array, reflect.Map:
+		switch t := data.(type) {
+		// In case this is an array of bytes, we keep it as byte response, there's no structure in this case
+		case []uint8:
+			r.StructuredContent = nil
+			r.ByteContent = t
+		default:
+			// otherwise we assume this to be a structured content
+			var err error
+			r.StructuredContent = &data
+			if r.ByteContent, err = json.Marshal(data); err != nil {
+				return err
+			}
+		}
+	default:
+		// any other data type, and we hope for the best
+		r.StructuredContent = nil
+		r.ByteContent = []byte(fmt.Sprintf("%v", data))
+	}
+	return nil
 }
 
 // ResourceLoader is a generic interface for loading resources.

@@ -19,12 +19,9 @@ package frags
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
-	"reflect"
 	"regexp"
 	"sync"
 	"time"
@@ -410,6 +407,8 @@ func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error
 
 		// For each filter that has an OnResource hook for this resource identifier
 		for _, t := range r.Transformers().FilterOnResource(resource.Identifier) {
+			// whether the transformer will operate on byte content or resource data depends on whether the resource
+			// data contains structured content or not.
 			var data any = resourceData.ByteContent
 			if resourceData.StructuredContent != nil {
 				data = *resourceData.StructuredContent
@@ -418,15 +417,8 @@ func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error
 			if err != nil {
 				return resources, err
 			}
-			resourceData.StructuredContent = &data
-			switch toConcreteValue(reflect.ValueOf(data)).Kind() {
-			case reflect.Slice, reflect.Array, reflect.Map:
-				var err error
-				if resourceData.ByteContent, err = json.Marshal(data); err != nil {
-					return resources, err
-				}
-			default:
-				resourceData.ByteContent = []byte(fmt.Sprintf("%v", data))
+			if err := resourceData.SetContent(data); err != nil {
+				return resources, err
 			}
 		}
 		resources = append(resources, resourceData)
