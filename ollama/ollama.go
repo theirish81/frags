@@ -97,7 +97,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		if r.MediaType != frags.MediaText {
 			return nil, errors.New("ollama only supports text resources")
 		}
-		message.Content += message.Content + " === " + r.Identifier + " === \n" + string(r.ByteContent) + "\n"
+		message.Content += message.Content + " === " + r.Identifier + " === \n" + string(r.ByteContent) + "\n===\b"
 		d.log.Debug("adding file resource", "ai", "ollama", "resource", r.Identifier)
 	}
 	message.Content += "\n" + text
