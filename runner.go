@@ -182,7 +182,7 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 		return r.dataStructure, errors.New("failed to resolve schema")
 	}
 	if r.sessionManager.SystemPrompt != nil {
-		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope().WithVars(r.vars))
+		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope())
 		if err != nil {
 			return nil, err
 		}
@@ -276,7 +276,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	}
 	iterator := make([]any, 1)
 	if session.IterateOn != nil {
-		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().WithVars(r.vars).
+		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().
 			WithVars(session.Vars).WithVars(resourceVars)); err != nil {
 			return err
 		}
@@ -289,7 +289,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 			// the context of the session.
-			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithVars(r.vars).WithIterator(it).
+			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it).
 				WithVars(session.Vars).WithVars(resourceVars))
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
@@ -327,7 +327,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				var data []byte
-				scope := r.newEvalScope().WithVars(r.vars).WithIterator(it).WithVars(session.Vars).WithVars(resourceVars)
+				scope := r.newEvalScope().WithIterator(it).WithVars(session.Vars).WithVars(resourceVars)
 				if idx == 0 {
 					prompt, err := session.RenderPrompt(scope)
 					if err != nil {
