@@ -1,0 +1,16 @@
+## In this example, a CSV file is loaded into the LLM context
+sessions:
+  s1:
+    prompt: list ALL the rows in the provided csv
+    resources:
+      - identifier: data/data1.csv
+
+schema:
+  type: object
+  properties:
+    s1:
+      type: array
+      description: the list of rows, one per item
+      x-session: s1
+      items:
+        type: string

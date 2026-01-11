@@ -1,0 +1,80 @@
+transformers:
+  ## This transformer:
+  ## 1. parses data/data2.csv into data
+  ## 2. converts it to a JSON array, skipping the first line, and mapping the first column to "first_name" and the
+  ## second to "last_name"
+  - name: csv1
+    onResource: data/data2.csv
+    parser: csv
+    jmesPath: '[1:].{first_name: [0], last_name: [1]}'
+
+sessions:
+  ## This is our classic (easy) mode. The file data/data1.csv is loaded into the LLM context. The LLM is capable
+  ## of reading the CSV quite nicely and answer the question
+  easy_in_ai:
+    prompt: what's the last name of Pat?
+    resources:
+      - identifier: data/data1.csv
+  ## This is slightly more advanced. The CSV is loaded, but then the transformer kicks in and makes it into a JSON
+  ## array. The array is then loaded into the LLM context as a textual JSON. This has little practical use. Sure, the
+  ## JSON may be a little clearer for the LLM to read, but the main purpose is undergo transformations. In our case
+  ## the transformer is not only converting, but it's also stripping the first line of the CSV.
+  parsed_content_in_ai:
+    prompt: print the second object in the "result" array
+    resources:
+      - identifier: data/data2.csv
+  ## This is a substantially different workflow. The CSV is loaded, and the transformer makes it into a JSON array.
+  ## The destination, however, is not the LLM context, but session variables. The JSON array will be stored in the
+  ## session variables as "data2", and this means that the prompt can happily reference it with the template engine.
+  ## So in this case, the prompt itself is influenced by the loaded, and transformed CSV.
+  parsed_content_into_memory:
+    prompt: |-
+      who was {{ (index .vars.data2 2).first_name }} {{ (index .vars.data2 2).last_name }}.
+    resources:
+      - identifier: data/data2.csv
+        in: vars
+        var: data2
+  ## Hardcore mode: on. Same as before, we're doing CSV -> JSON -> session memory. But in this case we're using the
+  ## JSON array as a data source for the iterator. This means that this session will run as many times as there are
+  ## items in the array. We can therefore reference the current item in the prompt using the `it` template variable.
+  parsed_content_into_memory_iterator:
+    prompt: who could most likely be {{ .it.first_name }} {{ .it.last_name }}. Produce one array item for answer
+    resources:
+      - identifier: data/data2.csv
+        in: vars
+        var: data2
+    iterateOn: vars.data2
+schema:
+  type: object
+  required:
+    - easy_in_ai
+    - parsed_content_in_ai
+    - parsed_content_into_memory
+    - parsed_content_into_memory_iterator
+  properties:
+    easy_in_ai:
+      x-session: easy_in_ai
+      type: string
+    parsed_content_in_ai:
+      x-session: parsed_content_in_ai
+      type: string
+    parsed_content_into_memory:
+      x-session: parsed_content_into_memory
+      type: string
+    parsed_content_into_memory_iterator:
+      x-session: parsed_content_into_memory_iterator
+      type: array
+      items:
+        type: object
+        required:
+          - character_name
+          - character_description
+        properties:
+          character_name:
+            type: string
+            description: the character name
+          character_description:
+            type: string
+            description: the guessed character's description
+
+
