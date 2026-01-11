@@ -35,6 +35,7 @@ type ExportableRunner interface {
 	Transformers() *Transformers
 	RunFunction(name string, args map[string]any) (any, error)
 	ScriptEngine() ScriptEngine
+	Logger() *slog.Logger
 }
 
 // Runner is a struct that runs a session manager.
@@ -392,6 +393,7 @@ func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error
 		if err != nil {
 			return resources, err
 		}
+		r.logger.Debug("loading resource", "identifier", identifier)
 		resourceData, err := r.resourceLoader.LoadResource(identifier, resource.Params)
 		if err != nil {
 			return resources, err
@@ -514,6 +516,10 @@ func (r *Runner[T]) IsCompleted() bool {
 
 func (r *Runner[T]) RunFunction(name string, args map[string]any) (any, error) {
 	return r.ai.RunFunction(FunctionCall{Name: name, Args: args}, r)
+}
+
+func (r *Runner[T]) Logger() *slog.Logger {
+	return r.logger
 }
 
 func (r *Runner[T]) Transformers() *Transformers {
