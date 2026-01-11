@@ -96,7 +96,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		case frags.MediaText:
 			// For some unexplainable reasons, the Upload API doesn't like text files, so the best thing we can do is
 			// attach them to the message itself.
-			msg.Content.InsertTextPart(fmt.Sprintf("=== %s === \n%s ===\n", r.Identifier, string(r.ByteContent)))
+			msg.Content.InsertTextPart(fmt.Sprintf("=== %s === \n%s\n ===\n", r.Identifier, string(r.ByteContent)))
 		default:
 			fid, ok := d.files[r.Identifier]
 			if !ok {
@@ -114,6 +114,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	keepGoing := true
 	out := ""
 	for keepGoing {
+		d.log.Debug("generating content", "ai", "chatgpt", "message", d.content[len(d.content)-1])
 		req := NewResponseRequest(d.config.Model, d.content, d.systemPrompt, chatGptTools, schema)
 
 		response, err := d.httpClient.PostResponses(ctx, req)
@@ -127,6 +128,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 			}
 		} else {
 			content := response.Output.Last().Content
+			d.log.Debug("generated response", "ai", "chatgpt", "response", content)
 			out = content.First().Text
 			keepGoing = false
 		}
