@@ -19,7 +19,6 @@ package frags
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
@@ -36,6 +35,7 @@ type ExportableRunner interface {
 	Transformers() *Transformers
 	RunFunction(name string, args map[string]any) (any, error)
 	ScriptEngine() ScriptEngine
+	Logger() *slog.Logger
 }
 
 // Runner is a struct that runs a session manager.
@@ -180,7 +180,7 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 		return r.dataStructure, errors.New("failed to resolve schema")
 	}
 	if r.sessionManager.SystemPrompt != nil {
-		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope().WithVars(r.vars))
+		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope())
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +274,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	}
 	iterator := make([]any, 1)
 	if session.IterateOn != nil {
-		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().WithVars(r.vars).
+		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().
 			WithVars(session.Vars).WithVars(resourceVars)); err != nil {
 			return err
 		}
@@ -287,7 +287,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 			// the context of the session.
-			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithVars(r.vars).WithIterator(it).
+			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it).
 				WithVars(session.Vars).WithVars(resourceVars))
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
@@ -325,7 +325,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				var data []byte
-				scope := r.newEvalScope().WithVars(r.vars).WithIterator(it).WithVars(session.Vars).WithVars(resourceVars)
+				scope := r.newEvalScope().WithIterator(it).WithVars(session.Vars).WithVars(resourceVars)
 				if idx == 0 {
 					prompt, err := session.RenderPrompt(scope)
 					if err != nil {
@@ -388,14 +388,18 @@ func (r *Runner[T]) ListQueued() Sessions {
 func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error) {
 	resources := make([]ResourceData, 0)
 	for _, resource := range session.Resources {
+		// the resource identifier can be a template, so we evaluate it here
 		identifier, err := EvaluateTemplate(resource.Identifier, r.newEvalScope().WithVars(session.Vars))
 		if err != nil {
 			return resources, err
 		}
+		r.logger.Debug("loading resource", "identifier", identifier)
 		resourceData, err := r.resourceLoader.LoadResource(identifier, resource.Params)
 		if err != nil {
 			return resources, err
 		}
+		// We set the resource's Var. If none is defined, then AiResourceDestination is used. This will determine
+		// whether the resource will end up in memory or in the Ai context
 		resourceData.Var = resource.Var
 		if resource.In != nil {
 			resourceData.In = *resource.In
@@ -403,19 +407,21 @@ func (r *Runner[T]) loadSessionResources(session Session) ([]ResourceData, error
 			resourceData.In = AiResourceDestination
 		}
 
+		// For each filter that has an OnResource hook for this resource identifier
 		for _, t := range r.Transformers().FilterOnResource(resource.Identifier) {
-			data, err := t.Transform(resourceData.ByteContent, r)
+			// whether the transformer will operate on byte content or resource data depends on whether the resource
+			// data contains structured content or not.
+			var data any = resourceData.ByteContent
+			if resourceData.StructuredContent != nil {
+				data = *resourceData.StructuredContent
+			}
+			data, err := t.Transform(data, r)
 			if err != nil {
 				return resources, err
 			}
-			resourceData.StructuredContent = &data
-			newData, err := json.Marshal(data)
-			if err != nil {
+			if err := resourceData.SetContent(data); err != nil {
 				return resources, err
 			}
-			resourceData.ByteContent = newData
-			resourceData.Identifier = replaceExtension(resource.Identifier, ExtensionJson)
-			resourceData.MediaType = MediaJson
 		}
 		resources = append(resources, resourceData)
 	}
@@ -510,6 +516,10 @@ func (r *Runner[T]) IsCompleted() bool {
 
 func (r *Runner[T]) RunFunction(name string, args map[string]any) (any, error) {
 	return r.ai.RunFunction(FunctionCall{Name: name, Args: args}, r)
+}
+
+func (r *Runner[T]) Logger() *slog.Logger {
+	return r.logger
 }
 
 func (r *Runner[T]) Transformers() *Transformers {

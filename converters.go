@@ -23,7 +23,9 @@ import (
 	"strconv"
 )
 
-func valToFloat64(v reflect.Value) (float64, error) {
+// stringValToFloat64 converts a reflect.Value allegedly containing a string to a float64, or returns an error if the
+// conversion fails.
+func stringValToFloat64(v reflect.Value) (float64, error) {
 	if !v.IsValid() {
 		return 0, fmt.Errorf("precondition failed: value is invalid")
 	}
@@ -39,7 +41,9 @@ func valToFloat64(v reflect.Value) (float64, error) {
 	return f, nil
 }
 
-func valToToBool(v reflect.Value) (bool, error) {
+// stringValToToBool converts a reflect.Value allegedly containing a string to a bool, or returns an error if the
+// conversion fails.
+func stringValToToBool(v reflect.Value) (bool, error) {
 	if !v.IsValid() {
 		return false, fmt.Errorf("precondition failed: value is invalid")
 	}

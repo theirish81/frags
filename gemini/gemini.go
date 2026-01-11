@@ -80,7 +80,11 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	parts := make([]*genai.Part, 0)
 	for _, resource := range resources {
 		d.log.Debug("adding file resource", "ai", "gemini", "resource", resource.Identifier)
-		parts = append(parts, genai.NewPartFromBytes(resource.ByteContent, resource.MediaType))
+		content := resource.ByteContent
+		if resource.MediaType == frags.MediaText {
+			content = []byte(fmt.Sprintf("=== %s ===\n%s\n===\n", resource.Identifier, string(resource.ByteContent)))
+		}
+		parts = append(parts, genai.NewPartFromBytes(content, resource.MediaType))
 	}
 	parts = append(parts, genai.NewPartFromText(text))
 	genAiSchema := &genai.Schema{}

@@ -124,6 +124,7 @@ func (c *ContentParts) First() ContentPart {
 type ResponseFormat struct {
 	Name   string `json:"name"`
 	Type   string `json:"type"`
+	Strict bool   `json:"strict"`
 	Schema any    `json:"schema,omitempty"`
 }
 

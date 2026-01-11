@@ -24,6 +24,7 @@ type ToolsConfig struct {
 	Collections ToolsCollectionConfigs `json:"collections"`
 }
 
+// AsToolDefinitions returns the tools config as tool definitions
 func (t ToolsConfig) AsToolDefinitions() ToolDefinitions {
 	return append(t.McpServers.AsToolDefinitions(), t.Collections.AsToolDefinitions()...)
 }
@@ -34,8 +35,10 @@ type CollectionConfig struct {
 	Disabled bool              `json:"disabled"`
 }
 
+// ToolsCollectionConfigs is a map of collection names to collection configurations
 type ToolsCollectionConfigs map[string]CollectionConfig
 
+// AsToolDefinitions returns the collection configs as tool definitions
 func (t ToolsCollectionConfigs) AsToolDefinitions() ToolDefinitions {
 	tools := ToolDefinitions{}
 	for name, _ := range t {
@@ -62,6 +65,7 @@ type McpServerConfig struct {
 // McpServerConfigs is a map of MCP servers
 type McpServerConfigs map[string]McpServerConfig
 
+// AsToolDefinitions returns the MCP server configs as tool definitions
 func (m McpServerConfigs) AsToolDefinitions() ToolDefinitions {
 	tools := ToolDefinitions{}
 	for name, _ := range m {

@@ -56,6 +56,8 @@ func (e EvalScope) WithVars(vars map[string]any) EvalScope {
 	}
 	return e
 }
+
+// Vars returns the vars map.
 func (e EvalScope) Vars() map[string]any {
 	return e[varsAttr].(map[string]any)
 }
@@ -76,7 +78,7 @@ func (r *Runner[T]) newEvalScope() EvalScope {
 		paramsAttr:     r.params,
 		contextAttr:    *r.dataStructure,
 		componentsAttr: r.sessionManager.Components,
-		varsAttr:       make(map[string]any),
+		varsAttr:       r.vars,
 		iteratorAttr:   nil,
 	}
 }

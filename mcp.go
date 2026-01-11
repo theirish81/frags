@@ -31,6 +31,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// McpTools returns  McpTool instances for each server configuration
 func (m McpServerConfigs) McpTools() McpTools {
 	tools := make(McpTools, 0)
 	for name, server := range m {
@@ -205,6 +206,7 @@ func (c *McpTool) Run(ctx context.Context, name string, arguments any) (any, err
 	return convertContentArray(res.Content), nil
 }
 
+// Close closes the connection to the server
 func (c *McpTool) Close() error {
 	if c.session != nil {
 		return c.session.Close()
@@ -214,6 +216,7 @@ func (c *McpTool) Close() error {
 
 type McpTools []*McpTool
 
+// Connect connects to all the servers
 func (m McpTools) Connect(ctx context.Context) error {
 	for _, t := range m {
 		if err := t.Connect(ctx); err != nil {
@@ -223,6 +226,7 @@ func (m McpTools) Connect(ctx context.Context) error {
 	return nil
 }
 
+// Close closes all the connections
 func (m McpTools) Close() error {
 	for _, t := range m {
 		if err := t.Close(); err != nil {
@@ -232,6 +236,7 @@ func (m McpTools) Close() error {
 	return nil
 }
 
+// AsFunctions returns all the tools as functions
 func (m McpTools) AsFunctions(ctx context.Context) (Functions, error) {
 	functions := Functions{}
 	for _, t := range m {
@@ -285,6 +290,7 @@ type McpTransport struct {
 	Headers map[string]string
 }
 
+// NewMcpTransport creates a new McpTransport instance
 func NewMcpTransport(headers map[string]string) *McpTransport {
 	return &McpTransport{
 		Headers: headers,

@@ -18,6 +18,7 @@
 package frags
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/blues/jsonata-go"
@@ -33,7 +34,7 @@ func TestTransformer_Transform(t *testing.T) {
 		}
 		res, err := tx.Transform(map[string]any{
 			"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-		}, &Runner[any]{})
+		}, &Runner[any]{logger: slog.Default()})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
 	})
@@ -44,7 +45,7 @@ func TestTransformer_Transform(t *testing.T) {
 		}
 		res, err := tx.Transform(map[string]any{
 			"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-		}, &Runner[any]{})
+		}, &Runner[any]{logger: slog.Default()})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]any{"result": map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
@@ -57,7 +58,7 @@ func TestTransformer_Transform(t *testing.T) {
 			"result": []map[string]any{
 				{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
 			},
-		}, &Runner[any]{})
+		}, &Runner[any]{logger: slog.Default()})
 		assert.Nil(t, err)
 		assert.Equal(t, AnyToResultMap([]any{map[string]any{"first_name": "John", "last_name": "Doe"}}), res)
 	})
@@ -66,7 +67,8 @@ func TestTransformer_Transform(t *testing.T) {
 			Name:    "foo",
 			Jsonata: strPtr(`{"first_name":first_name,"last_name":last_name}`),
 		}
-		res, err := tx.Transform(map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}, &Runner[any]{})
+		res, err := tx.Transform(map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
+			&Runner[any]{logger: slog.Default()})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
 	})
@@ -77,7 +79,7 @@ func TestTransformer_Transform(t *testing.T) {
 		}
 		res, err := tx.Transform([]map[string]any{
 			{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-		}, &Runner[any]{})
+		}, &Runner[any]{logger: slog.Default()})
 		assert.Nil(t, err)
 		assert.Equal(t, []any{map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
@@ -88,7 +90,8 @@ func TestTransformer_Transform(t *testing.T) {
 			Jsonata: strPtr(`{"first_name":first_name,"last_name":last_name}`),
 			Parser:  &px,
 		}
-		res, err := tx.Transform(`{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}`, &Runner[any]{})
+		res, err := tx.Transform(`{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}`,
+			&Runner[any]{logger: slog.Default()})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
 	})
@@ -99,7 +102,8 @@ func TestTransformer_Transform(t *testing.T) {
 			Jsonata: strPtr(`[{"first_name":first_name, "last_name":last_name }]`),
 			Parser:  &px,
 		}
-		res, err := tx.Transform(`[{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}]`, &Runner[any]{})
+		res, err := tx.Transform(`[{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}]`,
+			&Runner[any]{logger: slog.Default()})
 		assert.Nil(t, err)
 		assert.Equal(t, []any{map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
@@ -110,7 +114,7 @@ func TestTransformer_Transform(t *testing.T) {
 			Jsonata: strPtr(`$[].{"first_name":$[0], "last_name":$[1] }`),
 			Parser:  &px,
 		}
-		res, err := tx.Transform(`John,Doe`, &Runner[any]{})
+		res, err := tx.Transform(`John,Doe`, &Runner[any]{logger: slog.Default()})
 		assert.Nil(t, err)
 		assert.Equal(t, []any{map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})

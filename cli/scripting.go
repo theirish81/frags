@@ -31,7 +31,14 @@ func NewJavascriptScriptingEngine() *JavascriptScriptingEngine {
 
 func (e *JavascriptScriptingEngine) RunCode(code string, params any, runner frags.ExportableRunner) (any, error) {
 	vm := goja.New()
-	if err := vm.Set("args", params); err != nil {
+	var args any
+	switch t := params.(type) {
+	case []byte:
+		args = string(t)
+	default:
+		args = params
+	}
+	if err := vm.Set("args", args); err != nil {
 		return nil, err
 	}
 	if err := vm.Set("runFunction", func(name string, args map[string]any) any {

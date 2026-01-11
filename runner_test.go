@@ -78,7 +78,7 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 	runner.dataStructure = &map[string]string{}
 	res, err := runner.loadSessionResources(mgr.Sessions["s1"])
 	assert.NoError(t, err)
-	assert.Equal(t, "stuff.json", res[0].Identifier)
+	assert.Equal(t, "stuff.csv", res[0].Identifier)
 	assert.Equal(t, MediaJson, res[0].MediaType)
 	fmt.Println(string(res[0].ByteContent))
 	out := make([]any, 0)
