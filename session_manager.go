@@ -87,7 +87,7 @@ const (
 type Resource struct {
 	Identifier string               `json:"identifier" yaml:"identifier" validate:"required,min=1"`
 	Params     map[string]string    `json:"params" yaml:"params"`
-	In         *ResourceDestination `json:"in" yaml:"in"`
+	In         *ResourceDestination `json:"in" yaml:"in" validate:"omitempty,oneof=ai vars"`
 	Var        *string              `json:"var" yaml:"var"`
 }
 
