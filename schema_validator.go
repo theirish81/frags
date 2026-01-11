@@ -134,8 +134,6 @@ func (s *Schema) validateObject(v reflect.Value, path string, softValidation boo
 			if err := propSchema.validate(value, propPath, softValidation); err != nil {
 				return err
 			}
-		} else if !s.AdditionalProperties {
-			return &ValidationError{Path: propPath, Message: "additional property not allowed"}
 		}
 	}
 
