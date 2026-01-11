@@ -157,8 +157,8 @@ github.com/theirish81/frags/chatgpt v0.14.1 h1:tTCgxhOdYUTs+gX1B/p2iwyMZ5/Xpv7sJ
 github.com/theirish81/frags/chatgpt v0.14.1/go.mod h1:eDVGIBN1FuNF61FZjxgXNu33Jj5ntS2a/lfLFmewPJQ=
 github.com/theirish81/frags/gemini v0.14.1 h1:L7PpgONV4+wl9EMNT8Kxqst2TXb/YAvjVBANgrXssHE=
 github.com/theirish81/frags/gemini v0.14.1/go.mod h1:zeST1SIottYGzTz6mcaM7eUU/O2HeCn11Kx0wL3+gIs=
-github.com/theirish81/frags/ollama v0.14.1 h1:03yJkAOsGa3IQDj+lxF5Sdvx9WaAWmHZ7u+zhqGXsHE=
-github.com/theirish81/frags/ollama v0.14.1/go.mod h1:jVSUimc0VdRNDZbmouc79N44HZRl/4UysFVdLPz3TW8=
+github.com/theirish81/frags/ollama v0.14.2 h1:I7UfxTMYYxDfTdy8PvNK2ww7LrEtxhdVrEcpIChrTHM=
+github.com/theirish81/frags/ollama v0.14.2/go.mod h1:jVSUimc0VdRNDZbmouc79N44HZRl/4UysFVdLPz3TW8=
 github.com/theirish81/fragsfunctions v0.3.0 h1:elFQqVERGm8k+Ld8xjyaTCzB564OJUrn0wwxS7iUEWI=
 github.com/theirish81/fragsfunctions v0.3.0/go.mod h1:Sh59NKQsss60B/N1/1y6vbkutXDSyi9wWl1KflCXjcc=
 github.com/theirish81/fragsfunctions/fs v0.3.0 h1:GnT09IO7vZFXuS/CYrHdwLYDrTxaFHZxlt/Kr1CZ+YI=
