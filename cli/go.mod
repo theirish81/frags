@@ -4,16 +4,16 @@ go 1.24.8
 
 require (
 	cloud.google.com/go/auth v0.9.3
-	github.com/dop251/goja v0.0.0-20251201205617-2bb4c724c0f9
+	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/samber/lo v1.52.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.14.0
-	github.com/theirish81/frags/chatgpt v0.14.0
-	github.com/theirish81/frags/gemini v0.14.0
-	github.com/theirish81/frags/ollama v0.14.0
+	github.com/theirish81/frags v0.14.1
+	github.com/theirish81/frags/chatgpt v0.14.1
+	github.com/theirish81/frags/gemini v0.14.1
+	github.com/theirish81/frags/ollama v0.14.1
 	github.com/theirish81/fragsfunctions/fs v0.3.0
 	github.com/theirish81/fragsfunctions/http v0.3.0
 	github.com/theirish81/fragsfunctions/postgres v0.3.0
