@@ -1,0 +1,61 @@
+sessions:
+  search:
+    prePrompt: |-
+      Search the internet for luxury homes for sale in Smithtown, NY over 1 million dollars.
+      
+      Use search queries like:
+      - "Smithtown NY homes for sale over 1 million"
+      - "luxury homes Smithtown New York"
+      - "expensive houses for sale Smithtown NY"
+      
+      Find at least 5 actual property listings with addresses.
+    prompt: |-
+      Based on the search results above, extract each property mentioned.
+      Include ALL properties from the search results. Do not return an empty array.
+    tools: 
+      - type: internet_search
+  store:
+    prePrompt: write the home listings data in a file called home_listings.md. Format the content in markdown
+    prompt: annotate the outcome of the operation
+    context: true
+    tools:
+      - name: fs
+        type: collection
+    dependsOn:
+      - session: search
+
+schema:
+  type: object
+  required:
+    - home_listings
+    - outcome
+  properties:
+    home_listings:
+      type: array
+      description: the list of home listings
+      x-session: search
+      items:
+        type: object
+        required:
+          - address
+          - price
+        properties:  
+          address: 
+            type: string
+            description: the full address of the home listing
+          price: 
+            type: string
+            description: the listing price of the home
+          bedrooms: 
+            type: integer
+            description: the number of bedrooms in the home
+          bathrooms: 
+            type: integer
+            description: the number of bathrooms in the home
+          listing_url: 
+            type: string
+            description: the URL to the home listing
+    outcome:
+      type: string
+      description: the result of the file write operation
+      x-session: store
