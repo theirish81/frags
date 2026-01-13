@@ -42,6 +42,7 @@ so it's subject to the limitations imposed by generating structured output.`,
 		if toolsEnabled {
 			var err error
 			toolsConfig, err = readToolsFile()
+			toolDefinitions = toolsConfig.AsToolDefinitions()
 			if err != nil {
 				cmd.PrintErrln(err)
 			}
