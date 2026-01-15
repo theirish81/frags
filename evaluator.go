@@ -169,3 +169,11 @@ var templateFuncs = template.FuncMap{
 		return ToKFormat(v)
 	},
 }
+
+type Vars map[string]any
+
+func (v *Vars) Apply(data map[string]any) {
+	for k, val := range data {
+		(*v)[k] = val
+	}
+}
