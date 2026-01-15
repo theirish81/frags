@@ -283,31 +283,35 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 		// here we're creating a new instance of the AI for this session, so it has no state.
 		ai := r.ai.New()
 		localResources := resources
-		if session.PrePrompt != nil {
+		preCallVars, err := r.RunVarsPreCalls(ctx, session)
+		if err != nil {
+			return err
+		}
+		if session.HasPrePrompt() {
 			// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 			// the context of the session.
 			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it).
-				WithVars(session.Vars).WithVars(resourceVars))
+				WithVars(session.Vars).WithVars(resourceVars).WithVars(preCallVars))
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
 			}
-			if prePrompt != nil {
-				prePrompt, err := r.contextualizePrompt(ctx, *prePrompt, session)
-				if err != nil {
-					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
-					return err
-				}
-
-				r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
-				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, localResources...); err != nil {
-					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
-					return err
-				}
-				localResources = make([]ResourceData, 0)
-				r.sendProgress(progressActionEnd, sessionID, -1, itIdx, nil)
+			prePrompt, err = r.contextualizePrompt(ctx, prePrompt, session)
+			if err != nil {
+				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
+				return err
 			}
+
+			r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
+			if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, localResources...); err != nil {
+				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
+				return err
+			}
+			// we reset localResources because they've already been introduced in the context by this prePrompt.
+			// The prompt would need to include them only if the prePrompt was not present.
+			localResources = make([]ResourceData, 0)
+			r.sendProgress(progressActionEnd, sessionID, -1, itIdx, nil)
 		}
 		// For each phase...
 		for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
@@ -325,16 +329,16 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				var data []byte
-				scope := r.newEvalScope().WithIterator(it).WithVars(session.Vars).WithVars(resourceVars)
+				scope := r.newEvalScope().WithIterator(it).WithVars(session.Vars).WithVars(resourceVars).WithVars(preCallVars)
 				if idx == 0 {
 					prompt, err := session.RenderPrompt(scope)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
 					}
-					// as this is the first prompt, and there was no prePrompt, we may be asked to additional information
-					// to the prompt, like the already extracted context, and pre-calls
-					if session.PrePrompt == nil {
+					// as this is the first phase, and there was no prePrompt, we may be asked to additional information
+					// to the prompt, like the already extracted context, and pre-calls.
+					if !session.HasPrePrompt() {
 						prompt, err = r.contextualizePrompt(ctx, prompt, session)
 						if err != nil {
 							r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
@@ -347,6 +351,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 						return err
 					}
 				} else {
+					// subsequent phases. All context data is loaded, we can live peacefully.
 					prompt, err := session.RenderNextPhasePrompt(scope)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)

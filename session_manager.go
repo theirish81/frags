@@ -19,6 +19,7 @@ package frags
 
 import (
 	"encoding/json"
+	"errors"
 
 	"gopkg.in/yaml.v3"
 )
@@ -58,12 +59,15 @@ type Session struct {
 }
 
 // RenderPrePrompt renders the pre-prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrePrompt(scope EvalScope) (*string, error) {
-	if s.PrePrompt == nil {
-		return nil, nil
+func (s *Session) RenderPrePrompt(scope EvalScope) (string, error) {
+	if s.PrePrompt == nil || len(*s.PrePrompt) == 0 {
+		return "", errors.New("prePrompt is nil or empty")
 	}
-	px, err := EvaluateTemplate(*s.PrePrompt, scope)
-	return &px, err
+	return EvaluateTemplate(*s.PrePrompt, scope)
+}
+
+func (s *Session) HasPrePrompt() bool {
+	return s.PrePrompt != nil && len(*s.PrePrompt) > 0
 }
 
 // RenderPrompt renders the prompt (which may contain Go templates), with the given scope
