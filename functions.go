@@ -21,6 +21,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 // Function represents a function that can be called by the AI model.
@@ -83,25 +85,87 @@ func (f Functions) ListByCollection(collection string) Functions {
 	return out
 }
 
+type FunctionCallDestination string
+
+const (
+	AiFunctionCallDestination   FunctionCallDestination = "ai"
+	VarsFunctionCallDestination FunctionCallDestination = "vars"
+)
+
 // FunctionCall Represents a function invocation. NOTE: description is meant to explain to LLM what the output data is
 // about when the function is called by an entity that's not the LLM itself.
 // IMPORTANT: if Code is not nil, this will trigger the execution of the scripting engine. If the engine is nil, nothing
 // will happen.
 type FunctionCall struct {
-	Name        string         `yaml:"name" json:"name"`
-	Code        *string        `yaml:"code" json:"code"`
-	Args        map[string]any `yaml:"args" json:"args"`
-	Description *string        `yaml:"description" json:"description"`
+	Name        string                   `yaml:"name" json:"name"`
+	Code        *string                  `yaml:"code" json:"code"`
+	Args        map[string]any           `yaml:"args" json:"args"`
+	Description *string                  `yaml:"description" json:"description"`
+	In          *FunctionCallDestination `yaml:"in" json:"in"`
+	Var         *string                  `yaml:"var" json:"var"`
 }
 
 type FunctionCalls []FunctionCall
+
+func (f FunctionCalls) FilterVarsFunctionCalls() FunctionCalls {
+	if f == nil {
+		return FunctionCalls{}
+	}
+	fc := lo.Filter(f, func(fc FunctionCall, index int) bool {
+		return fc.In != nil && *fc.In == VarsFunctionCallDestination
+	})
+	return fc
+}
+
+func (f FunctionCalls) FilterAiFunctionCalls() FunctionCalls {
+	fc := lo.Filter(f, func(fc FunctionCall, index int) bool {
+		return fc.In == nil || *fc.In == AiFunctionCallDestination
+	})
+	return fc
+}
+
+func (r *Runner[T]) RunVarsPreCalls(ctx context.Context, session Session) (map[string]any, error) {
+	vx := make(map[string]any)
+	if session.PreCalls == nil {
+		return vx, nil
+	}
+	for _, c := range session.PreCalls.FilterVarsFunctionCalls() {
+		varName := c.Name
+		if c.Var != nil {
+			varName = *c.Var
+		}
+		deadline, _ := ctx.Deadline()
+		if time.Now().After(deadline) {
+			return vx, ctx.Err()
+		}
+		var err error
+		c.Args, err = EvaluateMapValues(c.Args, r.newEvalScope().WithVars(r.vars).WithVars(session.Vars))
+		if err != nil {
+			return vx, err
+		}
+		if c.Code != nil {
+			res, err := r.ScriptEngine().RunCode(*c.Code, c.Args, r)
+			if err != nil {
+				return vx, err
+			}
+			vx[varName] = res
+		} else {
+			res, err := r.ai.RunFunction(c, r)
+			if err != nil {
+				return vx, err
+			}
+			vx[varName] = res
+		}
+	}
+	return vx, nil
+}
 
 // RunPreCallsToTextContext runs the pre-call functions and composes a textual context to be prepended to the
 // actual prompt.
 func (r *Runner[T]) RunPreCallsToTextContext(ctx context.Context, session Session) (string, error) {
 	preCallsText := ""
 	if session.PreCalls != nil {
-		for _, c := range *session.PreCalls {
+		for _, c := range session.PreCalls.FilterAiFunctionCalls() {
 			deadline, _ := ctx.Deadline()
 			if time.Now().After(deadline) {
 				return preCallsText, ctx.Err()

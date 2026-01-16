@@ -254,15 +254,20 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	if session.Vars == nil {
 		session.Vars = make(map[string]any)
 	}
+	// localVars will collect the variables as they get computed in the course of the session.
+	localVars := Vars{}
+	// first off, the session vars
+	localVars.Apply(session.Vars)
+
 	// load all the referenced resources
 	resources, err := r.loadSessionResources(session)
 	if err != nil {
 		return err
 	}
-	// for all the resources that are destined to be loaded into memory, we get them and set them into Session.Vars
-	resourceVars := r.resourcesDataToVars(r.filterVarResourcesData(resources))
+	// for all the resources that are destined to be loaded into memory, we get them and set them into localVars
+	localVars.Apply(r.resourcesDataToVars(r.filterVarResourcesData(resources)))
 
-	// for all the resources that are destined to be loaded into the AI, we remove the others and keep the for later use
+	// for all the resources that are destined to be loaded into the AI, we remove the others and keep them for later use
 	resources = r.filterAiResources(resources)
 
 	sessionSchema, err := r.sessionManager.Schema.GetSession(sessionID)
@@ -272,42 +277,61 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	if session.Attempts <= 0 {
 		session.Attempts = 1
 	}
+	// we initialize the iterator to 1 element in case there's no iterator configured. In this way we make sure we're
+	// processing the session at least once.
 	iterator := make([]any, 1)
+
 	if session.IterateOn != nil {
-		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().
-			WithVars(session.Vars).WithVars(resourceVars)); err != nil {
+		// if there's an iterator, we need to evaluate iterator expression into an array. If it doesn't evaluate to an
+		// array, the plan is broken and we return.
+		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().WithVars(localVars)); err != nil {
 			return err
 		}
 	}
+
 	for itIdx, it := range iterator {
 		// here we're creating a new instance of the AI for this session, so it has no state.
 		ai := r.ai.New()
+
+		// we take a reference of AI resources. This is useful because we may empty the local collection as we don't
+		// want the resources to be loaded into the AI context more than once. For example, if we have a prePrompt,
+		// that will load the resources and the prompt will not. If we only have a prompt, then ONLY the first phase
+		// will load the resources, and the rest will use them from the AI context.
 		localResources := resources
-		if session.PrePrompt != nil {
+
+		// we ONLY run the preCalls which output is meant to go into the Frags vars. The ones that are meant to go into
+		// the AI context will be handled later.
+		preCallVars, err := r.RunVarsPreCalls(ctx, session)
+		if err != nil {
+			return err
+		}
+		localVars.Apply(preCallVars)
+
+		if session.HasPrePrompt() {
 			// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 			// the context of the session.
-			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it).
-				WithVars(session.Vars).WithVars(resourceVars))
+			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it).WithVars(localVars))
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
 			}
-			if prePrompt != nil {
-				prePrompt, err := r.contextualizePrompt(ctx, *prePrompt, session)
-				if err != nil {
-					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
-					return err
-				}
-
-				r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
-				if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, localResources...); err != nil {
-					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
-					return err
-				}
-				localResources = make([]ResourceData, 0)
-				r.sendProgress(progressActionEnd, sessionID, -1, itIdx, nil)
+			// the prompt now gets enriched with frags context and preCalls, if necessary
+			prePrompt, err = r.contextualizePrompt(ctx, prePrompt, session)
+			if err != nil {
+				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
+				return err
 			}
+			r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
+			// finally we ask the AI for the prePrompt's response. Notice that the prePrompt is getting the tools.
+			if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, localResources...); err != nil {
+				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
+				return err
+			}
+			// we reset localResources because they've already been introduced in the context by this prePrompt.
+			// The prompt would need to include them only if the prePrompt was not present.
+			localResources = make([]ResourceData, 0)
+			r.sendProgress(progressActionEnd, sessionID, -1, itIdx, nil)
 		}
 		// For each phase...
 		for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
@@ -325,28 +349,34 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				var data []byte
-				scope := r.newEvalScope().WithIterator(it).WithVars(session.Vars).WithVars(resourceVars)
+				scope := r.newEvalScope().WithIterator(it).WithVars(localVars)
 				if idx == 0 {
 					prompt, err := session.RenderPrompt(scope)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
 					}
-					// as this is the first prompt, and there was no prePrompt, we may be asked to additional information
-					// to the prompt, like the already extracted context, and pre-calls
-					if session.PrePrompt == nil {
+					// as this is the first phase, and there was no prePrompt, we contextualize the prompt with Frags
+					// context or preCalls, if so configured.
+					if !session.HasPrePrompt() {
 						prompt, err = r.contextualizePrompt(ctx, prompt, session)
 						if err != nil {
 							r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 							return err
 						}
 					}
+					// finally, we ask the LLM for an answer. Notice we pass NO TOOLS, as only  the prePrompt is allowed
+					// to use tools.
 					data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r, localResources...)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
 					}
+					// we reset localResources because they've already been introduced in the context by this prompt and
+					// we don't want subsequent phases to load them again.
+					localResources = make([]ResourceData, 0)
 				} else {
+					// subsequent phases. All context data has been already loaded, we can live peacefully.
 					prompt, err := session.RenderNextPhasePrompt(scope)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
@@ -358,6 +388,8 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 						return err
 					}
 				}
+				// regardless of the phase, data is returned and is ideally structured. We can now unmarshal it to
+				// the runner data structure.
 				if err := r.safeUnmarshalDataStructure(data); err != nil {
 					r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 					return err
