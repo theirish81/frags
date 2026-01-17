@@ -72,3 +72,10 @@ func initDataStructure[T any]() *T {
 		return new(T)
 	}
 }
+
+func StrPtrToArray(strPtr *string) []string {
+	if strPtr == nil {
+		return nil
+	}
+	return []string{*strPtr}
+}

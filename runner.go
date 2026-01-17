@@ -268,7 +268,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	localVars.Apply(r.resourcesDataToVars(r.filterVarResourcesData(resources)))
 
 	// for all the resources that are destined to be loaded into the AI, we remove the others and keep them for later use
-	resources = r.filterAiResources(resources)
+	aiResources := r.filterAiResources(resources)
 
 	sessionSchema, err := r.sessionManager.Schema.GetSession(sessionID)
 	if err != nil {
@@ -297,7 +297,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 		// want the resources to be loaded into the AI context more than once. For example, if we have a prePrompt,
 		// that will load the resources and the prompt will not. If we only have a prompt, then ONLY the first phase
 		// will load the resources, and the rest will use them from the AI context.
-		localResources := resources
+		localResources := aiResources
 
 		// we ONLY run the preCalls which output is meant to go into the Frags vars. The ones that are meant to go into
 		// the AI context will be handled later.
@@ -311,26 +311,36 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 			// the context of the session.
-			prePrompt, err := session.RenderPrePrompt(r.newEvalScope().WithIterator(it).WithVars(localVars))
+			prePrompts, err := session.RenderPrePrompts(r.newEvalScope().WithIterator(it).WithVars(localVars))
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
 			}
-			// the prompt now gets enriched with frags context and preCalls, if necessary
-			prePrompt, err = r.contextualizePrompt(ctx, prePrompt, session)
+			// the FIRST prePrompt carries all the contextualization payload, so we add whatever needs to go here.
+			prePrompt, err := r.contextualizePrompt(ctx, prePrompts[0], session)
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
 			}
 			r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
+
+			ppResources := append(localResources, r.filterPrePromptResources(resources)...)
 			// finally we ask the AI for the prePrompt's response. Notice that the prePrompt is getting the tools.
-			if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, localResources...); err != nil {
+			if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, ppResources...); err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
 			}
-			// we reset localResources because they've already been introduced in the context by this prePrompt.
+			// we reset localResources because they've already been introduced in the context by the first prePrompt.
 			// The prompt would need to include them only if the prePrompt was not present.
 			localResources = make([]ResourceData, 0)
+
+			// we run the remaining prePrompts, if any.
+			for _, pp := range prePrompts[1:] {
+				if _, err := ai.Ask(ctx, pp, nil, session.Tools, r, localResources...); err != nil {
+					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
+					return err
+				}
+			}
 			r.sendProgress(progressActionEnd, sessionID, -1, itIdx, nil)
 		}
 		// For each phase...
@@ -367,7 +377,8 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					}
 					// finally, we ask the LLM for an answer. Notice we pass NO TOOLS, as only  the prePrompt is allowed
 					// to use tools.
-					data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r, localResources...)
+					pResources := append(localResources, r.filterPromptResources(resources)...)
+					data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r, pResources...)
 					if err != nil {
 						r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 						return err
@@ -469,6 +480,18 @@ func (r *Runner[T]) filterAiResources(resources []ResourceData) []ResourceData {
 func (r *Runner[T]) filterVarResourcesData(resources []ResourceData) []ResourceData {
 	return lo.Filter(resources, func(res ResourceData, index int) bool {
 		return res.In == VarsResourceDestination
+	})
+}
+
+func (r *Runner[T]) filterPrePromptResources(resources []ResourceData) []ResourceData {
+	return lo.Filter(resources, func(res ResourceData, index int) bool {
+		return res.In == PrePromptResourceDestination
+	})
+}
+
+func (r *Runner[T]) filterPromptResources(resources []ResourceData) []ResourceData {
+	return lo.Filter(resources, func(res ResourceData, index int) bool {
+		return res.In == PromptResourceDestination
 	})
 }
 
