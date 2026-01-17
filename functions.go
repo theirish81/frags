@@ -101,7 +101,7 @@ type FunctionCall struct {
 	Code        *string                  `yaml:"code" json:"code"`
 	Args        map[string]any           `yaml:"args" json:"args"`
 	Description *string                  `yaml:"description" json:"description"`
-	In          *FunctionCallDestination `yaml:"in" json:"in"`
+	In          *FunctionCallDestination `yaml:"in" json:"in" validate:"omitempty,oneof=ai vars"`
 	Var         *string                  `yaml:"var" json:"var"`
 }
 
