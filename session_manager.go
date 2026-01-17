@@ -20,6 +20,7 @@ package frags
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"gopkg.in/yaml.v3"
 )
@@ -44,8 +45,8 @@ import (
 // len(IterateOn) times. Use an github.com/expr-lang/expr expression.
 // Vars defines variables that are local to the session.
 type Session struct {
-	PreCalls        *FunctionCalls  `json:"pre_calls" yaml:"preCalls"`
-	PrePrompt       *string         `json:"pre_prompt" yaml:"prePrompt"`
+	PreCalls        FunctionCalls   `json:"pre_calls" yaml:"preCalls" validate:"omitempty,dive"`
+	PrePrompt       PrePrompt       `json:"pre_prompt" yaml:"prePrompt"`
 	Prompt          string          `json:"prompt" yaml:"prompt" validate:"required,min=3"`
 	NextPhasePrompt string          `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
 	Resources       []Resource      `json:"resources" yaml:"resources" validate:"dive"`
@@ -58,16 +59,45 @@ type Session struct {
 	Vars            map[string]any  `json:"vars" yaml:"vars"`
 }
 
-// RenderPrePrompt renders the pre-prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrePrompt(scope EvalScope) (string, error) {
-	if s.PrePrompt == nil || len(*s.PrePrompt) == 0 {
-		return "", errors.New("prePrompt is nil or empty")
+type PrePrompt []string
+
+func (p *PrePrompt) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try unmarshaling as a string first
+	var single string
+	if err := unmarshal(&single); err == nil {
+		*p = []string{single}
+		return nil
 	}
-	return EvaluateTemplate(*s.PrePrompt, scope)
+
+	// Try unmarshaling as an array of strings
+	var multi []string
+	if err := unmarshal(&multi); err == nil {
+		*p = multi
+		return nil
+	}
+
+	return fmt.Errorf("prePrompt must be a string or array of strings")
+}
+
+// RenderPrePrompts renders the pre-prompt (which may contain Go templates), with the given scope
+func (s *Session) RenderPrePrompts(scope EvalScope) (PrePrompt, error) {
+	if s.PrePrompt == nil || len(s.PrePrompt) == 0 {
+		return nil, errors.New("prePrompt is nil or empty")
+	}
+	renderedPrePrompt := make(PrePrompt, 0)
+	for _, p := range s.PrePrompt {
+		r, err := EvaluateTemplate(p, scope)
+		renderedPrePrompt = append(renderedPrePrompt, r)
+		if err != nil {
+			return renderedPrePrompt, err
+		}
+	}
+
+	return renderedPrePrompt, nil
 }
 
 func (s *Session) HasPrePrompt() bool {
-	return s.PrePrompt != nil && len(*s.PrePrompt) > 0
+	return s.PrePrompt != nil && len(s.PrePrompt) > 0
 }
 
 // RenderPrompt renders the prompt (which may contain Go templates), with the given scope
@@ -83,15 +113,17 @@ func (s *Session) RenderNextPhasePrompt(scope EvalScope) (string, error) {
 type ResourceDestination string
 
 const (
-	AiResourceDestination   ResourceDestination = "ai"
-	VarsResourceDestination ResourceDestination = "vars"
+	AiResourceDestination        ResourceDestination = "ai"
+	VarsResourceDestination      ResourceDestination = "vars"
+	PrePromptResourceDestination ResourceDestination = "prePrompt"
+	PromptResourceDestination    ResourceDestination = "prompt"
 )
 
 // Resource defines a resource to load, with an identifier and a map of parameters
 type Resource struct {
 	Identifier string               `json:"identifier" yaml:"identifier" validate:"required,min=1"`
 	Params     map[string]string    `json:"params" yaml:"params"`
-	In         *ResourceDestination `json:"in" yaml:"in" validate:"omitempty,oneof=ai vars"`
+	In         *ResourceDestination `json:"in" yaml:"in" validate:"omitempty,oneof=ai vars prePrompt prompt"`
 	Var        *string              `json:"var" yaml:"var"`
 }
 
