@@ -34,9 +34,9 @@ const (
 // triggers. We currently support only OnFunctionOutput.
 type Transformer struct {
 	Name             string  `yaml:"name" json:"name"`
-	OnFunctionInput  *string `yaml:"onFunctionInput" json:"on_function_input"`
-	OnFunctionOutput *string `yaml:"onFunctionOutput" json:"on_function_output"`
-	OnResource       *string `yaml:"onResource" json:"on_resource"`
+	OnFunctionInput  *string `yaml:"onFunctionInput,omitempty" json:"onFunctionInput,omitempty"`
+	OnFunctionOutput *string `yaml:"onFunctionOutput,omitempty" json:"onFunctionOutput,omitempty"`
+	OnResource       *string `yaml:"onResource,omitempty" json:"onResource,omitempty"`
 	Jsonata          *string `yaml:"jsonata" json:"jsonata"`
 	JmesPath         *string `yaml:"jmesPath" json:"jmesPath"`
 	Parser           *Parser `yaml:"parser" json:"parser"`

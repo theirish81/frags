@@ -35,9 +35,9 @@ type Ai struct {
 type Config struct {
 	Model       string  `yaml:"model" json:"model"`
 	Temperature float32 `yaml:"temperature" json:"temperature"`
-	TopK        float32 `yaml:"topK" json:"top_k"`
-	TopP        float32 `yaml:"topP" json:"top_p"`
-	NumPredict  int     `yaml:"numPredict" json:"num_predict"`
+	TopK        float32 `yaml:"topK" json:"topK"`
+	TopP        float32 `yaml:"topP" json:"topP"`
+	NumPredict  int     `yaml:"numPredict" json:"numPredict"`
 }
 
 func DefaultConfig() Config {
