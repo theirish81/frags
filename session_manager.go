@@ -45,7 +45,7 @@ import (
 // len(IterateOn) times. Use an github.com/expr-lang/expr expression.
 // Vars defines variables that are local to the session.
 type Session struct {
-	PreCalls        *FunctionCalls  `json:"pre_calls" yaml:"preCalls"`
+	PreCalls        FunctionCalls   `json:"pre_calls" yaml:"preCalls" validate:"omitempty,dive"`
 	PrePrompt       PrePrompt       `json:"pre_prompt" yaml:"prePrompt"`
 	Prompt          string          `json:"prompt" yaml:"prompt" validate:"required,min=3"`
 	NextPhasePrompt string          `json:"next_phase_prompt" yaml:"nextPhasePrompt"`
