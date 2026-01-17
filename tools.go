@@ -43,7 +43,7 @@ type ToolDefinition struct {
 	Collection  string    `json:"-" yaml:"-"`
 	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
 	Type        ToolType  `json:"type" yaml:"type" validate:"required"`
-	InputSchema *Schema   `json:"input_schema,omitempty" yaml:"inputSchema,omitempty"`
+	InputSchema *Schema   `json:"inputSchema,omitempty" yaml:"inputSchema,omitempty"`
 	Allowlist   *[]string `json:"allowlist,omitempty" yaml:"allowlist,omitempty"`
 }
 
