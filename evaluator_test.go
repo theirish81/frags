@@ -18,6 +18,7 @@
 package frags
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,4 +117,11 @@ func TestEvalScope_WithVars(t *testing.T) {
 	assert.Equal(t, "baz", scope.Vars()["buzz"])
 	assert.Equal(t, "mario", scope.Vars()["hey"])
 	assert.Equal(t, "ball", scope.Vars()["red"])
+}
+
+func TestEvaluateExprFunctions(t *testing.T) {
+	data := []any{map[string]any{"foo": "bar"}, map[string]any{"foo": "bar"}, map[string]any{"foo": "baz"}}
+	arr, err := EvaluateArrayExpression("unique(map(data, .foo))", EvalScope{"data": data})
+	assert.NoError(t, err)
+	fmt.Println(arr)
 }

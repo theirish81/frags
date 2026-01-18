@@ -104,9 +104,17 @@ func EvaluateTemplate(text string, scope EvalScope) (string, error) {
 	return text, nil
 }
 
+func EvaluateExpression(expression string, scope EvalScope) (any, error) {
+	c, err := expr.Compile(expression, append(exprFunctions(), expr.Env(scope))...)
+	if err != nil {
+		return nil, err
+	}
+	return expr.Run(c, map[string]any(scope))
+}
+
 // EvaluateBooleanExpression evaluates a boolean expression with the given scope using expr.
 func EvaluateBooleanExpression(expression string, scope EvalScope) (bool, error) {
-	c, err := expr.Compile(expression, expr.Env(scope))
+	c, err := expr.Compile(expression, append(exprFunctions(), expr.Env(scope))...)
 	if err != nil {
 		return false, err
 	}
@@ -122,7 +130,7 @@ func EvaluateBooleanExpression(expression string, scope EvalScope) (bool, error)
 
 // EvaluateArrayExpression evaluates an array expression, expecting the target to be an array.
 func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) {
-	c, err := expr.Compile(expression, expr.Env(scope))
+	c, err := expr.Compile(expression, append(exprFunctions(), expr.Env(scope))...)
 	if err != nil {
 		return nil, err
 	}
@@ -175,5 +183,46 @@ type Vars map[string]any
 func (v *Vars) Apply(data map[string]any) {
 	for k, val := range data {
 		(*v)[k] = val
+	}
+}
+
+func exprFunctions() []expr.Option {
+	return []expr.Option{
+		expr.Function("unique",
+			func(params ...any) (any, error) {
+				seen := make(map[any]bool)
+				result := make([]any, 0)
+				input, ok := params[0].([]any)
+				if !ok {
+					return nil, errors.New("unique function expects an array as input")
+				}
+				for _, item := range input {
+					if !seen[item] {
+						seen[item] = true
+						result = append(result, item)
+					}
+				}
+				return result, nil
+			}, new(func([]any) []any)),
+		expr.Function("chunk",
+			func(params ...any) (any, error) {
+				chunks := make([]any, 0)
+				input, ok := params[0].([]any)
+				if !ok {
+					return nil, errors.New("chunk function expects an array as input")
+				}
+				size, ok := params[1].(int)
+				if !ok {
+					return nil, errors.New("chunk function expects an integer as second parameter")
+				}
+				for i := 0; i < len(input); i += size {
+					end := i + size
+					if end > len(input) {
+						end = len(input)
+					}
+					chunks = append(chunks, input[i:end])
+				}
+				return chunks, nil
+			}, new(func([]any, int) []any)),
 	}
 }

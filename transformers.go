@@ -39,6 +39,7 @@ type Transformer struct {
 	OnResource       *string `yaml:"onResource,omitempty" json:"onResource,omitempty"`
 	Jsonata          *string `yaml:"jsonata" json:"jsonata"`
 	JmesPath         *string `yaml:"jmesPath" json:"jmesPath"`
+	Expr             *string `yaml:"expr" json:"expr"`
 	Parser           *Parser `yaml:"parser" json:"parser"`
 	Code             *string `yaml:"code" json:"code"`
 }
@@ -111,6 +112,13 @@ func (t Transformer) Transform(data any, runner ExportableRunner) (any, error) {
 	if t.JmesPath != nil {
 		var err error
 		data, err = jmespath.Search(*t.JmesPath, data)
+		if err != nil {
+			return emptyMap, err
+		}
+	}
+	if t.Expr != nil {
+		var err error
+		data, err = EvaluateExpression(*t.Expr, EvalScope{"args": data})
 		if err != nil {
 			return emptyMap, err
 		}
