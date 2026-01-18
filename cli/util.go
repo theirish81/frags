@@ -18,7 +18,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 )
@@ -45,4 +48,14 @@ func strPtr(str string) *string {
 
 func intPtr(i int) *int {
 	return &i
+}
+
+func printDebugAny(res any) {
+	switch reflect.ValueOf(res).Kind() {
+	case reflect.Map, reflect.Slice:
+		out, _ := json.MarshalIndent(res, "", " ")
+		fmt.Println(string(out))
+	default:
+		fmt.Printf("%v", res)
+	}
 }

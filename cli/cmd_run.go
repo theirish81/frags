@@ -95,11 +95,11 @@ var runCmd = &cobra.Command{
 }
 
 func init() {
-	runCmd.Flags().StringVarP(&format, "format", "f", formatYAML, "Output format (yaml, json or template)")
-	runCmd.Flags().StringVarP(&output, "output", "o", "", "Output file")
-	runCmd.Flags().StringVarP(&templatePath, "template", "t", "", "Go template file (used with -f template)")
-	runCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "InputSchema to pass to the template (used with -f template) in key=value format")
-	runCmd.Flags().BoolVarP(&debug, "debug", "d", false, "Enable debug logging")
+	runCmd.Flags().StringVarP(&format, "format", "f", formatYAML, "output format (yaml, json or template)")
+	runCmd.Flags().StringVarP(&output, "output", "o", "", "output file")
+	runCmd.Flags().StringVarP(&templatePath, "template", "t", "", "go template file (used with -f template)")
+	runCmd.Flags().StringSliceVarP(&params, "param", "p", nil, "a parameter to pass to the plan (can be specified multiple times)")
+	runCmd.Flags().BoolVarP(&debug, "debug", "d", false, "enable debug logging")
 }
 
 // validateRunArgs checks basic flag constraints and file existence.

@@ -100,9 +100,9 @@ so it's subject to the limitations imposed by generating structured output.`,
 }
 
 func init() {
-	askCmd.Flags().StringVarP(&prePrompt, "pre-prompt", "", "", "A prompt to run before the AI prompt")
-	askCmd.Flags().StringVarP(&systemPrompt, "system-prompt", "", "", "The system prompt")
+	askCmd.Flags().StringVarP(&prePrompt, "pre-prompt", "", "", "a prompt to run before the AI prompt")
+	askCmd.Flags().StringVarP(&systemPrompt, "system-prompt", "", "", "the system prompt")
 	askCmd.Flags().StringSliceVarP(&uploads, "upload", "u", []string{}, "file path to upload (can be specified multiple times)")
-	askCmd.Flags().BoolVarP(&internetSearch, "internet-search", "i", false, "Enable internet search")
-	askCmd.Flags().BoolVarP(&toolsEnabled, "tools", "t", false, "Enable tools")
+	askCmd.Flags().BoolVarP(&internetSearch, "internet-search", "i", false, "enable internet search")
+	askCmd.Flags().BoolVarP(&toolsEnabled, "tools", "t", false, "enable tools")
 }

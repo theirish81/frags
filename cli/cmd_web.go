@@ -85,7 +85,7 @@ func (p *Plan) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-var web = &cobra.Command{
+var webCmd = &cobra.Command{
 	Use:   "web",
 	Short: "webserver related commands",
 }
@@ -102,9 +102,9 @@ var errorHandler = func(err error, c echo.Context) {
 	_ = c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 }
 
-var webExecute = &cobra.Command{
+var webExecuteCmd = &cobra.Command{
 	Use:   "execute",
-	Short: "run a Frags web server for the execute mode.",
+	Short: "Run a Frags web server for the execute mode.",
 	Long: `
 Run a Frags web server for the execute mode. In the execute mode, you will be required to provide both the plan and the
 tools configuration in the HTTP request. 
@@ -157,7 +157,7 @@ safe environments.`,
 	},
 }
 
-var webRun = &cobra.Command{
+var webRunCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run a Frags web server for the run mode.",
 	Long: `
@@ -220,16 +220,16 @@ carefully and use this mode only in development or safe environments.`,
 }
 
 func init() {
-	web.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "enable debug logging")
-	web.PersistentFlags().IntVarP(&port, "port", "", 8080, "port to listen on")
-	web.PersistentFlags().StringVarP(&apiKey, "api-key", "", "", "a simple api key to protect the endpoint (it is expected in the x-api-key header)")
+	webCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "enable debug logging")
+	webCmd.PersistentFlags().IntVarP(&port, "port", "", 8080, "port to listen on")
+	webCmd.PersistentFlags().StringVarP(&apiKey, "api-key", "", "", "a simple api key to protect the endpoint (it is expected in the x-api-key header)")
 
-	web.AddCommand(webExecute)
+	webCmd.AddCommand(webExecuteCmd)
 
-	webRun.Flags().StringVarP(&rootDir, "root-directory", "", "", "directory where plans are stored")
-	_ = webRun.MarkFlagRequired("root-directory")
+	webRunCmd.Flags().StringVarP(&rootDir, "root-directory", "", "", "directory where plans are stored")
+	_ = webRunCmd.MarkFlagRequired("root-directory")
 
-	web.AddCommand(webRun)
+	webCmd.AddCommand(webRunCmd)
 }
 
 // addRequestLoggerMiddleware adds a middleware that logs each request.

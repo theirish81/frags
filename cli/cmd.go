@@ -36,6 +36,8 @@ var (
 	port         int
 	rootDir      string
 	apiKey       string
+	inputPath    string
+	parseInput   bool
 )
 
 var rootCmd = cobra.Command{
@@ -50,7 +52,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(askCmd)
 	rootCmd.AddCommand(renderCmd)
-	rootCmd.AddCommand(scriptCmd)
 	rootCmd.AddCommand(configCmd)
-	rootCmd.AddCommand(web)
+	rootCmd.AddCommand(webCmd)
+	rootCmd.AddCommand(debugCmd)
 }
