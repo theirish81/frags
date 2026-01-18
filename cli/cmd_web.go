@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -36,9 +37,51 @@ import (
 
 type executeRequest struct {
 	Tools      frags.ToolsConfig `json:"tools"`
-	Plan       string            `json:"plan"`
+	Plan       Plan              `json:"plan"`
 	Parameters map[string]any    `json:"parameters"`
 	Resources  map[string]string `json:"resources"`
+}
+
+type Plan struct {
+	*string
+	*frags.SessionManager
+}
+
+// MarshalJSON implements custom JSON marshaling for Plan
+func (p Plan) MarshalJSON() ([]byte, error) {
+	// If string is set, marshal as string
+	if p.string != nil {
+		return json.Marshal(*p.string)
+	}
+
+	// If SessionManager is set, marshal as object
+	if p.SessionManager != nil {
+		return json.Marshal(p.SessionManager)
+	}
+
+	// If both are nil, marshal as null
+	return json.Marshal(nil)
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for Plan
+func (p *Plan) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as a string first
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		p.string = &str
+		p.SessionManager = nil
+		return nil
+	}
+
+	// If it's not a string, try to unmarshal as SessionManager
+	var sm frags.SessionManager
+	if err := json.Unmarshal(data, &sm); err != nil {
+		return fmt.Errorf("failed to unmarshal Plan as string or SessionManager: %w", err)
+	}
+
+	p.SessionManager = &sm
+	p.string = nil
+	return nil
 }
 
 var web = &cobra.Command{
@@ -47,6 +90,9 @@ var web = &cobra.Command{
 }
 
 var errorHandler = func(err error, c echo.Context) {
+	if c.Response().Committed {
+		return
+	}
 	_ = c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 }
 
@@ -77,9 +123,15 @@ safe environments.`,
 				return err
 			}
 			sm := frags.NewSessionManager()
-			if err := sm.FromYAML([]byte(req.Plan)); err != nil {
-				return err
+			if req.Plan.string != nil {
+				if err := sm.FromYAML([]byte(*req.Plan.string)); err != nil {
+					return err
+				}
 			}
+			if req.Plan.SessionManager != nil {
+				sm = *req.Plan.SessionManager
+			}
+
 			loader, err := filesMapToResourceLoader(req.Resources)
 			if err != nil {
 				return err
