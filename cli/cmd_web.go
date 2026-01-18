@@ -20,6 +20,8 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -36,23 +38,73 @@ import (
 
 type executeRequest struct {
 	Tools      frags.ToolsConfig `json:"tools"`
-	Plan       string            `json:"plan"`
+	Plan       Plan              `json:"plan"`
 	Parameters map[string]any    `json:"parameters"`
 	Resources  map[string]string `json:"resources"`
 }
 
-var web = &cobra.Command{
+type Plan struct {
+	*string
+	*frags.SessionManager
+}
+
+// MarshalJSON implements custom JSON marshaling for Plan
+func (p Plan) MarshalJSON() ([]byte, error) {
+	// If string is set, marshal as string
+	if p.string != nil {
+		return json.Marshal(*p.string)
+	}
+
+	// If SessionManager is set, marshal as object
+	if p.SessionManager != nil {
+		return json.Marshal(p.SessionManager)
+	}
+
+	// If both are nil, marshal as null
+	return json.Marshal(nil)
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for Plan
+func (p *Plan) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as a string first
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		p.string = &str
+		p.SessionManager = nil
+		return nil
+	}
+
+	// If it's not a string, try to unmarshal as SessionManager
+	var sm frags.SessionManager
+	if err := json.Unmarshal(data, &sm); err != nil {
+		return fmt.Errorf("failed to unmarshal Plan as string or SessionManager: %w", err)
+	}
+
+	p.SessionManager = &sm
+	p.string = nil
+	return nil
+}
+
+var webCmd = &cobra.Command{
 	Use:   "web",
 	Short: "webserver related commands",
 }
 
 var errorHandler = func(err error, c echo.Context) {
+	if c.Response().Committed {
+		return
+	}
+	var he *echo.HTTPError
+	if errors.As(err, &he) {
+		_ = c.JSON(he.Code, echo.Map{"error": he.Message})
+		return
+	}
 	_ = c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 }
 
-var webExecute = &cobra.Command{
+var webExecuteCmd = &cobra.Command{
 	Use:   "execute",
-	Short: "run a Frags web server for the execute mode.",
+	Short: "Run a Frags web server for the execute mode.",
 	Long: `
 Run a Frags web server for the execute mode. In the execute mode, you will be required to provide both the plan and the
 tools configuration in the HTTP request. 
@@ -69,17 +121,26 @@ safe environments.`,
 		}
 		e := echo.New()
 		addRequestLoggerMiddleware(e, log)
+		if apiKey != "" {
+			e.Use(apiKeyMiddleware)
+		}
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/execute", func(c echo.Context) error {
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
-				return err
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 			}
 			sm := frags.NewSessionManager()
-			if err := sm.FromYAML([]byte(req.Plan)); err != nil {
-				return err
+			if req.Plan.string != nil {
+				if err := sm.FromYAML([]byte(*req.Plan.string)); err != nil {
+					return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+				}
 			}
+			if req.Plan.SessionManager != nil {
+				sm = *req.Plan.SessionManager
+			}
+
 			loader, err := filesMapToResourceLoader(req.Resources)
 			if err != nil {
 				return err
@@ -96,7 +157,7 @@ safe environments.`,
 	},
 }
 
-var webRun = &cobra.Command{
+var webRunCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run a Frags web server for the run mode.",
 	Long: `
@@ -116,16 +177,19 @@ carefully and use this mode only in development or safe environments.`,
 		}
 		e := echo.New()
 		addRequestLoggerMiddleware(e, log)
+		if apiKey != "" {
+			e.Use(apiKeyMiddleware)
+		}
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/run/:file", func(c echo.Context) error {
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
-				return err
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 			}
 			fileRef := filepath.Clean(c.Param("file") + ".yaml")
 			if err := checkTraversalPath(fileRef); err != nil {
-				return err
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 			}
 			planData, err := os.ReadFile(path.Join(rootDir, fileRef))
 			if err != nil {
@@ -156,15 +220,16 @@ carefully and use this mode only in development or safe environments.`,
 }
 
 func init() {
-	web.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "enable debug logging")
-	web.PersistentFlags().IntVarP(&port, "port", "p", 8080, "port to listen on")
+	webCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "enable debug logging")
+	webCmd.PersistentFlags().IntVarP(&port, "port", "", 8080, "port to listen on")
+	webCmd.PersistentFlags().StringVarP(&apiKey, "api-key", "", "", "a simple api key to protect the endpoint (it is expected in the x-api-key header)")
 
-	web.AddCommand(webExecute)
+	webCmd.AddCommand(webExecuteCmd)
 
-	webRun.Flags().StringVarP(&rootDir, "root-directory", "", "", "directory where plans are stored")
-	_ = webRun.MarkFlagRequired("root-directory")
+	webRunCmd.Flags().StringVarP(&rootDir, "root-directory", "", "", "directory where plans are stored")
+	_ = webRunCmd.MarkFlagRequired("root-directory")
 
-	web.AddCommand(webRun)
+	webCmd.AddCommand(webRunCmd)
 }
 
 // addRequestLoggerMiddleware adds a middleware that logs each request.
@@ -217,4 +282,14 @@ func filesMapToResourceLoader(files map[string]string) (frags.ResourceLoader, er
 		})
 	}
 	return loader, nil
+}
+
+func apiKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		key := c.Request().Header.Get("x-api-key")
+		if apiKey != key {
+			return echo.NewHTTPError(http.StatusForbidden)
+		}
+		return next(c)
+	}
 }

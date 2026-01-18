@@ -10,7 +10,7 @@ require (
 	github.com/samber/lo v1.52.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.15.0
+	github.com/theirish81/frags v0.16.0
 	github.com/theirish81/frags/chatgpt v0.15.0
 	github.com/theirish81/frags/gemini v0.15.0
 	github.com/theirish81/frags/ollama v0.15.0
