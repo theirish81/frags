@@ -35,6 +35,7 @@ var (
 	uploads      []string
 	port         int
 	rootDir      string
+	apiKey       string
 )
 
 var rootCmd = cobra.Command{

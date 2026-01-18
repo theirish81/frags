@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -93,6 +94,11 @@ var errorHandler = func(err error, c echo.Context) {
 	if c.Response().Committed {
 		return
 	}
+	var he *echo.HTTPError
+	if errors.As(err, &he) {
+		_ = c.JSON(he.Code, echo.Map{"error": he.Message})
+		return
+	}
 	_ = c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 }
 
@@ -115,17 +121,20 @@ safe environments.`,
 		}
 		e := echo.New()
 		addRequestLoggerMiddleware(e, log)
+		if apiKey != "" {
+			e.Use(apiKeyMiddleware)
+		}
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/execute", func(c echo.Context) error {
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
-				return err
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 			}
 			sm := frags.NewSessionManager()
 			if req.Plan.string != nil {
 				if err := sm.FromYAML([]byte(*req.Plan.string)); err != nil {
-					return err
+					return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 				}
 			}
 			if req.Plan.SessionManager != nil {
@@ -168,16 +177,19 @@ carefully and use this mode only in development or safe environments.`,
 		}
 		e := echo.New()
 		addRequestLoggerMiddleware(e, log)
+		if apiKey != "" {
+			e.Use(apiKeyMiddleware)
+		}
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/run/:file", func(c echo.Context) error {
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
-				return err
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 			}
 			fileRef := filepath.Clean(c.Param("file") + ".yaml")
 			if err := checkTraversalPath(fileRef); err != nil {
-				return err
+				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 			}
 			planData, err := os.ReadFile(path.Join(rootDir, fileRef))
 			if err != nil {
@@ -209,7 +221,8 @@ carefully and use this mode only in development or safe environments.`,
 
 func init() {
 	web.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "enable debug logging")
-	web.PersistentFlags().IntVarP(&port, "port", "p", 8080, "port to listen on")
+	web.PersistentFlags().IntVarP(&port, "port", "", 8080, "port to listen on")
+	web.PersistentFlags().StringVarP(&apiKey, "api-key", "", "", "a simple api key to protect the endpoint (it is expected in the x-api-key header)")
 
 	web.AddCommand(webExecute)
 
@@ -269,4 +282,14 @@ func filesMapToResourceLoader(files map[string]string) (frags.ResourceLoader, er
 		})
 	}
 	return loader, nil
+}
+
+func apiKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		key := c.Request().Header.Get("x-api-key")
+		if apiKey != key {
+			return echo.NewHTTPError(http.StatusForbidden)
+		}
+		return next(c)
+	}
 }
