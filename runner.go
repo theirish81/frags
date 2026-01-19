@@ -325,8 +325,15 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 			r.sendProgress(progressActionStart, sessionID, -1, itIdx, nil)
 
 			ppResources := append(localResources, r.filterPrePromptResources(resources)...)
-			// finally we ask the AI for the prePrompt's response. Notice that the prePrompt is getting the tools.
-			if _, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, ppResources...); err != nil {
+			// finally we ask the AI for the FIRST prePrompt's response. Notice that the prePrompt is getting the tools.
+			err = Retry(ctx, session.Attempts, func() error {
+				_, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, ppResources...)
+				if err != nil {
+					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
+				}
+				return err
+			})
+			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
 			}
@@ -336,10 +343,18 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 
 			// we run the remaining prePrompts, if any.
 			for _, pp := range prePrompts[1:] {
-				if _, err := ai.Ask(ctx, pp, nil, session.Tools, r, localResources...); err != nil {
+				err = Retry(ctx, session.Attempts, func() error {
+					_, err := ai.Ask(ctx, pp, nil, session.Tools, r, localResources...)
+					if err != nil {
+						r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
+					}
+					return err
+				})
+				if err != nil {
 					r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 					return err
 				}
+
 			}
 			r.sendProgress(progressActionEnd, sessionID, -1, itIdx, nil)
 		}
