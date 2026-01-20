@@ -155,16 +155,19 @@ func EvaluateMapValues(args map[string]any, scope EvalScope) (map[string]any, er
 	if args == nil {
 		return nil, nil
 	}
+	out := make(map[string]any)
 	for k, v := range args {
 		if s, ok := v.(string); ok {
 			res, err := EvaluateTemplate(s, scope)
 			if err != nil {
 				return nil, err
 			}
-			args[k] = res
+			out[k] = res
+		} else {
+			out[k] = v
 		}
 	}
-	return args, nil
+	return out, nil
 }
 
 // templateFuncs are the functions available in the templates.
