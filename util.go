@@ -18,9 +18,12 @@
 package frags
 
 import (
+	"context"
 	"path/filepath"
 	"reflect"
 	"time"
+
+	"github.com/avast/retry-go/v5"
 )
 
 // parseDurationOrDefault parses a duration string into a time.Duration, or returns the default duration if parsing fails
@@ -56,4 +59,8 @@ func toConcreteValue(rv reflect.Value) reflect.Value {
 		rv = rv.Elem()
 	}
 	return rv
+}
+
+func Retry(ctx context.Context, attempts int, callback func() error) error {
+	return retry.New(retry.Attempts(uint(attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(callback)
 }
