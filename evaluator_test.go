@@ -125,3 +125,14 @@ func TestEvaluateExprFunctions(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println(arr)
 }
+
+func TestEvaluateExpression_Render(t *testing.T) {
+	scope := NewEvalScope()
+	scope.WithVars(map[string]any{
+		"template": "What do we say? {{ .banana }}",
+	})
+	scope["context"] = map[string]any{"banana": "come monkey!"}
+	out, err := EvaluateExpression("render(vars.template, context)", scope)
+	assert.NoError(t, err)
+	assert.Equal(t, "What do we say? come monkey!", out)
+}
