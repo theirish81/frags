@@ -139,6 +139,7 @@ func (r *Runner[T]) RunAllFunctionCalls(ctx context.Context, fc FunctionCalls, s
 		}
 		var err error
 		vx[varName], err = r.runFunctionCall(ctx, c, scope)
+		scope.WithVars(vx)
 		if err != nil {
 			return vx, err
 		}
