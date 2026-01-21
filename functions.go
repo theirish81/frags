@@ -97,12 +97,13 @@ const (
 // IMPORTANT: if Code is not nil, this will trigger the execution of the scripting engine. If the engine is nil, nothing
 // will happen.
 type FunctionCall struct {
-	Name        string                   `yaml:"name" json:"name"`
-	Code        *string                  `yaml:"code" json:"code"`
-	Args        map[string]any           `yaml:"args" json:"args"`
-	Description *string                  `yaml:"description" json:"description"`
-	In          *FunctionCallDestination `yaml:"in" json:"in" validate:"omitempty,oneof=ai vars"`
-	Var         *string                  `yaml:"var" json:"var"`
+	Name        string                            `yaml:"name" json:"name"`
+	Code        *string                           `yaml:"code" json:"code"`
+	Args        map[string]any                    `yaml:"args" json:"args"`
+	Description *string                           `yaml:"description" json:"description"`
+	In          *FunctionCallDestination          `yaml:"in" json:"in" validate:"omitempty,oneof=ai vars"`
+	Var         *string                           `yaml:"var" json:"var"`
+	Func        func(map[string]any) (any, error) `yaml:"-" json:"-"`
 }
 
 type FunctionCalls []FunctionCall
@@ -124,70 +125,61 @@ func (f FunctionCalls) FilterAiFunctionCalls() FunctionCalls {
 	return fc
 }
 
-func (r *Runner[T]) RunVarsPreCalls(ctx context.Context, session Session) (map[string]any, error) {
+// RunSessionVarsPreCalls runs the pre-call functions in the given session, and returns a map of values
+func (r *Runner[T]) RunSessionVarsPreCalls(ctx context.Context, session Session, scope EvalScope) (map[string]any, error) {
+	return r.RunAllFunctionCalls(ctx, session.PreCalls.FilterVarsFunctionCalls(), scope)
+}
+
+// RunAllFunctionCalls runs all the function calls in the given collection.
+func (r *Runner[T]) RunAllFunctionCalls(ctx context.Context, fc FunctionCalls, scope EvalScope) (map[string]any, error) {
 	vx := make(map[string]any)
-	if session.PreCalls == nil {
-		return vx, nil
-	}
-	for _, c := range session.PreCalls.FilterVarsFunctionCalls() {
+	for _, c := range fc {
 		varName := c.Name
 		if c.Var != nil {
 			varName = *c.Var
 		}
-		deadline, _ := ctx.Deadline()
-		if time.Now().After(deadline) {
-			return vx, ctx.Err()
-		}
 		var err error
-		c.Args, err = EvaluateMapValues(c.Args, r.newEvalScope().WithVars(r.vars).WithVars(session.Vars))
+		vx[varName], err = r.runFunctionCall(ctx, c, scope)
+		scope.WithVars(vx)
 		if err != nil {
 			return vx, err
-		}
-		if c.Code != nil {
-			res, err := r.ScriptEngine().RunCode(*c.Code, c.Args, r)
-			if err != nil {
-				return vx, err
-			}
-			vx[varName] = res
-		} else {
-			res, err := r.ai.RunFunction(c, r)
-			if err != nil {
-				return vx, err
-			}
-			vx[varName] = res
 		}
 	}
 	return vx, nil
 }
 
-// RunPreCallsToTextContext runs the pre-call functions and composes a textual context to be prepended to the
+// runFunctionCall runs a FunctionCall object, evaluating the arguments if needed.
+func (r *Runner[T]) runFunctionCall(ctx context.Context, fc FunctionCall, scope EvalScope) (any, error) {
+	clonedFc := fc
+	deadline, ok := ctx.Deadline()
+	if ok && time.Now().After(deadline) {
+		return nil, ctx.Err()
+	}
+	var err error
+	clonedFc.Args, err = EvaluateMapValues(clonedFc.Args, scope)
+	if err != nil {
+		return nil, err
+	}
+	if fc.Func != nil {
+		return fc.Func(clonedFc.Args)
+	} else if fc.Code != nil {
+		return r.ScriptEngine().RunCode(*clonedFc.Code, clonedFc.Args, r)
+	} else {
+		return r.ai.RunFunction(clonedFc, r)
+	}
+}
+
+// RunSessionAiPreCallsToTextContext runs the pre-call functions and composes a textual context to be prepended to the
 // actual prompt.
-func (r *Runner[T]) RunPreCallsToTextContext(ctx context.Context, session Session) (string, error) {
+func (r *Runner[T]) RunSessionAiPreCallsToTextContext(ctx context.Context, session Session, scope EvalScope) (string, error) {
 	preCallsText := ""
 	if session.PreCalls != nil {
 		for _, c := range session.PreCalls.FilterAiFunctionCalls() {
-			deadline, _ := ctx.Deadline()
-			if time.Now().After(deadline) {
-				return preCallsText, ctx.Err()
-			}
-			var err error
-			c.Args, err = EvaluateMapValues(c.Args, r.newEvalScope().WithVars(r.vars).WithVars(session.Vars))
+			res, err := r.runFunctionCall(ctx, c, scope)
 			if err != nil {
 				return preCallsText, err
 			}
-			if c.Code != nil {
-				res, err := r.ScriptEngine().RunCode(*c.Code, c.Args, r)
-				if err != nil {
-					return preCallsText, err
-				}
-				preCallsText += preCallCtx(c, res)
-			} else {
-				res, err := r.ai.RunFunction(c, r)
-				if err != nil {
-					return preCallsText, err
-				}
-				preCallsText += preCallCtx(c, res)
-			}
+			preCallsText += preCallCtx(c, res)
 		}
 	}
 	return preCallsText, nil

@@ -139,6 +139,7 @@ type SessionManager struct {
 	Sessions     Sessions          `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
 	Schema       *Schema           `yaml:"schema,omitempty" json:"schema,omitempty"`
 	Vars         map[string]any    `yaml:"vars" json:"vars,omitempty"`
+	PreCalls     FunctionCalls     `yaml:"preCalls" json:"preCalls,omitempty"`
 }
 
 type Parameter struct {
@@ -227,7 +228,7 @@ func (s *SessionManager) initNullSchema() {
 		for k, _ := range s.Sessions {
 			schema.Properties[k] = &Schema{
 				Type:     SchemaString,
-				XSession: strPtr(k),
+				XSession: StrPtr(k),
 				XPhase:   0,
 			}
 			schema.Required = append(schema.Required, k)

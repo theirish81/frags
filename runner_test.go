@@ -18,6 +18,7 @@
 package frags
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -40,7 +41,7 @@ func TestRunner_Run(t *testing.T) {
 	assert.Nil(t, err)
 	ai := NewDummyAi()
 	runner := NewRunner[T](mgr, NewDummyResourceLoader(), ai)
-	out, err := runner.Run(map[string]string{"animal": "dog", "animals": "giraffes"})
+	out, err := runner.Run(context.Background(), map[string]string{"animal": "dog", "animals": "giraffes"})
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, out.P1)
@@ -60,7 +61,7 @@ func TestRunner_RunDependenciesAndContext(t *testing.T) {
 	assert.Nil(t, err)
 	ai := NewDummyAi()
 	runner := NewRunner[map[string]string](mgr, NewDummyResourceLoader(), ai, WithSessionWorkers(3))
-	out, err := runner.Run(nil)
+	out, err := runner.Run(context.Background(), nil)
 	assert.Nil(t, err)
 	assert.Contains(t, (*out)["summary"], "CURRENT CONTEXT")
 	assert.Contains(t, (*out)["summary"], "animal1")
@@ -88,4 +89,36 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 		map[string]any{"first_name": "john", "last_name": "doe"},
 		map[string]any{"first_name": "bill", "last_name": "murray"},
 	}, out)
+}
+
+func TestRunner_RunAllFunctionCalls(t *testing.T) {
+	sessionData, _ := os.ReadFile("test_data/session_resources.yaml")
+	mgr := NewSessionManager()
+	err := mgr.FromYAML(sessionData)
+	assert.Nil(t, err)
+	ai := NewDummyAi()
+	runner := NewRunner[map[string]string](mgr, NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
+	runner.dataStructure = &map[string]string{}
+	fcs := FunctionCalls{
+		{
+			Name: "f1",
+			Func: func(m map[string]any) (any, error) {
+				return "val1", nil
+			},
+			In:  Ptr[FunctionCallDestination](VarsFunctionCallDestination),
+			Var: StrPtr("f1"),
+		},
+		{
+			Name: "f2",
+			Func: func(m map[string]any) (any, error) {
+				return "val2 + " + m["f1"].(string), nil
+			},
+			Args: map[string]any{"f1": "{{.vars.f1}}"},
+			In:   Ptr[FunctionCallDestination](VarsFunctionCallDestination),
+			Var:  StrPtr("f2"),
+		},
+	}
+	out, err := runner.RunAllFunctionCalls(context.Background(), fcs, runner.newEvalScope())
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]any{"f1": "val1", "f2": "val2 + val1"}, out)
 }

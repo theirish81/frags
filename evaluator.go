@@ -78,7 +78,7 @@ func (r *Runner[T]) newEvalScope() EvalScope {
 		paramsAttr:     r.params,
 		contextAttr:    *r.dataStructure,
 		componentsAttr: r.sessionManager.Components,
-		varsAttr:       r.vars,
+		varsAttr:       map[string]any(r.vars),
 		iteratorAttr:   nil,
 	}
 }
@@ -138,7 +138,7 @@ func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) 
 	if err != nil {
 		return nil, err
 	}
-	rv := toConcreteValue(reflect.ValueOf(res))
+	rv := ToConcreteValue(reflect.ValueOf(res))
 	if rv.Kind() == reflect.Slice {
 		result := make([]any, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
@@ -155,16 +155,19 @@ func EvaluateMapValues(args map[string]any, scope EvalScope) (map[string]any, er
 	if args == nil {
 		return nil, nil
 	}
+	out := make(map[string]any)
 	for k, v := range args {
 		if s, ok := v.(string); ok {
 			res, err := EvaluateTemplate(s, scope)
 			if err != nil {
 				return nil, err
 			}
-			args[k] = res
+			out[k] = res
+		} else {
+			out[k] = v
 		}
 	}
-	return args, nil
+	return out, nil
 }
 
 // templateFuncs are the functions available in the templates.

@@ -41,7 +41,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 	}
 	res, err := rx.CheckDependencies(Dependencies{
 		{
-			Session: strPtr("foo"),
+			Session: StrPtr("foo"),
 		},
 	})
 	assert.Nil(t, err)
@@ -49,7 +49,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: strPtr("fuz"),
+			Session: StrPtr("fuz"),
 		},
 	})
 	assert.Nil(t, err)
@@ -57,7 +57,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: strPtr("bar"),
+			Session: StrPtr("bar"),
 		},
 	})
 	assert.Nil(t, err)
@@ -65,7 +65,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: strPtr("baz"),
+			Session: StrPtr("baz"),
 		},
 	})
 	assert.Nil(t, err)
@@ -73,7 +73,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: strPtr("bat"),
+			Session: StrPtr("bat"),
 		},
 	})
 	assert.Nil(t, err)
@@ -81,7 +81,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: strPtr("bam"),
+			Session: StrPtr("bam"),
 		},
 	})
 	assert.Nil(t, err)
@@ -89,8 +89,8 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session:    strPtr("fuz"),
-			Expression: strPtr("context.foo == 'bar'"),
+			Session:    StrPtr("fuz"),
+			Expression: StrPtr("context.foo == 'bar'"),
 		},
 	})
 	assert.Nil(t, err)
@@ -98,8 +98,8 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session:    strPtr("fuz"),
-			Expression: strPtr("context.foo == 'ban'"),
+			Session:    StrPtr("fuz"),
+			Expression: StrPtr("context.foo == 'ban'"),
 		},
 	})
 	assert.Nil(t, err)

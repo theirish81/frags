@@ -42,7 +42,7 @@ type ResourceData struct {
 // has value, then ByteContent contains its JSON representation, but when a raw value needs to be stored, then
 // StructuredContent is nil and ByteContent contains the raw value.
 func (r *ResourceData) SetContent(data any) error {
-	switch toConcreteValue(reflect.ValueOf(data)).Kind() {
+	switch ToConcreteValue(reflect.ValueOf(data)).Kind() {
 	case reflect.Slice, reflect.Array, reflect.Map:
 		switch t := data.(type) {
 		// In case this is an array of bytes, we keep it as byte response, there's no structure in this case
