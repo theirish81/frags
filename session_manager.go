@@ -139,6 +139,7 @@ type SessionManager struct {
 	Sessions     Sessions          `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
 	Schema       *Schema           `yaml:"schema,omitempty" json:"schema,omitempty"`
 	Vars         map[string]any    `yaml:"vars" json:"vars,omitempty"`
+	PreCalls     FunctionCalls     `yaml:"preCalls" json:"preCalls,omitempty"`
 }
 
 type Parameter struct {

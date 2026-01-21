@@ -18,6 +18,7 @@
 package frags
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -40,7 +41,7 @@ func TestRunner_Run(t *testing.T) {
 	assert.Nil(t, err)
 	ai := NewDummyAi()
 	runner := NewRunner[T](mgr, NewDummyResourceLoader(), ai)
-	out, err := runner.Run(map[string]string{"animal": "dog", "animals": "giraffes"})
+	out, err := runner.Run(context.Background(), map[string]string{"animal": "dog", "animals": "giraffes"})
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, out.P1)
@@ -60,7 +61,7 @@ func TestRunner_RunDependenciesAndContext(t *testing.T) {
 	assert.Nil(t, err)
 	ai := NewDummyAi()
 	runner := NewRunner[map[string]string](mgr, NewDummyResourceLoader(), ai, WithSessionWorkers(3))
-	out, err := runner.Run(nil)
+	out, err := runner.Run(context.Background(), nil)
 	assert.Nil(t, err)
 	assert.Contains(t, (*out)["summary"], "CURRENT CONTEXT")
 	assert.Contains(t, (*out)["summary"], "animal1")

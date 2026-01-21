@@ -78,7 +78,7 @@ func (r *Runner[T]) newEvalScope() EvalScope {
 		paramsAttr:     r.params,
 		contextAttr:    *r.dataStructure,
 		componentsAttr: r.sessionManager.Components,
-		varsAttr:       r.vars,
+		varsAttr:       map[string]any(r.vars),
 		iteratorAttr:   nil,
 	}
 }

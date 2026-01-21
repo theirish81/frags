@@ -56,7 +56,7 @@ type Runner[T any] struct {
 	progressChannel chan ProgressMessage
 	scriptEngine    ScriptEngine
 	kFormat         bool
-	vars            map[string]any
+	vars            Vars
 }
 
 // SessionStatus is the status of a session.
@@ -150,12 +150,12 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 		progressChannel: opts.progressChannel,
 		kFormat:         opts.kFormat,
 		scriptEngine:    opts.scriptEngine,
-		vars:            make(map[string]any),
+		vars:            make(Vars),
 	}
 }
 
 // Run runs the runner against an optional collection fo parameters
-func (r *Runner[T]) Run(params any) (*T, error) {
+func (r *Runner[T]) Run(ctx context.Context, params any) (*T, error) {
 	if r.running {
 		return nil, errors.New("this frags instance is running")
 	}
@@ -179,8 +179,9 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 	if err := r.sessionManager.Schema.Resolve(r.sessionManager.Components); err != nil {
 		return r.dataStructure, errors.New("failed to resolve schema")
 	}
+	scope := r.newEvalScope()
 	if r.sessionManager.SystemPrompt != nil {
-		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope())
+		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -190,6 +191,11 @@ func (r *Runner[T]) Run(params any) (*T, error) {
 		r.logger.Debug("starting session worker", "index", i)
 		go r.runSessionWorker(i)
 	}
+	callResults, err := r.RunAllFunctionCalls(ctx, r.sessionManager.PreCalls.FilterVarsFunctionCalls(), scope)
+	if err != nil {
+		return r.dataStructure, err
+	}
+	r.vars.Apply(callResults)
 	// as long as all sessions have no reached a terminal state, keep scanning sessions
 	for !r.IsCompleted() {
 		// if the scan fails, we return the error and stop scanning. This will end the program
@@ -301,23 +307,23 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 
 		// we ONLY run the preCalls which output is meant to go into the Frags vars. The ones that are meant to go into
 		// the AI context will be handled later.
-		preCallVars, err := r.RunVarsPreCalls(ctx, session)
+		preCallVars, err := r.RunSessionVarsPreCalls(ctx, session, r.newEvalScope().WithVars(localVars).WithIterator(it))
 		if err != nil {
 			return err
 		}
 		localVars.Apply(preCallVars)
-
 		if session.HasPrePrompt() {
+			scope := r.newEvalScope().WithVars(localVars).WithIterator(it)
 			// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 			// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 			// the context of the session.
-			prePrompts, err := session.RenderPrePrompts(r.newEvalScope().WithIterator(it).WithVars(localVars))
+			prePrompts, err := session.RenderPrePrompts(scope)
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
 			}
 			// the FIRST prePrompt carries all the contextualization payload, so we add whatever needs to go here.
-			prePrompt, err := r.contextualizePrompt(ctx, prePrompts[0], session)
+			prePrompt, err := r.contextualizePrompt(ctx, prePrompts[0], session, scope)
 			if err != nil {
 				r.sendProgress(progressActionError, sessionID, -1, itIdx, err)
 				return err
@@ -362,9 +368,10 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 		for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
 			// ...we retry the prompt a number of times, depending on the session's attempts.
 			err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
+				scope := r.newEvalScope().WithVars(localVars).WithIterator(it)
 				r.sendProgress(progressActionStart, sessionID, phaseIndex, itIdx, nil)
-				deadline, _ := ctx.Deadline()
-				if time.Now().After(deadline) {
+				deadline, ok := ctx.Deadline()
+				if ok && time.Now().After(deadline) {
 					r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, ctx.Err())
 					return ctx.Err()
 				}
@@ -374,7 +381,6 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					return err
 				}
 				var data []byte
-				scope := r.newEvalScope().WithIterator(it).WithVars(localVars)
 				if idx == 0 {
 					prompt, err := session.RenderPrompt(scope)
 					if err != nil {
@@ -384,7 +390,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 					// as this is the first phase, and there was no prePrompt, we contextualize the prompt with Frags
 					// context or preCalls, if so configured.
 					if !session.HasPrePrompt() {
-						prompt, err = r.contextualizePrompt(ctx, prompt, session)
+						prompt, err = r.contextualizePrompt(ctx, prompt, session, scope)
 						if err != nil {
 							r.sendProgress(progressActionError, sessionID, phaseIndex, itIdx, err)
 							return err
