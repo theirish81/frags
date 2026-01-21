@@ -196,6 +196,10 @@ func (r *Runner[T]) Run(ctx context.Context, params any) (*T, error) {
 		return r.dataStructure, err
 	}
 	r.vars.Apply(callResults)
+	err = r.RunAndSetContextFunctionCalls(ctx, r.sessionManager.PreCalls.FilterContextFunctionCalls(), scope)
+	if err != nil {
+		return r.dataStructure, err
+	}
 	// as long as all sessions have no reached a terminal state, keep scanning sessions
 	for !r.IsCompleted() {
 		// if the scan fails, we return the error and stop scanning. This will end the program
@@ -304,10 +308,12 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 		// that will load the resources and the prompt will not. If we only have a prompt, then ONLY the first phase
 		// will load the resources, and the rest will use them from the AI context.
 		localResources := aiResources
-
+		if err := r.RunAndSetContextFunctionCalls(ctx, session.PreCalls.FilterContextFunctionCalls(), r.newEvalScope().WithVars(localVars).WithIterator(it)); err != nil {
+			return err
+		}
 		// we ONLY run the preCalls which output is meant to go into the Frags vars. The ones that are meant to go into
 		// the AI context will be handled later.
-		preCallVars, err := r.RunSessionVarsPreCalls(ctx, session, r.newEvalScope().WithVars(localVars).WithIterator(it))
+		preCallVars, err := r.RunAllFunctionCalls(ctx, session.PreCalls.FilterVarsFunctionCalls(), r.newEvalScope().WithVars(localVars).WithIterator(it))
 		if err != nil {
 			return err
 		}
@@ -363,6 +369,9 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 
 			}
 			r.sendProgress(progressActionEnd, sessionID, -1, itIdx, nil)
+		}
+		if !session.HasPrompt() {
+			continue
 		}
 		// For each phase...
 		for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {

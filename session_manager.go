@@ -47,7 +47,7 @@ import (
 type Session struct {
 	PreCalls        FunctionCalls   `json:"preCalls" yaml:"preCalls" validate:"omitempty,dive"`
 	PrePrompt       PrePrompt       `json:"prePrompt" yaml:"prePrompt"`
-	Prompt          string          `json:"prompt" yaml:"prompt" validate:"required,min=3"`
+	Prompt          string          `json:"prompt" yaml:"prompt" validate:"omitempty,min=3"`
 	NextPhasePrompt string          `json:"nextPhasePrompt" yaml:"nextPhasePrompt"`
 	Resources       []Resource      `json:"resources" yaml:"resources" validate:"dive"`
 	Timeout         *string         `json:"timeout" yaml:"timeout"`
@@ -98,6 +98,10 @@ func (s *Session) RenderPrePrompts(scope EvalScope) (PrePrompt, error) {
 
 func (s *Session) HasPrePrompt() bool {
 	return s.PrePrompt != nil && len(s.PrePrompt) > 0
+}
+
+func (s *Session) HasPrompt() bool {
+	return s.Prompt != ""
 }
 
 // RenderPrompt renders the prompt (which may contain Go templates), with the given scope
