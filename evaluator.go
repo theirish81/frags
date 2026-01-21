@@ -138,7 +138,7 @@ func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) 
 	if err != nil {
 		return nil, err
 	}
-	rv := toConcreteValue(reflect.ValueOf(res))
+	rv := ToConcreteValue(reflect.ValueOf(res))
 	if rv.Kind() == reflect.Slice {
 		result := make([]any, rv.Len())
 		for i := 0; i < rv.Len(); i++ {

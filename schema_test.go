@@ -58,11 +58,11 @@ func TestSchema_GetContext(t *testing.T) {
 		Properties: map[string]*Schema{
 			"p1": {
 				Type:     SchemaString,
-				XSession: strPtr("foo"),
+				XSession: StrPtr("foo"),
 			},
 			"p2": {
 				Type:     SchemaInteger,
-				XSession: strPtr("bar"),
+				XSession: StrPtr("bar"),
 			},
 		},
 	}

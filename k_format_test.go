@@ -33,7 +33,7 @@ func TestToMarkdown(t *testing.T) {
 			},
 		},
 		"gee":  nil,
-		"doh":  strPtr("val_doh"),
+		"doh":  StrPtr("val_doh"),
 		"list": []string{"a", "b", "c"},
 	}))
 

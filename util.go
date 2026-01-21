@@ -19,7 +19,6 @@ package frags
 
 import (
 	"context"
-	"path/filepath"
 	"reflect"
 	"time"
 
@@ -38,21 +37,14 @@ func parseDurationOrDefault(durationStr *string, defaultDuration time.Duration) 
 	return parsedDuration
 }
 
-// strPtr returns a pointer to a string
-func strPtr(s string) *string { return &s }
+// StrPtr returns a pointer to a string
+func StrPtr(s string) *string { return &s }
 
-// replaceExtension replaces the extension of a filename with a new one
-func replaceExtension(filename, newExt string) string {
-	ext := filepath.Ext(filename)
-	if ext == "" {
-		return filename + newExt
-	}
-	return filename[:len(filename)-len(ext)] + newExt
-}
+func Ptr[T any](t T) *T { return &t }
 
-// toConcreteValue returns the concrete value of a reflect.Value It gives up after 5 levels of indirection as a
+// ToConcreteValue returns the concrete value of a reflect.Value It gives up after 5 levels of indirection as a
 // deadlock safety measure.
-func toConcreteValue(rv reflect.Value) reflect.Value {
+func ToConcreteValue(rv reflect.Value) reflect.Value {
 	i := 0
 	for (rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface) && i < 5 {
 		i++

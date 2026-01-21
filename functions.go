@@ -97,12 +97,13 @@ const (
 // IMPORTANT: if Code is not nil, this will trigger the execution of the scripting engine. If the engine is nil, nothing
 // will happen.
 type FunctionCall struct {
-	Name        string                   `yaml:"name" json:"name"`
-	Code        *string                  `yaml:"code" json:"code"`
-	Args        map[string]any           `yaml:"args" json:"args"`
-	Description *string                  `yaml:"description" json:"description"`
-	In          *FunctionCallDestination `yaml:"in" json:"in" validate:"omitempty,oneof=ai vars"`
-	Var         *string                  `yaml:"var" json:"var"`
+	Name        string                            `yaml:"name" json:"name"`
+	Code        *string                           `yaml:"code" json:"code"`
+	Args        map[string]any                    `yaml:"args" json:"args"`
+	Description *string                           `yaml:"description" json:"description"`
+	In          *FunctionCallDestination          `yaml:"in" json:"in" validate:"omitempty,oneof=ai vars"`
+	Var         *string                           `yaml:"var" json:"var"`
+	Func        func(map[string]any) (any, error) `yaml:"-" json:"-"`
 }
 
 type FunctionCalls []FunctionCall
@@ -159,7 +160,9 @@ func (r *Runner[T]) runFunctionCall(ctx context.Context, fc FunctionCall, scope 
 	if err != nil {
 		return nil, err
 	}
-	if fc.Code != nil {
+	if fc.Func != nil {
+		return fc.Func(clonedFc.Args)
+	} else if fc.Code != nil {
 		return r.ScriptEngine().RunCode(*clonedFc.Code, clonedFc.Args, r)
 	} else {
 		return r.ai.RunFunction(clonedFc, r)

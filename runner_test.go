@@ -90,3 +90,35 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 		map[string]any{"first_name": "bill", "last_name": "murray"},
 	}, out)
 }
+
+func TestRunner_RunAllFunctionCalls(t *testing.T) {
+	sessionData, _ := os.ReadFile("test_data/session_resources.yaml")
+	mgr := NewSessionManager()
+	err := mgr.FromYAML(sessionData)
+	assert.Nil(t, err)
+	ai := NewDummyAi()
+	runner := NewRunner[map[string]string](mgr, NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
+	runner.dataStructure = &map[string]string{}
+	fcs := FunctionCalls{
+		{
+			Name: "f1",
+			Func: func(m map[string]any) (any, error) {
+				return "val1", nil
+			},
+			In:  Ptr[FunctionCallDestination](VarsFunctionCallDestination),
+			Var: StrPtr("f1"),
+		},
+		{
+			Name: "f2",
+			Func: func(m map[string]any) (any, error) {
+				return "val2 + " + m["f1"].(string), nil
+			},
+			Args: map[string]any{"f1": "{{.vars.f1}}"},
+			In:   Ptr[FunctionCallDestination](VarsFunctionCallDestination),
+			Var:  StrPtr("f2"),
+		},
+	}
+	out, err := runner.RunAllFunctionCalls(context.Background(), fcs, runner.newEvalScope())
+	assert.NoError(t, err)
+	assert.Equal(t, map[string]any{"f1": "val1", "f2": "val2 + val1"}, out)
+}
