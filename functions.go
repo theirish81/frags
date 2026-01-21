@@ -88,8 +88,9 @@ func (f Functions) ListByCollection(collection string) Functions {
 type FunctionCallDestination string
 
 const (
-	AiFunctionCallDestination   FunctionCallDestination = "ai"
-	VarsFunctionCallDestination FunctionCallDestination = "vars"
+	AiFunctionCallDestination      FunctionCallDestination = "ai"
+	VarsFunctionCallDestination    FunctionCallDestination = "vars"
+	ContextFunctionCallDestination FunctionCallDestination = "context"
 )
 
 // FunctionCall Represents a function invocation. NOTE: description is meant to explain to LLM what the output data is
@@ -101,7 +102,7 @@ type FunctionCall struct {
 	Code        *string                           `yaml:"code" json:"code"`
 	Args        map[string]any                    `yaml:"args" json:"args"`
 	Description *string                           `yaml:"description" json:"description"`
-	In          *FunctionCallDestination          `yaml:"in" json:"in" validate:"omitempty,oneof=ai vars"`
+	In          *FunctionCallDestination          `yaml:"in" json:"in" validate:"omitempty,oneof=ai vars context"`
 	Var         *string                           `yaml:"var" json:"var"`
 	Func        func(map[string]any) (any, error) `yaml:"-" json:"-"`
 }
@@ -125,9 +126,24 @@ func (f FunctionCalls) FilterAiFunctionCalls() FunctionCalls {
 	return fc
 }
 
-// RunSessionVarsPreCalls runs the pre-call functions in the given session, and returns a map of values
-func (r *Runner[T]) RunSessionVarsPreCalls(ctx context.Context, session Session, scope EvalScope) (map[string]any, error) {
-	return r.RunAllFunctionCalls(ctx, session.PreCalls.FilterVarsFunctionCalls(), scope)
+func (f FunctionCalls) FilterContextFunctionCalls() FunctionCalls {
+	fc := lo.Filter(f, func(fc FunctionCall, index int) bool {
+		return fc.In != nil && *fc.In == ContextFunctionCallDestination
+	})
+	return fc
+}
+
+func (r *Runner[T]) RunAndSetContextFunctionCalls(ctx context.Context, fc FunctionCalls, scope EvalScope) error {
+	res, err := r.RunAllFunctionCalls(ctx, fc, scope)
+	if err != nil {
+		return err
+	}
+	for k, v := range res {
+		if err = SetInContext(r.dataStructure, k, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RunAllFunctionCalls runs all the function calls in the given collection.

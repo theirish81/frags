@@ -227,5 +227,9 @@ func exprFunctions() []expr.Option {
 				}
 				return chunks, nil
 			}, new(func([]any, int) []any)),
+		expr.Function("render",
+			func(params ...any) (any, error) {
+				return EvaluateTemplate(params[0].(string), params[1].(map[string]any))
+			}, new(func(string, EvalScope) (string, error))),
 	}
 }
