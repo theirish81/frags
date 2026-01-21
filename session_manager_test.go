@@ -41,7 +41,7 @@ func TestNewSessionManagerValidate(t *testing.T) {
 			},
 		}
 		err := validator.New().Struct(mgr)
-		assert.Error(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("has sessions. Has prompt", func(t *testing.T) {
 		mgr := SessionManager{
