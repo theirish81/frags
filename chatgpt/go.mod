@@ -2,7 +2,7 @@ module github.com/theirish81/frags/chatgpt
 
 go 1.24.8
 
-require github.com/theirish81/frags v0.15.0
+require github.com/theirish81/frags v0.17.0
 
 require (
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
