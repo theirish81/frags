@@ -24,6 +24,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+
+	"github.com/samber/lo"
 )
 
 // ResourceData is a piece of data the LLM can use.
@@ -34,6 +36,32 @@ type ResourceData struct {
 	StructuredContent *any
 	In                ResourceDestination
 	Var               *string
+}
+
+type ResourceDataItems []ResourceData
+
+func (r ResourceDataItems) filterAiResources() ResourceDataItems {
+	return lo.Filter(r, func(res ResourceData, index int) bool {
+		return res.In == AiResourceDestination
+	})
+}
+
+func (r ResourceDataItems) filterVarResourcesData() ResourceDataItems {
+	return lo.Filter(r, func(res ResourceData, index int) bool {
+		return res.In == VarsResourceDestination
+	})
+}
+
+func (r ResourceDataItems) filterPrePromptResources() ResourceDataItems {
+	return lo.Filter(r, func(res ResourceData, index int) bool {
+		return res.In == PrePromptResourceDestination
+	})
+}
+
+func (r ResourceDataItems) filterPromptResources() ResourceDataItems {
+	return lo.Filter(r, func(res ResourceData, index int) bool {
+		return res.In == PromptResourceDestination
+	})
 }
 
 // SetContent sets the content of the resource data. If the input is structured content, then the value is stored in

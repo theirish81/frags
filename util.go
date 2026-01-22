@@ -59,10 +59,19 @@ func Retry(ctx context.Context, attempts int, callback func() error) error {
 	return retry.New(retry.Attempts(uint(attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(callback)
 }
 
+func SetAllInContext(context any, values map[string]any) error {
+	for k, v := range values {
+		if err := SetInContext(context, k, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func SetInContext(context any, varName string, value any) error {
 	v := reflect.ValueOf(context)
 	if v.Kind() != reflect.Ptr || v.IsNil() {
-		return errors.New("context deve essere un puntatore non nullo")
+		return errors.New("context must be not null")
 	}
 	elem := v.Elem()
 	valToSet := reflect.ValueOf(value)
