@@ -20,6 +20,7 @@ package frags
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/samber/lo"
@@ -44,18 +45,25 @@ func (f Function) String() string {
 
 // Run runs the function, applying any transformers defined in the runner.
 func (f Function) Run(args map[string]any, runner ExportableRunner) (any, error) {
-	ax, err := runner.Transformers().FilterOnFunctionInput(f.Name).Transform(args, runner)
+	ax, err := runner.Transformers().FilterOnFunctionInput(f.Name).Transform(maps.Clone(args), runner)
 	if err != nil {
 		return nil, err
 	}
 	if !isMapAny(ax) {
 		return nil, fmt.Errorf("expected map[string]any, got %T", ax)
 	}
+	runner.Logger().Debug("invoking function", "function", fmt.Sprintf("%s(%v)", f.Name, ax))
 	ax, err = f.Func(ax.(map[string]any))
 	if err != nil {
 		return nil, err
 	}
-	return runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(ax, runner)
+
+	out, err := runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(ax, runner)
+	if err != nil {
+		return nil, err
+	}
+	runner.Logger().Debug("function result", "function", fmt.Sprintf("%s(%v)", f.Name, args), "result", ax)
+	return out, nil
 }
 
 // Functions is a map of functions, indexed by name.
@@ -131,19 +139,6 @@ func (f FunctionCalls) FilterContextFunctionCalls() FunctionCalls {
 		return fc.In != nil && *fc.In == ContextFunctionCallDestination
 	})
 	return fc
-}
-
-func (r *Runner[T]) RunAndSetContextFunctionCalls(ctx context.Context, fc FunctionCalls, scope EvalScope) error {
-	res, err := r.RunAllFunctionCalls(ctx, fc, scope)
-	if err != nil {
-		return err
-	}
-	for k, v := range res {
-		if err = SetInContext(r.dataStructure, k, v); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // RunAllFunctionCalls runs all the function calls in the given collection.

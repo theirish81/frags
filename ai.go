@@ -36,7 +36,7 @@ type Ai interface {
 type dummyHistoryItem struct {
 	Text      string
 	Schema    *Schema
-	Resources []ResourceData
+	Resources ResourceDataItems
 }
 
 // DummyAi is a dummy AI model for testing purposes.

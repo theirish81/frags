@@ -54,7 +54,7 @@ func (t ToolDefinition) String() string {
 	case ToolTypeFunction:
 		return fmt.Sprintf("%s/%s", t.Type, t.Name)
 	case ToolTypeMCP, ToolTypeCollection:
-		return fmt.Sprintf("%s/%s", t.Type, t.Collection)
+		return fmt.Sprintf("%s/%s", t.Type, t.Name)
 	}
 	return ""
 }
