@@ -220,11 +220,7 @@ func joinParts(parts []*genai.Part) string {
 
 func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
-		functionSignature := fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args)
-		d.log.Debug("invoking function", "ai", "gemini", "function", functionSignature)
-		res, err := fx.Run(functionCall.Args, runner)
-		d.log.Debug("function result", "ai", "gemini", "function", functionSignature, "result", res, "error", err)
-		return res, err
+		return fx.Run(functionCall.Args, runner)
 	}
 	return nil, errors.New("function not found")
 }

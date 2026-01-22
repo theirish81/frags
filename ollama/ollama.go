@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -255,10 +254,7 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ToolDefinition, erro
 
 func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
-		d.log.Debug("invoking function", "ai", "ollama", "function", fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args))
-		res, err := fx.Run(functionCall.Args, runner)
-		d.log.Debug("function result", "ai", "ollama", "function", fmt.Sprintf("%s(%v)", functionCall.Name, functionCall.Args), "result", res, "error", err)
-		return res, err
+		return fx.Run(functionCall.Args, runner)
 	}
 	return nil, errors.New("function not found")
 
