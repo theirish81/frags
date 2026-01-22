@@ -10,14 +10,14 @@ require (
 	github.com/samber/lo v1.52.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.16.0
-	github.com/theirish81/frags/chatgpt v0.15.0
-	github.com/theirish81/frags/gemini v0.15.0
-	github.com/theirish81/frags/ollama v0.15.0
+	github.com/theirish81/frags v0.17.0
+	github.com/theirish81/frags/chatgpt v0.17.0
+	github.com/theirish81/frags/gemini v0.17.0
+	github.com/theirish81/frags/ollama v0.17.0
 	github.com/theirish81/fragsfunctions/fs v0.3.0
-	github.com/theirish81/fragsfunctions/http v0.3.0
+	github.com/theirish81/fragsfunctions/http v0.3.1
 	github.com/theirish81/fragsfunctions/postgres v0.3.0
-	google.golang.org/genai v1.41.0
+	google.golang.org/genai v1.43.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

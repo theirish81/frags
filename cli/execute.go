@@ -85,6 +85,6 @@ func execute(ctx context.Context, sm frags.SessionManager, paramsMap map[string]
 	)
 
 	// execute
-	return runner.Run(paramsMap)
+	return runner.Run(context.Background(), paramsMap)
 
 }
