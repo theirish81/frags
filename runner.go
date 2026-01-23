@@ -592,7 +592,7 @@ func (r *Runner[T]) runSessionWorker(index int) {
 			r.SetStatus(t.id, runningSessionStatus)
 			if err := r.runSession(ctx, t.id, t.session); err != nil {
 				success = false
-				r.logger.Err(NewEvent(ErrorEventType, WorkerComponent).WithIteration(index).WithSession(t.id))
+				r.logger.Err(NewEvent(ErrorEventType, WorkerComponent).WithIteration(index).WithSession(t.id).WithErr(err))
 			}
 		}()
 	}

@@ -18,6 +18,7 @@
 package frags
 
 import (
+	"encoding/json"
 	"log/slog"
 	"reflect"
 	"slices"
@@ -55,7 +56,7 @@ const InfoChannelLevel ChannelLevel = "info"
 type Event struct {
 	Level       string         `json:"level"`
 	Component   EventComponent `json:"component"`
-	ID          string         `json:"name"`
+	ID          string         `json:"id"`
 	Type        EventType      `json:"type"`
 	Time        time.Time      `json:"time"`
 	Message     string         `json:"message,omitempty"`
@@ -67,8 +68,20 @@ type Event struct {
 	Function    *string        `json:"function,omitempty"`
 	Transformer *string        `json:"transformer,omitempty"`
 	Engine      *string        `json:"engine,omitempty"`
-	Err         *error         `json:"error,omitempty"`
+	Err         *EventError    `json:"error,omitempty"`
 	Args        map[string]any `json:"args,omitempty"`
+}
+
+type EventError struct {
+	Message string
+}
+
+func (e EventError) Error() string {
+	return e.Message
+}
+
+func (e EventError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(e.Message)
 }
 
 func NewEvent(eType EventType, component EventComponent) Event {
@@ -106,7 +119,7 @@ func (e Event) WithIteration(iteration int) Event {
 }
 
 func (e Event) WithErr(err error) Event {
-	e.Err = &err
+	e.Err = &EventError{Message: err.Error()}
 	return e
 }
 
