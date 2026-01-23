@@ -62,7 +62,7 @@ func (f Function) Run(args map[string]any, runner ExportableRunner) (any, error)
 	if err != nil {
 		return nil, err
 	}
-	runner.Logger().Debug(NewEvent(EndEventType, FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, args)).WithContent(ax))
+	runner.Logger().Debug(NewEvent(EndEventType, FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)).WithContent(out))
 	return out, nil
 }
 
