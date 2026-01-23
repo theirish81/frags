@@ -20,6 +20,7 @@ package frags
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"regexp"
@@ -34,7 +35,7 @@ type ExportableRunner interface {
 	Transformers() *Transformers
 	RunFunction(name string, args map[string]any) (any, error)
 	ScriptEngine() ScriptEngine
-	Logger() *slog.Logger
+	Logger() *StreamerLogger
 }
 
 // Runner is a struct that runs a session manager.
@@ -51,8 +52,7 @@ type Runner[T any] struct {
 	sessionWorkers  int
 	wg              sync.WaitGroup
 	running         bool
-	logger          *slog.Logger
-	progressChannel chan ProgressMessage
+	logger          *StreamerLogger
 	scriptEngine    ScriptEngine
 	kFormat         bool
 	vars            Vars
@@ -80,18 +80,17 @@ type sessionTask struct {
 
 // RunnerOptions are options for the runner.
 type RunnerOptions struct {
-	sessionWorkers  int
-	logger          *slog.Logger
-	progressChannel chan ProgressMessage
-	kFormat         bool
-	scriptEngine    ScriptEngine
+	sessionWorkers int
+	logger         *StreamerLogger
+	kFormat        bool
+	scriptEngine   ScriptEngine
 }
 
 // RunnerOption is an option for the runner.
 type RunnerOption func(*RunnerOptions)
 
 // WithLogger sets the logger for the runner.
-func WithLogger(logger *slog.Logger) RunnerOption {
+func WithLogger(logger *StreamerLogger) RunnerOption {
 	return func(o *RunnerOptions) {
 		o.logger = logger
 	}
@@ -101,13 +100,6 @@ func WithLogger(logger *slog.Logger) RunnerOption {
 func WithSessionWorkers(sessionWorkers int) RunnerOption {
 	return func(o *RunnerOptions) {
 		o.sessionWorkers = sessionWorkers
-	}
-}
-
-// WithProgressChannel sets the progress channel for the runner.
-func WithProgressChannel(progressChannel chan ProgressMessage) RunnerOption {
-	return func(o *RunnerOptions) {
-		o.progressChannel = progressChannel
 	}
 }
 
@@ -126,9 +118,9 @@ func WithScriptEngine(scriptEngine ScriptEngine) RunnerOption {
 func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoader, ai Ai, options ...RunnerOption) Runner[T] {
 	opts := RunnerOptions{
 		sessionWorkers: 1,
-		logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		logger: NewStreamerLogger(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
-		})),
+		})), nil, DebugChannelLevel),
 	}
 	for _, opt := range options {
 		opt(&opts)
@@ -146,7 +138,6 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader ResourceLoad
 		statusMutex:     sync.Mutex{},
 		sessionWorkers:  opts.sessionWorkers,
 		logger:          opts.logger,
-		progressChannel: opts.progressChannel,
 		kFormat:         opts.kFormat,
 		scriptEngine:    opts.scriptEngine,
 		vars:            make(Vars),
@@ -202,7 +193,7 @@ func (r *Runner[T]) Run(ctx context.Context, params any) (*T, error) {
 
 	// start all workers
 	for i := 0; i < r.sessionWorkers; i++ {
-		r.logger.Debug("starting session worker", "index", i)
+		r.logger.Debug(NewEvent(StartEventType, WorkerComponent).WithIteration(i))
 		go r.runSessionWorker(i)
 	}
 
@@ -226,7 +217,7 @@ func (r *Runner[T]) Run(ctx context.Context, params any) (*T, error) {
 	for !r.IsCompleted() {
 		// if the scan fails, we return the error and stop scanning. This will end the program
 		if err := r.scanSessions(); err != nil {
-			r.logger.Error("failed to scan sessions", "err", err)
+			r.logger.Err(NewEvent(ErrorEventType, RunnerComponent).WithMessage("failed to scan sessions").WithErr(err))
 			return r.dataStructure, err
 		}
 	}
@@ -266,7 +257,7 @@ func (r *Runner[T]) scanSessions() error {
 		// our parallelism has a layered approach. Every run of scanSessions is a layer, and we will wait for the whole
 		// layer to complete before moving on to the next layer.
 		r.wg.Add(1)
-		r.logger.Debug("sending message to workers for session", "session", k)
+		r.logger.Debug(NewEvent(GenericEventType, RunnerComponent).WithMessage("sending message to workers for session").WithSession(k))
 		timeout := parseDurationOrDefault(s.Timeout, 10*time.Minute)
 		r.SetStatus(k, committedSessionStatus)
 		// sending the message to the workers. If all workers are busy, we'll hang here for a while, until a worker
@@ -295,7 +286,7 @@ func (r *Runner[T]) runSession(ctx context.Context, sessionID string, session Se
 	localVars.Apply(session.Vars)
 
 	// load all the referenced resources
-	resources, err := r.loadSessionResources(session)
+	resources, err := r.loadSessionResources(sessionID, session)
 	if err != nil {
 		return err
 	}
@@ -381,31 +372,31 @@ func (r *Runner[T]) runPrePrompts(ctx context.Context, ai Ai, sessionID string, 
 	if !session.HasPrompt() {
 		return errors.New("runPrePrompts called on a session without a prompt")
 	}
+	r.logger.Info(NewEvent(StartEventType, PrePromptComponent).WithSession(sessionID).WithIteration(iteratorIdx))
 	// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 	// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 	// the context of the session.
 	prePrompts, err := session.RenderPrePrompts(scope)
 	if err != nil {
-		r.sendProgress(progressActionError, sessionID, -1, iteratorIdx, err)
+		r.logger.Info(NewEvent(ErrorEventType, PrePromptComponent).WithMessage("failed to render pre-prompt").WithErr(err).WithSession(sessionID).WithIteration(iteratorIdx))
 		return err
 	}
 	// the FIRST prePrompt carries all the contextualization payload, so we add whatever needs to go here.
 	prePrompt, err := r.contextualizePrompt(ctx, prePrompts[0], session, scope)
 	if err != nil {
-		r.sendProgress(progressActionError, sessionID, -1, iteratorIdx, err)
+		r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).WithMessage("failed to contextualize pre-prompt").WithErr(err).WithSession(sessionID).WithIteration(iteratorIdx))
 		return err
 	}
-	r.sendProgress(progressActionStart, sessionID, -1, iteratorIdx, nil)
 
 	// finally we ask the AI for the FIRST prePrompt's response. Notice that the prePrompt is getting the tools.
 	if err = Retry(ctx, session.Attempts, func() error {
 		_, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, resources...)
 		if err != nil {
-			r.sendProgress(progressActionError, sessionID, -1, iteratorIdx, err)
+			r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).WithMessage("error asking pre-prompt").WithSession(sessionID).WithErr(err).WithIteration(iteratorIdx))
 		}
 		return err
 	}); err != nil {
-		r.sendProgress(progressActionError, sessionID, -1, iteratorIdx, err)
+		r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).WithMessage("error asking pre-prompt").WithSession(sessionID).WithErr(err).WithIteration(iteratorIdx))
 		return err
 	}
 
@@ -414,15 +405,15 @@ func (r *Runner[T]) runPrePrompts(ctx context.Context, ai Ai, sessionID string, 
 		if err = Retry(ctx, session.Attempts, func() error {
 			_, err := ai.Ask(ctx, pp, nil, session.Tools, r, resources...)
 			if err != nil {
-				r.sendProgress(progressActionError, sessionID, -1, iteratorIdx, err)
+				r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).WithMessage("error asking pre-prompt").WithSession(sessionID).WithErr(err).WithIteration(iteratorIdx))
 			}
 			return err
 		}); err != nil {
-			r.sendProgress(progressActionError, sessionID, -1, iteratorIdx, err)
+			r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).WithMessage("error asking pre-prompt").WithSession(sessionID).WithErr(err).WithIteration(iteratorIdx))
 			return err
 		}
 	}
-	r.sendProgress(progressActionEnd, sessionID, -1, iteratorIdx, nil)
+	r.logger.Info(NewEvent(EndEventType, PrePromptComponent).WithSession(sessionID).WithIteration(iteratorIdx))
 	return nil
 }
 
@@ -438,22 +429,22 @@ func (r *Runner[T]) runPrompt(ctx context.Context, ai Ai, sessionID string, sess
 	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
 		// ...we retry the prompt a number of times, depending on the session's attempts.
 		err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
-			r.sendProgress(progressActionStart, sessionID, phaseIndex, iteratorIdx, nil)
+			r.logger.Info(NewEvent(StartEventType, PromptComponent).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 			deadline, ok := ctx.Deadline()
 			if ok && time.Now().After(deadline) {
-				r.sendProgress(progressActionError, sessionID, phaseIndex, iteratorIdx, ctx.Err())
+				r.logger.Info(NewEvent(ErrorEventType, PromptComponent).WithMessage("context deadline exceeded").WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 				return ctx.Err()
 			}
 			phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
 			if err != nil {
-				r.sendProgress(progressActionError, sessionID, phaseIndex, iteratorIdx, err)
+				r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("failed to get phase schema").WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 				return err
 			}
 			var data []byte
 			if idx == 0 {
 				prompt, err := session.RenderPrompt(scope)
 				if err != nil {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, iteratorIdx, err)
+					r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("failed to render prompt").WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 					return err
 				}
 				// as this is the first phase, and there was no prePrompt, we contextualize the prompt with Frags
@@ -461,7 +452,7 @@ func (r *Runner[T]) runPrompt(ctx context.Context, ai Ai, sessionID string, sess
 				if !session.HasPrePrompt() {
 					prompt, err = r.contextualizePrompt(ctx, prompt, session, scope)
 					if err != nil {
-						r.sendProgress(progressActionError, sessionID, phaseIndex, iteratorIdx, err)
+						r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("failed to contextualize prompt").WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 						return err
 					}
 				}
@@ -469,7 +460,7 @@ func (r *Runner[T]) runPrompt(ctx context.Context, ai Ai, sessionID string, sess
 				// to use tools.
 				data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r, resources...)
 				if err != nil {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, iteratorIdx, err)
+					r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("error asking prompt").WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 					return err
 				}
 				// we reset localResources because they've already been introduced in the context by this prompt and
@@ -479,22 +470,22 @@ func (r *Runner[T]) runPrompt(ctx context.Context, ai Ai, sessionID string, sess
 				// subsequent phases. All context data has been already loaded, we can live peacefully.
 				prompt, err := session.RenderNextPhasePrompt(scope)
 				if err != nil {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, iteratorIdx, err)
+					r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("failed to render prompt").WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 					return err
 				}
 				data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r)
 				if err != nil {
-					r.sendProgress(progressActionError, sessionID, phaseIndex, iteratorIdx, err)
+					r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("error asking prompt").WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 					return err
 				}
 			}
 			// regardless of the phase, data is returned and is ideally structured. We can now unmarshal it to
 			// the runner data structure.
 			if err := r.safeUnmarshalDataStructure(data); err != nil {
-				r.sendProgress(progressActionError, sessionID, phaseIndex, iteratorIdx, err)
+				r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("failed to unmarshal data").WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 				return err
 			}
-			r.sendProgress(progressActionEnd, sessionID, phaseIndex, iteratorIdx, nil)
+			r.logger.Info(NewEvent(EndEventType, PromptComponent).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 			return nil
 		})
 		if err != nil {
@@ -505,7 +496,7 @@ func (r *Runner[T]) runPrompt(ctx context.Context, ai Ai, sessionID string, sess
 }
 
 // loadSessionResources loads resources for a session.
-func (r *Runner[T]) loadSessionResources(session Session) (ResourceDataItems, error) {
+func (r *Runner[T]) loadSessionResources(sessionID string, session Session) (ResourceDataItems, error) {
 	resources := make(ResourceDataItems, 0)
 	for _, resource := range session.Resources {
 		// the resource identifier can be a template, so we evaluate it here
@@ -513,7 +504,7 @@ func (r *Runner[T]) loadSessionResources(session Session) (ResourceDataItems, er
 		if err != nil {
 			return resources, err
 		}
-		r.logger.Debug("loading resource", "identifier", identifier)
+		r.logger.Debug(NewEvent(LoadEventType, RunnerComponent).WithResource(identifier).WithSession(sessionID))
 		resourceData, err := r.resourceLoader.LoadResource(identifier, resource.Params)
 		if err != nil {
 			return resources, err
@@ -570,8 +561,9 @@ func (r *Runner[T]) resourcesDataToVars(resources ResourceDataItems) map[string]
 // runSessionWorker runs a session worker.
 func (r *Runner[T]) runSessionWorker(index int) {
 	for t := range r.sessionChan {
-		r.logger.Debug("worker consuming message", "workerID", index, "sessionID", t.id)
+		r.logger.Info(NewEvent(StartEventType, SessionComponent).WithSession(t.id))
 		func() {
+
 			success := true
 			// we will create a context for each session, so we can cancel it if it takes too long
 			ctx := context.Background()
@@ -584,7 +576,7 @@ func (r *Runner[T]) runSessionWorker(index int) {
 			// 3. the worker is removed from the wait group.
 			defer func() {
 				if err := recover(); err != nil {
-					r.logger.Error("worker panicked", "workerID", index, "sessionID", t.id, "err", err)
+					r.logger.Err(NewEvent(ErrorEventType, WorkerComponent).WithMessage("worker panicked").WithIteration(index).WithSession(t.id))
 					success = false
 				}
 				cancel()
@@ -593,13 +585,14 @@ func (r *Runner[T]) runSessionWorker(index int) {
 				} else {
 					r.SetStatus(t.id, failedSessionStatus)
 				}
-				r.logger.Debug("worker finished consuming message", "workerID", index, "sessionID", t.id)
+				r.logger.Info(NewEvent(EndEventType, SessionComponent).WithSession(t.id))
 				r.wg.Done()
+
 			}()
 			r.SetStatus(t.id, runningSessionStatus)
 			if err := r.runSession(ctx, t.id, t.session); err != nil {
 				success = false
-				r.logger.Error("worker failed at running session", "workerID", index, "sessionID", t.id, "err", err)
+				r.logger.Err(NewEvent(ErrorEventType, WorkerComponent).WithIteration(index).WithSession(t.id))
 			}
 		}()
 	}
@@ -626,7 +619,7 @@ func (r *Runner[T]) RunFunction(name string, args map[string]any) (any, error) {
 	return r.ai.RunFunction(FunctionCall{Name: name, Args: args}, r)
 }
 
-func (r *Runner[T]) Logger() *slog.Logger {
+func (r *Runner[T]) Logger() *StreamerLogger {
 	return r.logger
 }
 
@@ -639,7 +632,7 @@ func (r *Runner[T]) Transformers() *Transformers {
 
 func (r *Runner[T]) ScriptEngine() ScriptEngine {
 	if r.scriptEngine == nil {
-		r.logger.Warn("no script engine provided, using dummy engine")
+		r.logger.Warn(NewEvent(GenericEventType, RunnerComponent).WithMessage(fmt.Sprintf("no script engine provided, using dummy engine")))
 		return &DummyScriptEngine{}
 	}
 	return r.scriptEngine

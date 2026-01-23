@@ -79,7 +79,7 @@ func (t Transformers) FilterOnResource(name string) Transformers {
 
 // Transform applies the transformation to the given data
 func (t Transformer) Transform(data any, runner ExportableRunner) (any, error) {
-	runner.Logger().Debug("running transformer", "transformer", t.Name)
+	runner.Logger().Debug(NewEvent(StartEventType, TransformerComponent).WithTransformer(t.Name))
 	// If a parser is configured, then we try to parse whatever is in data as a JSON or as a CSV. If we fail, then
 	// we're done and we bail out
 	if t.Parser != nil {
