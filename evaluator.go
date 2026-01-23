@@ -158,11 +158,19 @@ func EvaluateMapValues(args map[string]any, scope EvalScope) (map[string]any, er
 	out := make(map[string]any)
 	for k, v := range args {
 		if s, ok := v.(string); ok {
-			res, err := EvaluateTemplate(s, scope)
-			if err != nil {
-				return nil, err
+			if ref, ok := ExtractVarRef(s); ok {
+				res, err := EvaluateExpression(ref, scope)
+				if err != nil {
+					return nil, err
+				}
+				out[k] = res
+			} else {
+				res, err := EvaluateTemplate(s, scope)
+				if err != nil {
+					return nil, err
+				}
+				out[k] = res
 			}
-			out[k] = res
 		} else {
 			out[k] = v
 		}
@@ -232,4 +240,39 @@ func exprFunctions() []expr.Option {
 				return EvaluateTemplate(params[0].(string), params[1].(map[string]any))
 			}, new(func(string, EvalScope) (string, error))),
 	}
+}
+
+func ExtractVarRef(s string) (string, bool) {
+	if !strings.HasPrefix(s, "$(") || !strings.HasSuffix(s, ")") {
+		return "", false
+	}
+
+	if len(s) < 3 {
+		return "", false
+	}
+
+	depth := 1
+	i := 2
+
+	for i < len(s)-1 {
+		if s[i] == '\\' && i+1 < len(s) {
+			i += 2
+			continue
+		}
+
+		if s[i] == '(' {
+			depth++
+		} else if s[i] == ')' {
+			depth--
+			if depth == 0 {
+				return "", false
+			}
+		}
+		i++
+	}
+	if depth == 1 && s[len(s)-1] == ')' {
+		return s[2 : len(s)-1], true
+	}
+
+	return "", false
 }
