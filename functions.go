@@ -52,7 +52,7 @@ func (f Function) Run(args map[string]any, runner ExportableRunner) (any, error)
 	if !isMapAny(ax) {
 		return nil, fmt.Errorf("expected map[string]any, got %T", ax)
 	}
-	runner.Logger().Debug("invoking function", "function", fmt.Sprintf("%s(%v)", f.Name, ax))
+	runner.Logger().Debug(NewEvent(StartEventType, FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)))
 	ax, err = f.Func(ax.(map[string]any))
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func (f Function) Run(args map[string]any, runner ExportableRunner) (any, error)
 	if err != nil {
 		return nil, err
 	}
-	runner.Logger().Debug("function result", "function", fmt.Sprintf("%s(%v)", f.Name, args), "result", ax)
+	runner.Logger().Debug(NewEvent(EndEventType, FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)).WithContent(out))
 	return out, nil
 }
 
