@@ -29,7 +29,7 @@ func NewJavascriptScriptingEngine() *JavascriptScriptingEngine {
 	return &JavascriptScriptingEngine{}
 }
 
-func (e *JavascriptScriptingEngine) RunCode(code string, params any, runner frags.ExportableRunner) (any, error) {
+func (e *JavascriptScriptingEngine) RunCode(ctx *frags.FragsContext, code string, params any, runner frags.ExportableRunner) (any, error) {
 	vm := goja.New()
 	var args any
 	switch t := params.(type) {
@@ -42,7 +42,7 @@ func (e *JavascriptScriptingEngine) RunCode(code string, params any, runner frag
 		return nil, err
 	}
 	if err := vm.Set("runFunction", func(name string, args map[string]any) any {
-		res, _ := runner.RunFunction(name, args)
+		res, _ := runner.RunFunction(ctx, name, args)
 		return res
 	}); err != nil {
 		return nil, err
