@@ -78,8 +78,11 @@ func (t Transformers) FilterOnResource(name string) Transformers {
 }
 
 // Transform applies the transformation to the given data
-func (t Transformer) Transform(data any, runner ExportableRunner) (any, error) {
+func (t Transformer) Transform(ctx *FragsContext, data any, runner ExportableRunner) (any, error) {
 	runner.Logger().Debug(NewEvent(StartEventType, TransformerComponent).WithTransformer(t.Name))
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	// If a parser is configured, then we try to parse whatever is in data as a JSON or as a CSV. If we fail, then
 	// we're done and we bail out
 	if t.Parser != nil {
@@ -125,7 +128,7 @@ func (t Transformer) Transform(data any, runner ExportableRunner) (any, error) {
 	}
 	if t.Code != nil {
 		var err error
-		if data, err = runner.ScriptEngine().RunCode(*t.Code, data, runner); err != nil {
+		if data, err = runner.ScriptEngine().RunCode(ctx, *t.Code, data, runner); err != nil {
 			return emptyMap, err
 		}
 	}
@@ -133,11 +136,11 @@ func (t Transformer) Transform(data any, runner ExportableRunner) (any, error) {
 }
 
 // Transform applies all the transformations to the given data
-func (t Transformers) Transform(data any, runner ExportableRunner) (any, error) {
+func (t Transformers) Transform(ctx *FragsContext, data any, runner ExportableRunner) (any, error) {
 	tmp := data
 	var err error
 	for _, tx := range t {
-		tmp, err = tx.Transform(tmp, runner)
+		tmp, err = tx.Transform(ctx, tmp, runner)
 		if err != nil {
 			return tmp, err
 		}

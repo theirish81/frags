@@ -107,3 +107,27 @@ func SetInContext(context any, varName string, value any) error {
 
 	return nil
 }
+
+type FragsContext struct {
+	context.Context
+	cancel context.CancelFunc
+}
+
+func NewFragsContext(timeout time.Duration) *FragsContext {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	return &FragsContext{ctx, cancel}
+}
+
+func WithFragsContext(ctx context.Context, timeout time.Duration) *FragsContext {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	return &FragsContext{ctx, cancel}
+}
+
+func (f *FragsContext) Cancel() {
+	f.cancel()
+}
+
+func (f *FragsContext) Child(timeout time.Duration) *FragsContext {
+	ctx, cancel := context.WithTimeout(f, timeout)
+	return &FragsContext{ctx, cancel}
+}

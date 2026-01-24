@@ -18,11 +18,10 @@
 package frags
 
 import (
-	"context"
 	"fmt"
 	"maps"
-	"time"
 
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 )
 
@@ -32,11 +31,11 @@ import (
 // Description is the function description
 // Schema is the input schema for the function.
 type Function struct {
-	Func        func(data map[string]any) (any, error) `yaml:"-"`
-	Name        string                                 `yaml:"name"`
-	Collection  string                                 `yaml:"collection"`
-	Description string                                 `yaml:"description"`
-	Schema      *Schema                                `yaml:"schema"`
+	Func        func(ctx *FragsContext, data map[string]any) (any, error) `yaml:"-"`
+	Name        string                                                    `yaml:"name"`
+	Collection  string                                                    `yaml:"collection"`
+	Description string                                                    `yaml:"description"`
+	Schema      *Schema                                                   `yaml:"schema"`
 }
 
 func (f Function) String() string {
@@ -44,8 +43,8 @@ func (f Function) String() string {
 }
 
 // Run runs the function, applying any transformers defined in the runner.
-func (f Function) Run(args map[string]any, runner ExportableRunner) (any, error) {
-	ax, err := runner.Transformers().FilterOnFunctionInput(f.Name).Transform(maps.Clone(args), runner)
+func (f Function) Run(ctx *FragsContext, args map[string]any, runner ExportableRunner) (any, error) {
+	ax, err := runner.Transformers().FilterOnFunctionInput(f.Name).Transform(ctx, maps.Clone(args), runner)
 	if err != nil {
 		return nil, err
 	}
@@ -53,12 +52,12 @@ func (f Function) Run(args map[string]any, runner ExportableRunner) (any, error)
 		return nil, fmt.Errorf("expected map[string]any, got %T", ax)
 	}
 	runner.Logger().Debug(NewEvent(StartEventType, FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)))
-	ax, err = f.Func(ax.(map[string]any))
+	ax, err = f.Func(ctx, ax.(map[string]any))
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(ax, runner)
+	out, err := runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(ctx, ax, runner)
 	if err != nil {
 		return nil, err
 	}
@@ -142,10 +141,13 @@ func (f FunctionCalls) FilterContextFunctionCalls() FunctionCalls {
 }
 
 // RunAllFunctionCalls runs all the function calls in the given collection.
-func (r *Runner[T]) RunAllFunctionCalls(ctx context.Context, fc FunctionCalls, scope EvalScope) (map[string]any, error) {
+func (r *Runner[T]) RunAllFunctionCalls(ctx *FragsContext, fc FunctionCalls, scope EvalScope) (map[string]any, error) {
 	vx := make(map[string]any)
 	for _, c := range fc {
-		varName := c.Name
+		if ctx.Err() != nil {
+			return vx, ctx.Err()
+		}
+		varName := c.Name + "_" + uuid.NewString()
 		if c.Var != nil {
 			varName = *c.Var
 		}
@@ -160,12 +162,11 @@ func (r *Runner[T]) RunAllFunctionCalls(ctx context.Context, fc FunctionCalls, s
 }
 
 // runFunctionCall runs a FunctionCall object, evaluating the arguments if needed.
-func (r *Runner[T]) runFunctionCall(ctx context.Context, fc FunctionCall, scope EvalScope) (any, error) {
-	clonedFc := fc
-	deadline, ok := ctx.Deadline()
-	if ok && time.Now().After(deadline) {
+func (r *Runner[T]) runFunctionCall(ctx *FragsContext, fc FunctionCall, scope EvalScope) (any, error) {
+	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
+	clonedFc := fc
 	var err error
 	clonedFc.Args, err = EvaluateMapValues(clonedFc.Args, scope)
 	if err != nil {
@@ -174,15 +175,15 @@ func (r *Runner[T]) runFunctionCall(ctx context.Context, fc FunctionCall, scope 
 	if fc.Func != nil {
 		return fc.Func(clonedFc.Args)
 	} else if fc.Code != nil {
-		return r.ScriptEngine().RunCode(*clonedFc.Code, clonedFc.Args, r)
+		return r.ScriptEngine().RunCode(ctx, *clonedFc.Code, clonedFc.Args, r)
 	} else {
-		return r.ai.RunFunction(clonedFc, r)
+		return r.ai.RunFunction(ctx, clonedFc, r)
 	}
 }
 
 // RunSessionAiPreCallsToTextContext runs the pre-call functions and composes a textual context to be prepended to the
 // actual prompt.
-func (r *Runner[T]) RunSessionAiPreCallsToTextContext(ctx context.Context, session Session, scope EvalScope) (string, error) {
+func (r *Runner[T]) RunSessionAiPreCallsToTextContext(ctx *FragsContext, session Session, scope EvalScope) (string, error) {
 	preCallsText := ""
 	if session.PreCalls != nil {
 		for _, c := range session.PreCalls.FilterAiFunctionCalls() {

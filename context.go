@@ -18,14 +18,13 @@
 package frags
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 )
 
 // contextualizePrompt adds the current context to the prompt. This includes the already extracted context, if enabled,
 // and optional pre-calls which will be called in this function.
-func (r *Runner[T]) contextualizePrompt(ctx context.Context, prompt string, session Session, scope EvalScope) (string, error) {
+func (r *Runner[T]) contextualizePrompt(ctx *FragsContext, prompt string, session Session, scope EvalScope) (string, error) {
 	// we run the pre-calls first, so that they can be used in the prompt
 	preCallsContext, err := r.RunSessionAiPreCallsToTextContext(ctx, session, scope)
 	if err != nil {
