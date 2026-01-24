@@ -18,17 +18,16 @@
 package chatgpt
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 
 	"github.com/theirish81/frags"
 )
 
 const defaultModel = "gpt-5"
+const engine = "chatgpt"
 
 type Ai struct {
 	apiKey       string
@@ -38,7 +37,6 @@ type Ai struct {
 	config       Config
 	content      Messages
 	Functions    frags.Functions
-	log          *slog.Logger
 	files        map[string]string
 }
 type Config struct {
@@ -55,7 +53,7 @@ func (d *Ai) SetSystemPrompt(prompt string) {
 	d.systemPrompt = prompt
 }
 
-func NewAI(baseURL string, apiKey string, config Config, log *slog.Logger) *Ai {
+func NewAI(baseURL string, apiKey string, config Config) *Ai {
 	return &Ai{
 		apiKey:     apiKey,
 		baseURL:    baseURL,
@@ -63,7 +61,6 @@ func NewAI(baseURL string, apiKey string, config Config, log *slog.Logger) *Ai {
 		content:    make([]Message, 0),
 		Functions:  frags.Functions{},
 		files:      make(map[string]string),
-		log:        log,
 		httpClient: NewHttpClient(baseURL, apiKey),
 	}
 }
@@ -79,17 +76,17 @@ func (d *Ai) New() frags.Ai {
 		config:       d.config,
 		systemPrompt: d.systemPrompt,
 		files:        d.files,
-		log:          d.log,
 	}
 }
 
-func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.ToolDefinitions,
+func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, tools frags.ToolDefinitions,
 	runner frags.ExportableRunner, resources ...frags.ResourceData) ([]byte, error) {
 
 	chatGptTools, err := d.configureTools(tools)
 	if err != nil {
 		return nil, err
 	}
+	runner.Logger().Debug(frags.NewEvent(frags.GenericEventType, frags.AiComponent).WithEngine(engine).WithMessage("configured tools").WithContent(tools))
 	msg := NewUserMessage(text)
 	for _, r := range resources {
 		switch r.MediaType {
@@ -114,7 +111,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	keepGoing := true
 	out := ""
 	for keepGoing {
-		d.log.Debug("generating content", "ai", "chatgpt", "message", d.content[len(d.content)-1])
+		runner.Logger().Debug(frags.NewEvent(frags.StartEventType, frags.AiComponent).WithMessage("generating content").WithContent(d.content[len(d.content)-1]).WithEngine(engine))
 		req := NewResponseRequest(d.config.Model, d.content, d.systemPrompt, chatGptTools, schema)
 
 		response, err := d.httpClient.PostResponses(ctx, req)
@@ -123,12 +120,12 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 		}
 		d.content = append(d.content, response.Output.Last())
 		if response.HasFunctionCalls() {
-			if err := d.handleFunctionCalls(response, runner); err != nil {
+			if err := d.handleFunctionCalls(ctx, response, runner); err != nil {
 				return nil, err
 			}
 		} else {
 			content := response.Output.Last().Content
-			d.log.Debug("generated response", "ai", "chatgpt", "response", content)
+			runner.Logger().Debug(frags.NewEvent(frags.EndEventType, frags.AiComponent).WithMessage("generated content").WithContent(content).WithEngine(engine))
 			out = content.First().Text
 			keepGoing = false
 		}
@@ -184,9 +181,9 @@ func (d *Ai) SetFunctions(functions frags.Functions) {
 	d.Functions = functions
 }
 
-func (d *Ai) handleFunctionCalls(responseMessage Response, runner frags.ExportableRunner) error {
+func (d *Ai) handleFunctionCalls(ctx *frags.FragsContext, responseMessage Response, runner frags.ExportableRunner) error {
 	for _, fc := range responseMessage.FunctionCalls() {
-		res, err := d.RunFunction(frags.FunctionCall{Name: fc.Name, Args: fc.Arguments.GetMap()}, runner)
+		res, err := d.RunFunction(ctx, frags.FunctionCall{Name: fc.Name, Args: fc.Arguments.GetMap()}, runner)
 		if err != nil {
 			return err
 		}
@@ -203,9 +200,9 @@ func (d *Ai) handleFunctionCalls(responseMessage Response, runner frags.Exportab
 	return nil
 }
 
-func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
+func (d *Ai) RunFunction(ctx *frags.FragsContext, functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
-		return fx.Run(functionCall.Args, runner)
+		return fx.Run(ctx, functionCall.Args, runner)
 	}
 	return nil, errors.New("function not found")
 }
