@@ -18,17 +18,16 @@
 package frags
 
 import (
-	"context"
 	"encoding/json"
 	"time"
 )
 
 // Ai is an interface for AI models.
 type Ai interface {
-	Ask(ctx context.Context, text string, schema *Schema, tools ToolDefinitions, runner ExportableRunner, resources ...ResourceData) ([]byte, error)
+	Ask(ctx *FragsContext, text string, schema *Schema, tools ToolDefinitions, runner ExportableRunner, resources ...ResourceData) ([]byte, error)
 	New() Ai
 	SetFunctions(functions Functions)
-	RunFunction(functionCall FunctionCall, runner ExportableRunner) (any, error)
+	RunFunction(ctx *FragsContext, functionCall FunctionCall, runner ExportableRunner) (any, error)
 	SetSystemPrompt(systemPrompt string)
 }
 
@@ -45,7 +44,7 @@ type DummyAi struct {
 }
 
 // Ask returns a dummy response for testing purposes.
-func (d *DummyAi) Ask(_ context.Context, text string, schema *Schema, _ ToolDefinitions, _ ExportableRunner, resources ...ResourceData) ([]byte, error) {
+func (d *DummyAi) Ask(_ *FragsContext, text string, schema *Schema, _ ToolDefinitions, _ ExportableRunner, resources ...ResourceData) ([]byte, error) {
 	d.History = append(d.History, dummyHistoryItem{Text: text, Schema: schema, Resources: resources})
 	out := map[string]string{}
 	for k, _ := range schema.Properties {
@@ -57,7 +56,7 @@ func (d *DummyAi) Ask(_ context.Context, text string, schema *Schema, _ ToolDefi
 
 func (d *DummyAi) SetFunctions(_ Functions) {}
 func (d *DummyAi) SetSystemPrompt(_ string) {}
-func (d *DummyAi) RunFunction(_ FunctionCall, _ ExportableRunner) (any, error) {
+func (d *DummyAi) RunFunction(_ *FragsContext, _ FunctionCall, _ ExportableRunner) (any, error) {
 	return nil, nil
 }
 

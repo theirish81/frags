@@ -20,11 +20,11 @@ package frags
 // ScriptEngine is the interface that wraps the RunCode method. Frags provides NO script engines, it's the program
 // that includes Frags that provides one, if necessary. Beware though, most script engines pose a security risk.
 type ScriptEngine interface {
-	RunCode(code string, params any, runner ExportableRunner) (any, error)
+	RunCode(ctx *FragsContext, code string, params any, runner ExportableRunner) (any, error)
 }
 
 type DummyScriptEngine struct{}
 
-func (d *DummyScriptEngine) RunCode(_ string, _ any, _ ExportableRunner) (any, error) {
+func (d *DummyScriptEngine) RunCode(_ *FragsContext, _ string, _ any, _ ExportableRunner) (any, error) {
 	return make(map[string]any), nil
 }

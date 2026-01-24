@@ -182,8 +182,8 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 			Description: t.Description,
 			Collection:  c.Name,
 			Schema:      t.InputSchema,
-			Func: func(data map[string]any) (any, error) {
-				return c.Run(context.Background(), t.Name, data)
+			Func: func(ctx *FragsContext, data map[string]any) (any, error) {
+				return c.Run(ctx, t.Name, data)
 			},
 		}
 	}
@@ -191,7 +191,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 }
 
 // Run runs a tool on the server
-func (c *McpTool) Run(ctx context.Context, name string, arguments any) (any, error) {
+func (c *McpTool) Run(ctx *FragsContext, name string, arguments any) (any, error) {
 	res, err := c.session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      name,
 		Arguments: arguments,

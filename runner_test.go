@@ -18,11 +18,11 @@
 package frags
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -41,7 +41,7 @@ func TestRunner_Run(t *testing.T) {
 	assert.Nil(t, err)
 	ai := NewDummyAi()
 	runner := NewRunner[T](mgr, NewDummyResourceLoader(), ai)
-	out, err := runner.Run(context.Background(), map[string]string{"animal": "dog", "animals": "giraffes"})
+	out, err := runner.Run(NewFragsContext(time.Minute), map[string]string{"animal": "dog", "animals": "giraffes"})
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, out.P1)
@@ -61,7 +61,7 @@ func TestRunner_RunDependenciesAndContext(t *testing.T) {
 	assert.Nil(t, err)
 	ai := NewDummyAi()
 	runner := NewRunner[map[string]string](mgr, NewDummyResourceLoader(), ai, WithSessionWorkers(3))
-	out, err := runner.Run(context.Background(), nil)
+	out, err := runner.Run(NewFragsContext(time.Minute), nil)
 	assert.Nil(t, err)
 	assert.Contains(t, (*out)["summary"], "CURRENT CONTEXT")
 	assert.Contains(t, (*out)["summary"], "animal1")
@@ -77,7 +77,7 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 	ai := NewDummyAi()
 	runner := NewRunner[map[string]string](mgr, NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
 	runner.dataStructure = &map[string]string{}
-	res, err := runner.loadSessionResources("s1", mgr.Sessions["s1"])
+	res, err := runner.loadSessionResources(NewFragsContext(time.Minute), "s1", mgr.Sessions["s1"])
 	assert.NoError(t, err)
 	assert.Equal(t, "stuff.csv", res[0].Identifier)
 	assert.Equal(t, MediaJson, res[0].MediaType)
@@ -118,7 +118,7 @@ func TestRunner_RunAllFunctionCalls(t *testing.T) {
 			Var:  StrPtr("f2"),
 		},
 	}
-	out, err := runner.RunAllFunctionCalls(context.Background(), fcs, runner.newEvalScope())
+	out, err := runner.RunAllFunctionCalls(NewFragsContext(time.Minute), fcs, runner.newEvalScope())
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]any{"f1": "val1", "f2": "val2 + val1"}, out)
 }
