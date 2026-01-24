@@ -18,8 +18,6 @@
 package main
 
 import (
-	"context"
-	"log/slog"
 	"os"
 	"strings"
 
@@ -28,8 +26,8 @@ import (
 )
 
 // execute executes the plan using the specified parameters
-func execute(ctx context.Context, sm frags.SessionManager, paramsMap map[string]any, toolConfig frags.ToolsConfig,
-	rl frags.ResourceLoader, log *slog.Logger) (*frags.ProgMap, error) {
+func execute(ctx *frags.FragsContext, sm frags.SessionManager, paramsMap map[string]any, toolConfig frags.ToolsConfig,
+	rl frags.ResourceLoader, log *frags.StreamerLogger) (*frags.ProgMap, error) {
 	// parameters can only be strings via CLI, so we tell the parameter validator to enable loose type checking,
 	// that is, if a string contains a number, it will be parsed as a number if the schema expects it
 	sm.Parameters.SetLooseType(true)
@@ -44,7 +42,7 @@ func execute(ctx context.Context, sm frags.SessionManager, paramsMap map[string]
 		sm.Vars, err = frags.EvaluateMapValues(sm.Vars, frags.NewEvalScope().WithVars(env))
 	}
 
-	ai, err := initAi(log)
+	ai, err := initAi()
 	if err != nil {
 		return nil, err
 	}
@@ -56,17 +54,7 @@ func execute(ctx context.Context, sm frags.SessionManager, paramsMap map[string]
 		_ = mcpTools.Close()
 	}()
 	ai.SetFunctions(functions)
-	log.Info("available functions", "functions", functions)
-	ch := make(chan frags.ProgressMessage, 10)
-	go func() {
-		for msg := range ch {
-			if msg.Error == nil {
-				log.Info(string(msg.Action), "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration)
-			} else {
-				log.Error(string(msg.Action), "session", msg.Session, "phase", msg.Phase, "iteration", msg.Iteration, "error", msg.Error)
-			}
-		}
-	}()
+	log.Info(frags.NewEvent(frags.GenericEventType, frags.RunnerComponent).WithMessage("available functions").WithArg("functions", functions.String()))
 
 	workers := cfg.ParallelWorkers
 	if workers <= 0 {
@@ -79,12 +67,10 @@ func execute(ctx context.Context, sm frags.SessionManager, paramsMap map[string]
 		ai,
 		frags.WithSessionWorkers(workers),
 		frags.WithLogger(log),
-		frags.WithProgressChannel(ch),
 		frags.WithUseKFormat(cfg.UseKFormat),
 		frags.WithScriptEngine(NewJavascriptScriptingEngine()),
 	)
-
 	// execute
-	return runner.Run(context.Background(), paramsMap)
+	return runner.Run(ctx, paramsMap)
 
 }

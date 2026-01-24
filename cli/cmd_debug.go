@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
@@ -35,7 +36,7 @@ var debugCmd = &cobra.Command{
 
 func initDebugEnv(ctx context.Context) (*frags.Runner[frags.ProgMap], error) {
 	var log = slog.Default()
-	ai, err := initAi(log)
+	ai, err := initAi()
 	toolsConfig, err := readToolsFile()
 	if err != nil {
 		return nil, err
@@ -49,7 +50,7 @@ func initDebugEnv(ctx context.Context) (*frags.Runner[frags.ProgMap], error) {
 	}()
 	ai.SetFunctions(functions)
 	runner := frags.NewRunner[frags.ProgMap](frags.NewSessionManager(), frags.NewFileResourceLoader("."), ai,
-		frags.WithLogger(log),
+		frags.WithLogger(frags.NewStreamerLogger(log, nil, frags.DebugChannelLevel)),
 		frags.WithScriptEngine(NewJavascriptScriptingEngine()),
 	)
 	return &runner, nil
@@ -99,7 +100,7 @@ var debugScriptCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		res, err := runner.ScriptEngine().RunCode(string(code), data, runner)
+		res, err := runner.ScriptEngine().RunCode(frags.WithFragsContext(cmd.Context(), 15*time.Minute), string(code), data, runner)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
@@ -138,7 +139,7 @@ var debugTransformerCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		res, err := transformer.Transform(data, runner)
+		res, err := transformer.Transform(frags.WithFragsContext(cmd.Context(), 15*time.Minute), data, runner)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

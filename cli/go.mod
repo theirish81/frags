@@ -10,13 +10,13 @@ require (
 	github.com/samber/lo v1.52.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.17.0
-	github.com/theirish81/frags/chatgpt v0.17.0
-	github.com/theirish81/frags/gemini v0.17.0
-	github.com/theirish81/frags/ollama v0.17.0
-	github.com/theirish81/fragsfunctions/fs v0.3.0
-	github.com/theirish81/fragsfunctions/http v0.3.1
-	github.com/theirish81/fragsfunctions/postgres v0.3.0
+	github.com/theirish81/frags v0.18.1
+	github.com/theirish81/frags/chatgpt v0.18.0
+	github.com/theirish81/frags/gemini v0.18.0
+	github.com/theirish81/frags/ollama v0.18.0
+	github.com/theirish81/fragsfunctions/fs v0.4.0
+	github.com/theirish81/fragsfunctions/http v0.4.0
+	github.com/theirish81/fragsfunctions/postgres v0.4.0
 	google.golang.org/genai v1.43.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -39,6 +39,7 @@ require (
 	github.com/google/jsonschema-go v0.3.0 // indirect
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -60,7 +61,7 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/theirish81/fragsfunctions v0.3.0 // indirect
+	github.com/theirish81/fragsfunctions v0.4.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect

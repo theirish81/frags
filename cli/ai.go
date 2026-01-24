@@ -20,7 +20,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"os"
 
 	"cloud.google.com/go/auth/credentials"
@@ -32,7 +31,7 @@ import (
 )
 
 // initAi initializes the AI engine based on the configuration.
-func initAi(log *slog.Logger) (frags.Ai, error) {
+func initAi() (frags.Ai, error) {
 	switch cfg.guessAi() {
 	case engineGemini:
 		client, err := newGeminiClient()
@@ -44,7 +43,7 @@ func initAi(log *slog.Logger) (frags.Ai, error) {
 			TopK:        cfg.TopK,
 			TopP:        cfg.TopP,
 			Model:       cfg.Model,
-		}, log), nil
+		}), nil
 	case engineOllama:
 		return ollama.NewAI(cfg.OllamaBaseURL, ollama.Config{
 			Temperature: cfg.Temperature,
@@ -52,11 +51,11 @@ func initAi(log *slog.Logger) (frags.Ai, error) {
 			TopP:        cfg.TopP,
 			Model:       cfg.Model,
 			NumPredict:  cfg.NumPredict,
-		}, log), nil
+		}), nil
 	case engineChatgpt:
 		return chatgpt.NewAI(cfg.ChatGptBaseURL, cfg.ChatGptApiKey, chatgpt.Config{
 			Model: cfg.Model,
-		}, log), nil
+		}), nil
 	default:
 		return nil, errors.New("no AI is fully configured. Check your .env file")
 	}

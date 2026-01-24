@@ -29,6 +29,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -127,6 +128,8 @@ safe environments.`,
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/execute", func(c echo.Context) error {
+			ctx := frags.WithFragsContext(c.Request().Context(), 15*time.Minute)
+			defer ctx.Cancel()
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
 				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
@@ -140,16 +143,30 @@ safe environments.`,
 			if req.Plan.SessionManager != nil {
 				sm = *req.Plan.SessionManager
 			}
-
 			loader, err := filesMapToResourceLoader(req.Resources)
 			if err != nil {
 				return err
 			}
-			result, err := execute(cmd.Context(), sm, req.Parameters, req.Tools, loader, log)
-			if err != nil {
-				return err
+			if c.QueryParam("streaming") == "true" {
+				level := frags.ChannelLevel(c.QueryParam("level"))
+				streamerLogger := frags.NewStreamerLogger(log, make(chan frags.Event, 100), level)
+				defer streamerLogger.Close()
+				streamer := NewStreamer(c, streamerLogger)
+				streamer.Start()
+				result, err := execute(ctx, sm, req.Parameters, req.Tools, loader, streamerLogger)
+				if err != nil {
+					return err
+				}
+				return streamer.Finish(frags.NewEvent(frags.ResultEventType, frags.RunnerComponent).WithContent(result))
+
+			} else {
+				streamerLogger := frags.NewStreamerLogger(slog.Default(), nil, frags.InfoChannelLevel)
+				result, err := execute(ctx, sm, req.Parameters, req.Tools, loader, streamerLogger)
+				if err != nil {
+					return err
+				}
+				return c.JSON(http.StatusOK, result)
 			}
-			return c.JSON(http.StatusOK, result)
 		})
 		if err := e.Start(fmt.Sprintf(":%d", port)); err != nil {
 			cmd.PrintErrln(err)
@@ -183,6 +200,8 @@ carefully and use this mode only in development or safe environments.`,
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/run/:file", func(c echo.Context) error {
+			ctx := frags.WithFragsContext(c.Request().Context(), 15*time.Minute)
+			defer ctx.Cancel()
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
 				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
@@ -207,11 +226,26 @@ carefully and use this mode only in development or safe environments.`,
 			if err != nil {
 				return err
 			}
-			result, err := execute(cmd.Context(), sm, req.Parameters, toolsConfig, loader, log)
-			if err != nil {
-				return err
+			if c.QueryParam("streaming") == "true" {
+				level := frags.ChannelLevel(c.QueryParam("level"))
+				streamerLogger := frags.NewStreamerLogger(log, make(chan frags.Event, 100), level)
+				defer streamerLogger.Close()
+				streamer := NewStreamer(c, streamerLogger)
+				streamer.Start()
+				result, err := execute(ctx, sm, req.Parameters, toolsConfig, loader, streamerLogger)
+				if err != nil {
+					return err
+				}
+				return streamer.Finish(frags.NewEvent(frags.ResultEventType, frags.RunnerComponent).WithContent(result))
+
+			} else {
+				streamerLogger := frags.NewStreamerLogger(slog.Default(), nil, frags.InfoChannelLevel)
+				result, err := execute(ctx, sm, req.Parameters, toolsConfig, loader, streamerLogger)
+				if err != nil {
+					return err
+				}
+				return c.JSON(http.StatusOK, result)
 			}
-			return c.JSON(http.StatusOK, result)
 		})
 		if err := e.Start(fmt.Sprintf(":%d", port)); err != nil {
 			cmd.PrintErrln(err)

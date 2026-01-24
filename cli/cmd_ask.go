@@ -20,6 +20,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
@@ -36,7 +37,6 @@ Ask a question to the AI, using the current Frags settings and tools. This is a 
 so it's subject to the limitations imposed by generating structured output.`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		log := slog.Default()
 		toolDefinitions := frags.ToolDefinitions{}
 		toolsConfig := frags.ToolsConfig{}
 		if toolsEnabled {
@@ -89,8 +89,10 @@ so it's subject to the limitations imposed by generating structured output.`,
 				},
 			},
 		}
-		out, err := execute(cmd.Context(), mgr, make(map[string]any), toolsConfig,
-			frags.NewFileResourceLoader("./"), log)
+		ctx := frags.WithFragsContext(cmd.Context(), 15*time.Minute)
+		defer ctx.Cancel()
+		out, err := execute(ctx, mgr, make(map[string]any), toolsConfig,
+			frags.NewFileResourceLoader("./"), frags.NewStreamerLogger(slog.Default(), nil, frags.InfoChannelLevel))
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

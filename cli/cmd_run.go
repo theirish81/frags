@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
@@ -39,13 +40,14 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		var log *slog.Logger
+		var streamerLogger *frags.StreamerLogger
 		if debug {
-			log = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			streamerLogger = frags.NewStreamerLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelDebug,
-			}))
+			})), nil, frags.DebugChannelLevel)
+
 		} else {
-			log = slog.Default()
+			streamerLogger = frags.NewStreamerLogger(slog.Default(), nil, frags.InfoChannelLevel)
 		}
 
 		planData, err := os.ReadFile(args[0])
@@ -68,8 +70,10 @@ var runCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		result, err := execute(cmd.Context(), sm, paramsMap, toolsConfig,
-			frags.NewFileResourceLoader(filepath.Dir(args[0])), log)
+		ctx := frags.WithFragsContext(cmd.Context(), 15*time.Minute)
+		defer ctx.Cancel()
+		result, err := execute(ctx, sm, paramsMap, toolsConfig,
+			frags.NewFileResourceLoader(filepath.Dir(args[0])), streamerLogger)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
