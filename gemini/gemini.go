@@ -1,16 +1,16 @@
 package gemini
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 
 	"github.com/jinzhu/copier"
 	"github.com/theirish81/frags"
 	"google.golang.org/genai"
 )
+
+const engine = "gemini"
 
 // Gemini defaults
 const temperature float32 = 0.1
@@ -28,7 +28,6 @@ type Ai struct {
 	content      []*genai.Content
 	Functions    frags.Functions
 	config       Config
-	log          *slog.Logger
 }
 
 type Config struct {
@@ -52,13 +51,12 @@ func (d *Ai) SetSystemPrompt(prompt string) {
 }
 
 // NewAI creates a new Ai wrapper
-func NewAI(client *genai.Client, config Config, log *slog.Logger) *Ai {
+func NewAI(client *genai.Client, config Config) *Ai {
 	return &Ai{
 		client:    client,
 		content:   make([]*genai.Content, 0),
 		Functions: frags.Functions{},
 		config:    config,
-		log:       log,
 	}
 }
 
@@ -70,16 +68,15 @@ func (d *Ai) New() frags.Ai {
 		Functions:    d.Functions,
 		config:       d.config,
 		systemPrompt: d.systemPrompt,
-		log:          d.log,
 	}
 }
 
 // Ask performs a query against the Gemini API, according to the Frags interface
-func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools frags.ToolDefinitions,
+func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, tools frags.ToolDefinitions,
 	runner frags.ExportableRunner, resources ...frags.ResourceData) ([]byte, error) {
 	parts := make([]*genai.Part, 0)
 	for _, resource := range resources {
-		d.log.Debug("adding file resource", "ai", "gemini", "resource", resource.Identifier)
+		runner.Logger().Debug(frags.NewEvent(frags.LoadEventType, frags.AiComponent).WithResource(resource.Identifier).WithEngine(engine))
 		content := resource.ByteContent
 		if resource.MediaType == frags.MediaText {
 			content = []byte(fmt.Sprintf("=== %s ===\n%s\n===\n", resource.Identifier, string(resource.ByteContent)))
@@ -100,7 +97,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	newMsg := genai.NewContentFromParts(parts, genai.RoleUser)
 
 	tx, err := d.configureTools(tools)
-	d.log.Debug("configured tools", "ai", "gemini", "tools", tools)
+	runner.Logger().Debug(frags.NewEvent(frags.GenericEventType, frags.AiComponent).WithEngine(engine).WithMessage("configured tools").WithContent(tools))
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +116,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 	out := ""
 	d.content = append(d.content, newMsg)
 	for keepGoing {
-		d.log.Debug("generating content", "ai", "gemini", "message", PartToLoggableText(d.content[len(d.content)-1]))
+		runner.Logger().Debug(frags.NewEvent(frags.StartEventType, frags.AiComponent).WithMessage("generating content").WithContent(d.content[len(d.content)-1]).WithEngine(engine))
 		res, err := d.client.Models.GenerateContent(ctx, d.config.Model, d.content, &cfg)
 		if err != nil {
 			return nil, err
@@ -129,7 +126,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 			for _, fc := range res.FunctionCalls() {
 				d.content = append(d.content, genai.NewContentFromFunctionCall(fc.Name, fc.Args, genai.RoleModel))
 
-				fres, ferr := d.RunFunction(frags.FunctionCall{Name: fc.Name, Args: fc.Args}, runner)
+				fres, ferr := d.RunFunction(ctx, frags.FunctionCall{Name: fc.Name, Args: fc.Args}, runner)
 				if ferr != nil {
 					return nil, ferr
 				} else {
@@ -143,7 +140,7 @@ func (d *Ai) Ask(ctx context.Context, text string, schema *frags.Schema, tools f
 			d.content = append(d.content, candidate.Content)
 			out = joinParts(candidate.Content.Parts)
 			internetSearch := candidate.GroundingMetadata != nil
-			d.log.Debug("generated response", "ai", "gemini", "response", out, "internet_search", internetSearch)
+			runner.Logger().Debug(frags.NewEvent(frags.EndEventType, frags.AiComponent).WithMessage("generated content").WithEngine(engine).WithContent(out).WithArg("internet_search", internetSearch))
 		}
 	}
 	return []byte(out), nil
@@ -218,9 +215,9 @@ func joinParts(parts []*genai.Part) string {
 	return out
 }
 
-func (d *Ai) RunFunction(functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
+func (d *Ai) RunFunction(ctx *frags.FragsContext, functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
-		return fx.Run(functionCall.Args, runner)
+		return fx.Run(ctx, functionCall.Args, runner)
 	}
 	return nil, errors.New("function not found")
 }

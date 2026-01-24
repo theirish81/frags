@@ -2,7 +2,7 @@ module github.com/theirish81/frags/ollama
 
 go 1.24.8
 
-require github.com/theirish81/frags v0.17.0
+require github.com/theirish81/frags v0.18.1
 
 require (
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
@@ -14,6 +14,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/google/jsonschema-go v0.3.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

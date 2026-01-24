@@ -6,7 +6,7 @@ toolchain go1.24.8
 
 require (
 	github.com/jinzhu/copier v0.4.0
-	github.com/theirish81/frags v0.17.0
+	github.com/theirish81/frags v0.18.1
 	google.golang.org/genai v1.43.0
 )
 
@@ -26,6 +26,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/jsonschema-go v0.3.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
