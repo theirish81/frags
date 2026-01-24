@@ -74,13 +74,14 @@ func NewEvalScope() EvalScope {
 
 // newEvalScope returns a new scope for evaluating expressions.
 func (r *Runner[T]) newEvalScope() EvalScope {
-	return EvalScope{
+	scope := EvalScope{
 		paramsAttr:     r.params,
 		contextAttr:    *r.dataStructure,
 		componentsAttr: r.sessionManager.Components,
-		varsAttr:       map[string]any(r.vars),
+		varsAttr:       make(map[string]any),
 		iteratorAttr:   nil,
 	}
+	return scope.WithVars(r.vars)
 }
 
 // EvaluateTemplate evaluates a Golang template with the given scope.
