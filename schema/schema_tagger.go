@@ -40,7 +40,7 @@ func StructToSchema(v any) *Schema {
 	}
 
 	schema := &Schema{
-		Type:       "object",
+		Type:       Object,
 		Properties: make(map[string]*Schema),
 		Required:   []string{},
 	}
@@ -99,20 +99,20 @@ func createFieldSchema(field reflect.StructField) *Schema {
 
 	switch fieldType.Kind() {
 	case reflect.String:
-		schema.Type = "string"
+		schema.Type = String
 
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		schema.Type = "integer"
+		schema.Type = Integer
 
 	case reflect.Float32, reflect.Float64:
-		schema.Type = "number"
+		schema.Type = Number
 
 	case reflect.Bool:
-		schema.Type = "boolean"
+		schema.Type = Boolean
 
 	case reflect.Slice, reflect.Array:
-		schema.Type = "array"
+		schema.Type = Array
 		// Create schema for array items
 		itemType := fieldType.Elem()
 		schema.Items = &Schema{}
@@ -123,23 +123,23 @@ func createFieldSchema(field reflect.StructField) *Schema {
 
 		switch itemType.Kind() {
 		case reflect.String:
-			schema.Items.Type = "string"
+			schema.Items.Type = String
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			schema.Items.Type = "integer"
+			schema.Items.Type = Integer
 		case reflect.Float32, reflect.Float64:
-			schema.Items.Type = "number"
+			schema.Items.Type = Number
 		case reflect.Bool:
-			schema.Items.Type = "boolean"
+			schema.Items.Type = Boolean
 		case reflect.Struct:
 			// Recursively process struct items
 			schema.Items = StructToSchema(reflect.New(itemType).Elem().Interface())
 		default:
-			schema.Items.Type = "object"
+			schema.Items.Type = Object
 		}
 
 	case reflect.Map:
-		schema.Type = "object"
+		schema.Type = Object
 
 	case reflect.Struct:
 		// Recursively process nested structs
@@ -149,7 +149,7 @@ func createFieldSchema(field reflect.StructField) *Schema {
 		}
 
 	default:
-		schema.Type = "object"
+		schema.Type = Object
 	}
 
 	return schema
