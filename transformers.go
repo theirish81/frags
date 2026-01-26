@@ -20,6 +20,7 @@ package frags
 import (
 	"github.com/blues/jsonata-go"
 	"github.com/jmespath/go-jmespath"
+	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/util"
 )
@@ -123,7 +124,7 @@ func (t Transformer) Transform(ctx *util.FragsContext, data any, runner Exportab
 	}
 	if t.Expr != nil {
 		var err error
-		data, err = EvaluateExpression(*t.Expr, EvalScope{"args": data})
+		data, err = evaluators.EvaluateExpression(*t.Expr, evaluators.EvalScope{"args": data})
 		if err != nil {
 			return util.EmptyMap, err
 		}

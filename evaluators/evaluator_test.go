@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package evaluators
 
 import (
 	"fmt"
@@ -23,6 +23,22 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+type s2 struct {
+	P1 float64 `json:"p1"`
+	P2 float64 `json:"p2"`
+}
+
+type s3 struct {
+	M1 float64 `json:"m1"`
+	M2 float64 `json:"m2"`
+}
+
+type s1 struct {
+	S2        s2            `json:"s2"`
+	ArrayOfS2 []s2          `json:"arrayOfS2"`
+	MapOfS3   map[string]s3 `json:"mapOfS3"`
+}
 
 func TestEvaluateArrayExpression(t *testing.T) {
 	t.Run("successfully evaluates an array expression", func(t *testing.T) {

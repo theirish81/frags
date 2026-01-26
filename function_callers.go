@@ -20,6 +20,7 @@ package frags
 import (
 	"github.com/google/uuid"
 	"github.com/samber/lo"
+	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/util"
 )
 
@@ -72,7 +73,7 @@ func (f FunctionCallers) FilterContextFunctionCalls() FunctionCallers {
 }
 
 // RunAllFunctionCallers runs all the function calls in the given collection.
-func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCallers, scope EvalScope) (map[string]any, error) {
+func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCallers, scope evaluators.EvalScope) (map[string]any, error) {
 	vx := make(map[string]any)
 	for _, c := range fc {
 		if ctx.Err() != nil {
@@ -93,13 +94,13 @@ func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCal
 }
 
 // runFunctionCaller runs a FunctionCaller object, evaluating the arguments if needed.
-func (r *Runner[T]) runFunctionCaller(ctx *util.FragsContext, fc FunctionCaller, scope EvalScope) (any, error) {
+func (r *Runner[T]) runFunctionCaller(ctx *util.FragsContext, fc FunctionCaller, scope evaluators.EvalScope) (any, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	clonedFc := fc
 	var err error
-	clonedFc.Args, err = EvaluateMapValues(clonedFc.Args, scope)
+	clonedFc.Args, err = evaluators.EvaluateMapValues(clonedFc.Args, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +115,7 @@ func (r *Runner[T]) runFunctionCaller(ctx *util.FragsContext, fc FunctionCaller,
 
 // RunSessionAiPreCallsToTextContext runs the pre-call functions and composes a textual context to be prepended to the
 // actual prompt.
-func (r *Runner[T]) RunSessionAiPreCallsToTextContext(ctx *util.FragsContext, session Session, scope EvalScope) (string, error) {
+func (r *Runner[T]) RunSessionAiPreCallsToTextContext(ctx *util.FragsContext, session Session, scope evaluators.EvalScope) (string, error) {
 	preCallsText := ""
 	if session.PreCalls != nil {
 		for _, c := range session.PreCalls.FilterAiFunctionCalls() {

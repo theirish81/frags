@@ -29,6 +29,7 @@ import (
 
 	"github.com/avast/retry-go/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/util"
@@ -58,7 +59,7 @@ type Runner[T any] struct {
 	logger          *log.StreamerLogger
 	scriptEngine    ScriptEngine
 	kFormat         bool
-	vars            Vars
+	vars            evaluators.Vars
 }
 
 // SessionStatus is the status of a session.
@@ -143,7 +144,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 		logger:          opts.logger,
 		kFormat:         opts.kFormat,
 		scriptEngine:    opts.scriptEngine,
-		vars:            make(Vars),
+		vars:            make(evaluators.Vars),
 	}
 }
 
@@ -190,7 +191,7 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 
 	// if the system prompt is available, it evaluates it and set it to the AI
 	if r.sessionManager.SystemPrompt != nil {
-		systemPrompt, err := EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope())
+		systemPrompt, err := evaluators.EvaluateTemplate(*r.sessionManager.SystemPrompt, r.newEvalScope())
 		if err != nil {
 			return nil, err
 		}
@@ -294,7 +295,7 @@ func (r *Runner[T]) runSession(ctx *util.FragsContext, sessionID string, session
 		session.Attempts = 1
 	}
 	// localVars will collect the variables as they get computed in the course of the session.
-	localVars := Vars{}
+	localVars := evaluators.Vars{}
 	// first off, the session vars
 	localVars.Apply(session.Vars)
 
@@ -316,7 +317,7 @@ func (r *Runner[T]) runSession(ctx *util.FragsContext, sessionID string, session
 	if session.IterateOn != nil {
 		// if there's an iterator, we need to evaluate iterator expression into an array. If it doesn't evaluate to an
 		// array, the plan is broken and we return.
-		if iterator, err = EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().WithVars(localVars)); err != nil {
+		if iterator, err = evaluators.EvaluateArrayExpression(*session.IterateOn, r.newEvalScope().WithVars(localVars)); err != nil {
 			return err
 		}
 	}
@@ -379,7 +380,7 @@ func (r *Runner[T]) ListQueued() Sessions {
 	return sessions
 }
 
-func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int, scope EvalScope, resources resources.ResourceDataItems) error {
+func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int, scope evaluators.EvalScope, resources resources.ResourceDataItems) error {
 	if !session.HasPrompt() {
 		return errors.New("runPrePrompts called on a session without a prompt")
 	}
@@ -436,7 +437,7 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 }
 
 func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
-	scope EvalScope, promptResources resources.ResourceDataItems) error {
+	scope evaluators.EvalScope, promptResources resources.ResourceDataItems) error {
 	if len(session.Prompt) == 0 {
 		return errors.New("runPrompt called on a session without a prompt")
 	}
@@ -536,7 +537,7 @@ func (r *Runner[T]) loadSessionResources(ctx *util.FragsContext, sessionID strin
 			return sessionResources, ctx.Err()
 		}
 		// the resource identifier can be a template, so we evaluate it here
-		identifier, err := EvaluateTemplate(resource.Identifier, r.newEvalScope().WithVars(session.Vars))
+		identifier, err := evaluators.EvaluateTemplate(resource.Identifier, r.newEvalScope().WithVars(session.Vars))
 		if err != nil {
 			return sessionResources, err
 		}
@@ -687,4 +688,16 @@ func (r *Runner[T]) ScriptEngine() ScriptEngine {
 		return &DummyScriptEngine{}
 	}
 	return r.scriptEngine
+}
+
+// newEvalScope returns a new scope for evaluating expressions.
+func (r *Runner[T]) newEvalScope() evaluators.EvalScope {
+	scope := evaluators.EvalScope{
+		evaluators.ParamsAttr:     r.params,
+		evaluators.ContextAttr:    *r.dataStructure,
+		evaluators.ComponentsAttr: r.sessionManager.Components,
+		evaluators.VarsAttr:       make(map[string]any),
+		evaluators.IteratorAttr:   nil,
+	}
+	return scope.WithVars(r.vars)
 }

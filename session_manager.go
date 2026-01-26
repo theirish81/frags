@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/schema"
 	"github.com/theirish81/frags/util"
@@ -83,13 +84,13 @@ func (p *PrePrompt) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // RenderPrePrompts renders the pre-prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrePrompts(scope EvalScope) (PrePrompt, error) {
+func (s *Session) RenderPrePrompts(scope evaluators.EvalScope) (PrePrompt, error) {
 	if s.PrePrompt == nil || len(s.PrePrompt) == 0 {
 		return nil, errors.New("prePrompt is nil or empty")
 	}
 	renderedPrePrompt := make(PrePrompt, 0)
 	for _, p := range s.PrePrompt {
-		r, err := EvaluateTemplate(p, scope)
+		r, err := evaluators.EvaluateTemplate(p, scope)
 		renderedPrePrompt = append(renderedPrePrompt, r)
 		if err != nil {
 			return renderedPrePrompt, err
@@ -108,13 +109,13 @@ func (s *Session) HasPrompt() bool {
 }
 
 // RenderPrompt renders the prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrompt(scope EvalScope) (string, error) {
-	return EvaluateTemplate(s.Prompt, scope)
+func (s *Session) RenderPrompt(scope evaluators.EvalScope) (string, error) {
+	return evaluators.EvaluateTemplate(s.Prompt, scope)
 }
 
 // RenderNextPhasePrompt renders the next phase prompt (which may contain Go templat es), with the given scope
-func (s *Session) RenderNextPhasePrompt(scope EvalScope) (string, error) {
-	return EvaluateTemplate(s.NextPhasePrompt, scope)
+func (s *Session) RenderNextPhasePrompt(scope evaluators.EvalScope) (string, error) {
+	return evaluators.EvaluateTemplate(s.NextPhasePrompt, scope)
 }
 
 // Resource defines a resource to load, with an identifier and a map of parameters
