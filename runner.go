@@ -29,6 +29,7 @@ import (
 
 	"github.com/avast/retry-go/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/util"
 )
@@ -37,7 +38,7 @@ type ExportableRunner interface {
 	Transformers() *Transformers
 	RunFunction(ctx *util.FragsContext, name string, args map[string]any) (any, error)
 	ScriptEngine() ScriptEngine
-	Logger() *StreamerLogger
+	Logger() *log.StreamerLogger
 }
 
 // Runner is a struct that runs a session manager.
@@ -54,7 +55,7 @@ type Runner[T any] struct {
 	sessionWorkers  int
 	wg              sync.WaitGroup
 	running         bool
-	logger          *StreamerLogger
+	logger          *log.StreamerLogger
 	scriptEngine    ScriptEngine
 	kFormat         bool
 	vars            Vars
@@ -83,7 +84,7 @@ type sessionTask struct {
 // RunnerOptions are options for the runner.
 type RunnerOptions struct {
 	sessionWorkers int
-	logger         *StreamerLogger
+	logger         *log.StreamerLogger
 	kFormat        bool
 	scriptEngine   ScriptEngine
 }
@@ -92,7 +93,7 @@ type RunnerOptions struct {
 type RunnerOption func(*RunnerOptions)
 
 // WithLogger sets the logger for the runner.
-func WithLogger(logger *StreamerLogger) RunnerOption {
+func WithLogger(logger *log.StreamerLogger) RunnerOption {
 	return func(o *RunnerOptions) {
 		o.logger = logger
 	}
@@ -120,9 +121,9 @@ func WithScriptEngine(scriptEngine ScriptEngine) RunnerOption {
 func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.ResourceLoader, ai Ai, options ...RunnerOption) Runner[T] {
 	opts := RunnerOptions{
 		sessionWorkers: 1,
-		logger: NewStreamerLogger(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		logger: log.NewStreamerLogger(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
-		})), nil, DebugChannelLevel),
+		})), nil, log.DebugChannelLevel),
 	}
 	for _, opt := range options {
 		opt(&opts)
@@ -198,7 +199,7 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 
 	// start all workers
 	for i := 0; i < r.sessionWorkers; i++ {
-		r.logger.Debug(NewEvent(StartEventType, WorkerComponent).WithIteration(i))
+		r.logger.Debug(log.NewEvent(log.StartEventType, log.WorkerComponent).WithIteration(i))
 		go r.runSessionWorker(ctx, i)
 	}
 
@@ -221,7 +222,7 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 	for !r.IsCompleted() {
 		// if the scan fails, we return the error and stop scanning. This will end the program
 		if err := r.scanSessions(ctx); err != nil {
-			r.logger.Err(NewEvent(ErrorEventType, RunnerComponent).WithMessage("failed to scan sessions").WithErr(err))
+			r.logger.Err(log.NewEvent(log.ErrorEventType, log.RunnerComponent).WithMessage("failed to scan sessions").WithErr(err))
 			return r.dataStructure, err
 		}
 	}
@@ -268,7 +269,7 @@ func (r *Runner[T]) scanSessions(ctx *util.FragsContext) error {
 		// our parallelism has a layered approach. Every run of scanSessions is a layer, and we will wait for the whole
 		// layer to complete before moving on to the next layer.
 		r.wg.Add(1)
-		r.logger.Debug(NewEvent(GenericEventType, RunnerComponent).
+		r.logger.Debug(log.NewEvent(log.GenericEventType, log.RunnerComponent).
 			WithMessage("sending message to workers for session").WithSession(k))
 		timeout := util.ParseDurationOrDefault(s.Timeout, 10*time.Minute)
 		r.SetStatus(k, committedSessionStatus)
@@ -382,20 +383,20 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 	if !session.HasPrompt() {
 		return errors.New("runPrePrompts called on a session without a prompt")
 	}
-	r.logger.Info(NewEvent(StartEventType, PrePromptComponent).WithSession(sessionID).WithIteration(iteratorIdx))
+	r.logger.Info(log.NewEvent(log.StartEventType, log.PrePromptComponent).WithSession(sessionID).WithIteration(iteratorIdx))
 	// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 	// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
 	// the context of the session.
 	prePrompts, err := session.RenderPrePrompts(scope)
 	if err != nil {
-		r.logger.Info(NewEvent(ErrorEventType, PrePromptComponent).
+		r.logger.Info(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).
 			WithMessage("failed to render pre-prompt").WithErr(err).WithSession(sessionID).WithIteration(iteratorIdx))
 		return err
 	}
 	// the FIRST prePrompt carries all the contextualization payload, so we add whatever needs to go here.
 	prePrompt, err := r.contextualizePrompt(ctx, prePrompts[0], session, scope)
 	if err != nil {
-		r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).
+		r.logger.Err(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).
 			WithMessage("failed to contextualize pre-prompt").WithErr(err).WithSession(sessionID).WithIteration(iteratorIdx))
 		return err
 	}
@@ -404,12 +405,12 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 	if err = util.Retry(ctx, session.Attempts, func() error {
 		_, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, resources...)
 		if err != nil {
-			r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).WithMessage("error asking pre-prompt").
+			r.logger.Err(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).WithMessage("error asking pre-prompt").
 				WithSession(sessionID).WithErr(err).WithIteration(iteratorIdx))
 		}
 		return err
 	}); err != nil {
-		r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).WithMessage("error asking pre-prompt").
+		r.logger.Err(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).WithMessage("error asking pre-prompt").
 			WithSession(sessionID).WithErr(err).WithIteration(iteratorIdx))
 		return err
 	}
@@ -419,18 +420,18 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 		if err = util.Retry(ctx, session.Attempts, func() error {
 			_, err := ai.Ask(ctx, pp, nil, session.Tools, r, resources...)
 			if err != nil {
-				r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).
+				r.logger.Err(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).
 					WithMessage("error asking pre-prompt").WithSession(sessionID).WithErr(err).
 					WithIteration(iteratorIdx))
 			}
 			return err
 		}); err != nil {
-			r.logger.Err(NewEvent(ErrorEventType, PrePromptComponent).WithMessage("error asking pre-prompt").
+			r.logger.Err(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).WithMessage("error asking pre-prompt").
 				WithSession(sessionID).WithErr(err).WithIteration(iteratorIdx))
 			return err
 		}
 	}
-	r.logger.Info(NewEvent(EndEventType, PrePromptComponent).WithSession(sessionID).WithIteration(iteratorIdx))
+	r.logger.Info(log.NewEvent(log.EndEventType, log.PrePromptComponent).WithSession(sessionID).WithIteration(iteratorIdx))
 	return nil
 }
 
@@ -448,16 +449,16 @@ func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, s
 		// ...we retry the prompt a number of times, depending on the session's attempts.
 		err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
 			if ctx.Err() != nil {
-				r.logger.Info(NewEvent(ErrorEventType, PromptComponent).
+				r.logger.Info(log.NewEvent(log.ErrorEventType, log.PromptComponent).
 					WithMessage("context cancelled").WithSession(sessionID).WithPhase(phaseIndex).
 					WithIteration(iteratorIdx).WithErr(ctx.Err()))
 				return ctx.Err()
 			}
-			r.logger.Info(NewEvent(StartEventType, PromptComponent).WithSession(sessionID).WithPhase(phaseIndex).
+			r.logger.Info(log.NewEvent(log.StartEventType, log.PromptComponent).WithSession(sessionID).WithPhase(phaseIndex).
 				WithIteration(iteratorIdx))
 			phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
 			if err != nil {
-				r.logger.Err(NewEvent(ErrorEventType, PromptComponent).
+				r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
 					WithMessage("failed to get phase schema").WithErr(err).WithSession(sessionID).
 					WithPhase(phaseIndex).WithIteration(iteratorIdx))
 				return err
@@ -466,7 +467,7 @@ func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, s
 			if idx == 0 {
 				prompt, err := session.RenderPrompt(scope)
 				if err != nil {
-					r.logger.Err(NewEvent(ErrorEventType, PromptComponent).
+					r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
 						WithMessage("failed to render prompt").WithErr(err).WithSession(sessionID).
 						WithPhase(phaseIndex).WithIteration(iteratorIdx))
 					return err
@@ -476,7 +477,7 @@ func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, s
 				if !session.HasPrePrompt() {
 					prompt, err = r.contextualizePrompt(ctx, prompt, session, scope)
 					if err != nil {
-						r.logger.Err(NewEvent(ErrorEventType, PromptComponent).
+						r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
 							WithMessage("failed to contextualize prompt").WithErr(err).WithSession(sessionID).
 							WithPhase(phaseIndex).WithIteration(iteratorIdx))
 						return err
@@ -486,7 +487,7 @@ func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, s
 				// to use tools.
 				data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r, promptResources...)
 				if err != nil {
-					r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("error asking prompt").
+					r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).WithMessage("error asking prompt").
 						WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 					return err
 				}
@@ -497,14 +498,14 @@ func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, s
 				// subsequent phases. All context data has been already loaded, we can live peacefully.
 				prompt, err := session.RenderNextPhasePrompt(scope)
 				if err != nil {
-					r.logger.Err(NewEvent(ErrorEventType, PromptComponent).
+					r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
 						WithMessage("failed to render prompt").WithErr(err).WithSession(sessionID).
 						WithPhase(phaseIndex).WithIteration(iteratorIdx))
 					return err
 				}
 				data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r)
 				if err != nil {
-					r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("error asking prompt").
+					r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).WithMessage("error asking prompt").
 						WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 					return err
 				}
@@ -512,11 +513,11 @@ func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, s
 			// regardless of the phase, data is returned and is ideally structured. We can now unmarshal it to
 			// the runner data structure.
 			if err := r.safeUnmarshalDataStructure(data); err != nil {
-				r.logger.Err(NewEvent(ErrorEventType, PromptComponent).WithMessage("failed to unmarshal data").
+				r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).WithMessage("failed to unmarshal data").
 					WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
 				return err
 			}
-			r.logger.Info(NewEvent(EndEventType, PromptComponent).WithSession(sessionID).WithPhase(phaseIndex).
+			r.logger.Info(log.NewEvent(log.EndEventType, log.PromptComponent).WithSession(sessionID).WithPhase(phaseIndex).
 				WithIteration(iteratorIdx))
 			return nil
 		})
@@ -539,7 +540,7 @@ func (r *Runner[T]) loadSessionResources(ctx *util.FragsContext, sessionID strin
 		if err != nil {
 			return sessionResources, err
 		}
-		r.logger.Debug(NewEvent(LoadEventType, RunnerComponent).WithResource(identifier).WithSession(sessionID))
+		r.logger.Debug(log.NewEvent(log.LoadEventType, log.RunnerComponent).WithResource(identifier).WithSession(sessionID))
 		resourceData, err := r.resourceLoader.LoadResource(identifier, resource.Params)
 		if err != nil {
 			return sessionResources, err
@@ -602,7 +603,7 @@ func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) 
 			r.wg.Done()
 			continue
 		}
-		r.logger.Info(NewEvent(StartEventType, SessionComponent).WithSession(t.id))
+		r.logger.Info(log.NewEvent(log.StartEventType, log.SessionComponent).WithSession(t.id))
 		func() {
 			success := true
 			// we will create a context for each session, so we can cancel it if it takes too long
@@ -614,7 +615,7 @@ func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) 
 			// 3. the worker is removed from the wait group.
 			defer func() {
 				if err := recover(); err != nil {
-					r.logger.Err(NewEvent(ErrorEventType, WorkerComponent).WithMessage("worker panicked").
+					r.logger.Err(log.NewEvent(log.ErrorEventType, log.WorkerComponent).WithMessage("worker panicked").
 						WithIteration(index).WithSession(t.id))
 					success = false
 				}
@@ -625,13 +626,13 @@ func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) 
 					r.SetStatus(t.id, failedSessionStatus)
 					mainContext.Cancel()
 				}
-				r.logger.Info(NewEvent(EndEventType, SessionComponent).WithSession(t.id))
+				r.logger.Info(log.NewEvent(log.EndEventType, log.SessionComponent).WithSession(t.id))
 				r.wg.Done()
 			}()
 			r.SetStatus(t.id, runningSessionStatus)
 			if err := r.runSession(sessionContext, t.id, t.session); err != nil {
 				success = false
-				r.logger.Err(NewEvent(ErrorEventType, WorkerComponent).WithIteration(index).WithSession(t.id).WithErr(err))
+				r.logger.Err(log.NewEvent(log.ErrorEventType, log.WorkerComponent).WithIteration(index).WithSession(t.id).WithErr(err))
 			}
 		}()
 	}
@@ -668,7 +669,7 @@ func (r *Runner[T]) RunFunction(ctx *util.FragsContext, name string, args map[st
 	return r.ai.RunFunction(ctx, FunctionCaller{Name: name, Args: args}, r)
 }
 
-func (r *Runner[T]) Logger() *StreamerLogger {
+func (r *Runner[T]) Logger() *log.StreamerLogger {
 	return r.logger
 }
 
@@ -681,7 +682,7 @@ func (r *Runner[T]) Transformers() *Transformers {
 
 func (r *Runner[T]) ScriptEngine() ScriptEngine {
 	if r.scriptEngine == nil {
-		r.logger.Warn(NewEvent(GenericEventType, RunnerComponent).
+		r.logger.Warn(log.NewEvent(log.GenericEventType, log.RunnerComponent).
 			WithMessage(fmt.Sprintf("no script engine provided, using dummy engine")))
 		return &DummyScriptEngine{}
 	}

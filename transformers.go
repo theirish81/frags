@@ -20,6 +20,7 @@ package frags
 import (
 	"github.com/blues/jsonata-go"
 	"github.com/jmespath/go-jmespath"
+	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/util"
 )
 
@@ -80,7 +81,7 @@ func (t Transformers) FilterOnResource(name string) Transformers {
 
 // Transform applies the transformation to the given data
 func (t Transformer) Transform(ctx *util.FragsContext, data any, runner ExportableRunner) (any, error) {
-	runner.Logger().Debug(NewEvent(StartEventType, TransformerComponent).WithTransformer(t.Name))
+	runner.Logger().Debug(log.NewEvent(log.StartEventType, log.TransformerComponent).WithTransformer(t.Name))
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}

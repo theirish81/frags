@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"maps"
 
+	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/schema"
 	"github.com/theirish81/frags/util"
 )
@@ -51,7 +52,7 @@ func (f ExternalFunction) Run(ctx *util.FragsContext, args map[string]any, runne
 	if !util.IsMapAny(ax) {
 		return nil, fmt.Errorf("expected map[string]any, got %T", ax)
 	}
-	runner.Logger().Debug(NewEvent(StartEventType, FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)))
+	runner.Logger().Debug(log.NewEvent(log.StartEventType, log.FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)))
 	ax, err = f.Func(ctx, ax.(map[string]any))
 	if err != nil {
 		return nil, err
@@ -61,7 +62,7 @@ func (f ExternalFunction) Run(ctx *util.FragsContext, args map[string]any, runne
 	if err != nil {
 		return nil, err
 	}
-	runner.Logger().Debug(NewEvent(EndEventType, FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)).WithContent(out))
+	runner.Logger().Debug(log.NewEvent(log.EndEventType, log.FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)).WithContent(out))
 	return out, nil
 }
 
