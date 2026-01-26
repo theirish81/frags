@@ -97,7 +97,7 @@ func TestParametersConfig_Validate(t *testing.T) {
 			{
 				Name: "foo",
 				Schema: &schema.Schema{
-					Type: schema.SchemaInteger,
+					Type: schema.Integer,
 				},
 			},
 		},

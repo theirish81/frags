@@ -41,20 +41,20 @@ type s1 struct {
 
 func TestSchema_Validate(t *testing.T) {
 	t.Run("base type", func(t *testing.T) {
-		s := Schema{Type: SchemaString}
+		s := Schema{Type: String}
 		err := s.Validate("foo", nil)
 		assert.NoError(t, err)
 
-		s = Schema{Type: SchemaInteger}
+		s = Schema{Type: Integer}
 		err = s.Validate("foo", nil)
 		assert.Error(t, err)
 	})
 	t.Run("map", func(t *testing.T) {
 		s := Schema{
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
-				"foo": {Type: SchemaString},
-				"bar": {Type: SchemaInteger},
+				"foo": {Type: String},
+				"bar": {Type: Integer},
 			},
 		}
 		err := s.Validate(map[string]any{"foo": "123", "bar": 123}, nil)
@@ -72,20 +72,20 @@ func TestSchema_Validate(t *testing.T) {
 	})
 	t.Run("array", func(t *testing.T) {
 		s := Schema{
-			Type:  SchemaArray,
-			Items: &Schema{Type: SchemaString},
+			Type:  Array,
+			Items: &Schema{Type: String},
 		}
 		err := s.Validate([]string{"foo", "bar"}, nil)
 		assert.NoError(t, err)
 
 		s = Schema{
-			Type: SchemaArray,
+			Type: Array,
 			Items: &Schema{
-				Type:     SchemaObject,
+				Type:     Object,
 				Required: []string{"foo", "bar"},
 				Properties: map[string]*Schema{
-					"foo": {Type: SchemaString},
-					"bar": {Type: SchemaInteger},
+					"foo": {Type: String},
+					"bar": {Type: Integer},
 				},
 			},
 		}
@@ -97,37 +97,37 @@ func TestSchema_Validate(t *testing.T) {
 	})
 	t.Run("composite struct", func(t *testing.T) {
 		s := Schema{
-			Type:     SchemaObject,
+			Type:     Object,
 			Required: []string{"s2", "arrayOfS2", "mapOfS3"},
 			Properties: map[string]*Schema{
 				"s2": {
-					Type:     SchemaObject,
+					Type:     Object,
 					Required: []string{"p1", "p2"},
 					Properties: map[string]*Schema{
-						"p1": {Type: SchemaNumber},
-						"p2": {Type: SchemaInteger},
+						"p1": {Type: Number},
+						"p2": {Type: Integer},
 					},
 				},
 				"arrayOfS2": {
-					Type: SchemaArray,
+					Type: Array,
 					Items: &Schema{
-						Type: SchemaObject,
+						Type: Object,
 						Properties: map[string]*Schema{
-							"p1": {Type: SchemaNumber},
-							"p2": {Type: SchemaInteger},
+							"p1": {Type: Number},
+							"p2": {Type: Integer},
 						},
 					},
 				},
 				"mapOfS3": {
-					Type:     SchemaObject,
+					Type:     Object,
 					Required: []string{"v1"},
 					Properties: map[string]*Schema{
 						"v1": {
-							Type:     SchemaObject,
+							Type:     Object,
 							Required: []string{"m1", "m2"},
 							Properties: map[string]*Schema{
-								"m1": {Type: SchemaInteger},
-								"m2": {Type: SchemaInteger},
+								"m1": {Type: Integer},
+								"m2": {Type: Integer},
 							},
 						},
 					},
@@ -158,12 +158,12 @@ func TestSchema_Validate(t *testing.T) {
 func TestSchema_Validate_Soft(t *testing.T) {
 	t.Run("all matches", func(t *testing.T) {
 		s := Schema{
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
-				"int":     {Type: SchemaInteger},
-				"str":     {Type: SchemaString},
-				"bool":    {Type: SchemaBoolean},
-				"realInt": {Type: SchemaInteger},
+				"int":     {Type: Integer},
+				"str":     {Type: String},
+				"bool":    {Type: Boolean},
+				"realInt": {Type: Integer},
 			},
 		}
 		err := s.Validate(map[string]any{
@@ -176,11 +176,11 @@ func TestSchema_Validate_Soft(t *testing.T) {
 	})
 	t.Run("unmatched promise", func(t *testing.T) {
 		s := Schema{
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
-				"int":  {Type: SchemaInteger},
-				"str":  {Type: SchemaString},
-				"bool": {Type: SchemaBoolean},
+				"int":  {Type: Integer},
+				"str":  {Type: String},
+				"bool": {Type: Boolean},
 			},
 		}
 		err := s.Validate(map[string]any{
@@ -192,11 +192,11 @@ func TestSchema_Validate_Soft(t *testing.T) {
 	})
 	t.Run("unmatched promise", func(t *testing.T) {
 		s := Schema{
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
-				"int":  {Type: SchemaInteger},
-				"str":  {Type: SchemaString},
-				"bool": {Type: SchemaBoolean},
+				"int":  {Type: Integer},
+				"str":  {Type: String},
+				"bool": {Type: Boolean},
 			},
 		}
 		err := s.Validate(map[string]any{

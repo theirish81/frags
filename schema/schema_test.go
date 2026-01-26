@@ -30,24 +30,24 @@ func TestSchema_GetPhase(t *testing.T) {
 		Required:    []string{"p1"},
 		Properties: map[string]*Schema{
 			"p1": {
-				Type:   SchemaString,
+				Type:   String,
 				XPhase: 0,
 			},
 			"p2": {
-				Type:   SchemaInteger,
+				Type:   Integer,
 				XPhase: 1,
 			},
 		},
 	}
 	px1, err := s.GetPhase(0)
 	assert.Nil(t, err)
-	assert.Equal(t, SchemaString, px1.Properties["p1"].Type)
+	assert.Equal(t, String, px1.Properties["p1"].Type)
 	assert.Len(t, px1.Properties, 1)
 	assert.Equal(t, []string{"p1"}, px1.Required)
 
 	px2, err := s.GetPhase(1)
 	assert.Nil(t, err)
-	assert.Equal(t, SchemaInteger, px2.Properties["p2"].Type)
+	assert.Equal(t, Integer, px2.Properties["p2"].Type)
 	assert.Len(t, px2.Properties, 1)
 	assert.Equal(t, make([]string, 0), px2.Required)
 }
@@ -58,11 +58,11 @@ func TestSchema_GetContext(t *testing.T) {
 		Required:    []string{"p1"},
 		Properties: map[string]*Schema{
 			"p1": {
-				Type:     SchemaString,
+				Type:     String,
 				XSession: util.StrPtr("foo"),
 			},
 			"p2": {
-				Type:     SchemaInteger,
+				Type:     Integer,
 				XSession: util.StrPtr("bar"),
 			},
 		},
@@ -70,13 +70,13 @@ func TestSchema_GetContext(t *testing.T) {
 
 	px1, err := s.GetSession("foo")
 	assert.Nil(t, err)
-	assert.Equal(t, SchemaString, px1.Properties["p1"].Type)
+	assert.Equal(t, String, px1.Properties["p1"].Type)
 	assert.Len(t, px1.Properties, 1)
 	assert.Equal(t, []string{"p1"}, px1.Required)
 
 	px2, err := s.GetSession("bar")
 	assert.Nil(t, err)
-	assert.Equal(t, SchemaInteger, px2.Properties["p2"].Type)
+	assert.Equal(t, Integer, px2.Properties["p2"].Type)
 	assert.Len(t, px2.Properties, 1)
 	assert.Equal(t, make([]string, 0), px2.Required)
 }
@@ -89,22 +89,22 @@ func TestSchema_GetContextGetPhaseCombined(t *testing.T) {
 		Required:    []string{"p1"},
 		Properties: map[string]*Schema{
 			"p1": {
-				Type:     SchemaString,
+				Type:     String,
 				XSession: &ctxFoo,
 				XPhase:   0,
 			},
 			"p2": {
-				Type:     SchemaInteger,
+				Type:     Integer,
 				XSession: &ctxFoo,
 				XPhase:   1,
 			},
 			"p3": {
-				Type:     SchemaString,
+				Type:     String,
 				XSession: &ctxBar,
 				XPhase:   0,
 			},
 			"p4": {
-				Type:     SchemaInteger,
+				Type:     Integer,
 				XSession: &ctxBar,
 				XPhase:   1,
 			},
@@ -143,16 +143,16 @@ func TestSchema_Resolve(t *testing.T) {
 
 	schemas := map[string]Schema{
 		"Address": {
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
-				"street": {Type: SchemaString},
-				"city":   {Type: SchemaString},
+				"street": {Type: String},
+				"city":   {Type: String},
 			},
 		},
 		"Person": {
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
-				"name": {Type: SchemaString},
+				"name": {Type: String},
 				"address": {
 					Ref: &ref,
 				},
@@ -161,7 +161,7 @@ func TestSchema_Resolve(t *testing.T) {
 	}
 
 	schema := Schema{
-		Type: SchemaObject,
+		Type: Object,
 		Properties: map[string]*Schema{
 			"person": {
 				Ref: &ref2,
@@ -172,12 +172,12 @@ func TestSchema_Resolve(t *testing.T) {
 	assert.NoError(t, err)
 
 	personSchema := schema.Properties["person"]
-	assert.Equal(t, SchemaObject, personSchema.Type)
+	assert.Equal(t, Object, personSchema.Type)
 	assert.NotNil(t, personSchema.Properties["address"])
 
 	addressSchema := personSchema.Properties["address"]
-	assert.Equal(t, SchemaObject, addressSchema.Type)
-	assert.Equal(t, SchemaString, addressSchema.Properties["street"].Type)
+	assert.Equal(t, Object, addressSchema.Type)
+	assert.Equal(t, String, addressSchema.Properties["street"].Type)
 }
 
 func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
@@ -186,9 +186,9 @@ func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
 
 	schemas := map[string]Schema{
 		"Address": {
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
-				"street": {Type: SchemaString},
+				"street": {Type: String},
 			},
 		},
 	}
@@ -202,7 +202,7 @@ func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
 	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.NotNil(t, schema.AnyOf[0])
-	assert.Equal(t, SchemaObject, schema.AnyOf[0].Type)
+	assert.Equal(t, Object, schema.AnyOf[0].Type)
 }
 
 func TestSessionManager_ResolveSchema_Items(t *testing.T) {
@@ -211,15 +211,15 @@ func TestSessionManager_ResolveSchema_Items(t *testing.T) {
 
 	schemas := map[string]Schema{
 		"Address": {
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
-				"street": {Type: SchemaString},
+				"street": {Type: String},
 			},
 		},
 	}
 
 	schema := Schema{
-		Type: SchemaArray,
+		Type: Array,
 		Items: &Schema{
 			Ref: &ref,
 		},
@@ -228,7 +228,7 @@ func TestSessionManager_ResolveSchema_Items(t *testing.T) {
 	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.NotNil(t, schema.Items)
-	assert.Equal(t, SchemaObject, schema.Items.Type)
+	assert.Equal(t, Object, schema.Items.Type)
 }
 
 func TestSessionManager_ResolveSchema_Circular(t *testing.T) {
@@ -237,13 +237,13 @@ func TestSessionManager_ResolveSchema_Circular(t *testing.T) {
 
 	schemas := map[string]Schema{
 		"A": {
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
 				"b": {Ref: &refB},
 			},
 		},
 		"B": {
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
 				"a": {Ref: &refA},
 			},
@@ -282,9 +282,9 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 
 	schemas := map[string]Schema{
 		"Address": {
-			Type: SchemaObject,
+			Type: Object,
 			Properties: map[string]*Schema{
-				"street": {Type: SchemaString},
+				"street": {Type: String},
 			},
 		},
 	}
@@ -305,8 +305,8 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 
 	addressSchema := schema.Properties["shipping_address"]
 	assert.Nil(t, addressSchema.Ref)
-	assert.Equal(t, SchemaObject, addressSchema.Type)
+	assert.Equal(t, Object, addressSchema.Type)
 	assert.Equal(t, phase, addressSchema.XPhase)
 	assert.Equal(t, session, *addressSchema.XSession)
-	assert.Equal(t, SchemaString, addressSchema.Properties["street"].Type)
+	assert.Equal(t, String, addressSchema.Properties["street"].Type)
 }
