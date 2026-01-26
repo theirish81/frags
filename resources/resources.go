@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Simone Pezzano
+ * Copyright (C) 2025 Simone Pezzano
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
