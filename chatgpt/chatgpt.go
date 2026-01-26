@@ -24,6 +24,10 @@ import (
 	"slices"
 
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/schema"
+	"github.com/theirish81/frags/util"
 )
 
 const defaultModel = "gpt-5"
@@ -36,7 +40,7 @@ type Ai struct {
 	systemPrompt string
 	config       Config
 	content      Messages
-	Functions    frags.Functions
+	Functions    frags.ExternalFunctions
 	files        map[string]string
 }
 type Config struct {
@@ -59,7 +63,7 @@ func NewAI(baseURL string, apiKey string, config Config) *Ai {
 		baseURL:    baseURL,
 		config:     config,
 		content:    make([]Message, 0),
-		Functions:  frags.Functions{},
+		Functions:  frags.ExternalFunctions{},
 		files:      make(map[string]string),
 		httpClient: NewHttpClient(baseURL, apiKey),
 	}
@@ -79,18 +83,18 @@ func (d *Ai) New() frags.Ai {
 	}
 }
 
-func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, tools frags.ToolDefinitions,
-	runner frags.ExportableRunner, resources ...frags.ResourceData) ([]byte, error) {
+func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools frags.ToolDefinitions,
+	runner frags.ExportableRunner, rx ...resources.ResourceData) ([]byte, error) {
 
 	chatGptTools, err := d.configureTools(tools)
 	if err != nil {
 		return nil, err
 	}
-	runner.Logger().Debug(frags.NewEvent(frags.GenericEventType, frags.AiComponent).WithEngine(engine).WithMessage("configured tools").WithContent(tools))
+	runner.Logger().Debug(log.NewEvent(log.GenericEventType, log.AiComponent).WithEngine(engine).WithMessage("configured tools").WithContent(tools))
 	msg := NewUserMessage(text)
-	for _, r := range resources {
+	for _, r := range rx {
 		switch r.MediaType {
-		case frags.MediaText:
+		case util.MediaText:
 			// For some unexplainable reasons, the Upload API doesn't like text files, so the best thing we can do is
 			// attach them to the message itself.
 			msg.Content.InsertTextPart(fmt.Sprintf("=== %s === \n%s\n ===\n", r.Identifier, string(r.ByteContent)))
@@ -111,8 +115,8 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 	keepGoing := true
 	out := ""
 	for keepGoing {
-		runner.Logger().Debug(frags.NewEvent(frags.StartEventType, frags.AiComponent).WithMessage("generating content").WithContent(d.content[len(d.content)-1]).WithEngine(engine))
-		req := NewResponseRequest(d.config.Model, d.content, d.systemPrompt, chatGptTools, schema)
+		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(d.content[len(d.content)-1]).WithEngine(engine))
+		req := NewResponseRequest(d.config.Model, d.content, d.systemPrompt, chatGptTools, sx)
 
 		response, err := d.httpClient.PostResponses(ctx, req)
 		if err != nil {
@@ -125,7 +129,7 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 			}
 		} else {
 			content := response.Output.Last().Content
-			runner.Logger().Debug(frags.NewEvent(frags.EndEventType, frags.AiComponent).WithMessage("generated content").WithContent(content).WithEngine(engine))
+			runner.Logger().Debug(log.NewEvent(log.EndEventType, log.AiComponent).WithMessage("generated content").WithContent(content).WithEngine(engine))
 			out = content.First().Text
 			keepGoing = false
 		}
@@ -177,13 +181,13 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ChatGptTool, error) 
 	return oaTools, nil
 }
 
-func (d *Ai) SetFunctions(functions frags.Functions) {
+func (d *Ai) SetFunctions(functions frags.ExternalFunctions) {
 	d.Functions = functions
 }
 
-func (d *Ai) handleFunctionCalls(ctx *frags.FragsContext, responseMessage Response, runner frags.ExportableRunner) error {
+func (d *Ai) handleFunctionCalls(ctx *util.FragsContext, responseMessage Response, runner frags.ExportableRunner) error {
 	for _, fc := range responseMessage.FunctionCalls() {
-		res, err := d.RunFunction(ctx, frags.FunctionCall{Name: fc.Name, Args: fc.Arguments.GetMap()}, runner)
+		res, err := d.RunFunction(ctx, frags.FunctionCaller{Name: fc.Name, Args: fc.Arguments.GetMap()}, runner)
 		if err != nil {
 			return err
 		}
@@ -200,7 +204,7 @@ func (d *Ai) handleFunctionCalls(ctx *frags.FragsContext, responseMessage Respon
 	return nil
 }
 
-func (d *Ai) RunFunction(ctx *frags.FragsContext, functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
+func (d *Ai) RunFunction(ctx *util.FragsContext, functionCall frags.FunctionCaller, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
 		return fx.Run(ctx, functionCall.Args, runner)
 	}

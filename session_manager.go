@@ -182,7 +182,7 @@ func (p *ParametersConfig) UnmarshalJSON(data []byte) error {
 }
 
 func (p *ParametersConfig) Validate(data any) error {
-	sx := schema.Schema{Type: schema.SchemaObject, Properties: map[string]*schema.Schema{}, Required: make([]string, 0)}
+	sx := schema.Schema{Type: schema.Object, Properties: map[string]*schema.Schema{}, Required: make([]string, 0)}
 	for _, param := range p.Parameters {
 		sx.Required = append(sx.Required, param.Name)
 		sx.Properties[param.Name] = param.Schema
@@ -220,13 +220,13 @@ func (s *SessionManager) FromYAML(data []byte) error {
 func (s *SessionManager) initNullSchema() {
 	if s.Schema == nil {
 		sx := schema.Schema{
-			Type:       schema.SchemaObject,
+			Type:       schema.Object,
 			Properties: map[string]*schema.Schema{},
 			Required:   make([]string, 0),
 		}
 		for k, _ := range s.Sessions {
 			sx.Properties[k] = &schema.Schema{
-				Type:     schema.SchemaString,
+				Type:     schema.String,
 				XSession: util.StrPtr(k),
 				XPhase:   0,
 			}

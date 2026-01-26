@@ -1,7 +1,7 @@
 package ollama
 
 import (
-	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/schema"
 )
 
 // Message represents a message sent to the LLM.
@@ -16,7 +16,7 @@ type Message struct {
 type Request struct {
 	Model    string           `json:"model"`
 	Messages []Message        `json:"messages"`
-	Format   *frags.Schema    `json:"format,omitempty"`
+	Format   *schema.Schema   `json:"format,omitempty"`
 	Stream   bool             `json:"stream"`
 	Think    bool             `json:"think"`
 	Tools    []ToolDefinition `json:"tools,omitempty"`
@@ -34,9 +34,9 @@ func (t ToolDefinition) String() string {
 
 // FunctionDef represents a function definition
 type FunctionDef struct {
-	Name        string        `json:"name" yaml:"name"`
-	Description string        `json:"description" yaml:"description"`
-	Parameters  *frags.Schema `json:"parameters" yaml:"parameters"`
+	Name        string         `json:"name" yaml:"name"`
+	Description string         `json:"description" yaml:"description"`
+	Parameters  *schema.Schema `json:"parameters" yaml:"parameters"`
 }
 
 // Response represents a response from Ollama

@@ -26,6 +26,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -34,8 +37,7 @@ var debugCmd = &cobra.Command{
 	Short: "Debug related commands",
 }
 
-func initDebugEnv(ctx context.Context) (*frags.Runner[frags.ProgMap], error) {
-	var log = slog.Default()
+func initDebugEnv(ctx context.Context) (*frags.Runner[util.ProgMap], error) {
 	ai, err := initAi()
 	toolsConfig, err := readToolsFile()
 	if err != nil {
@@ -49,8 +51,8 @@ func initDebugEnv(ctx context.Context) (*frags.Runner[frags.ProgMap], error) {
 		_ = mcpTools.Close()
 	}()
 	ai.SetFunctions(functions)
-	runner := frags.NewRunner[frags.ProgMap](frags.NewSessionManager(), frags.NewFileResourceLoader("."), ai,
-		frags.WithLogger(frags.NewStreamerLogger(log, nil, frags.DebugChannelLevel)),
+	runner := frags.NewRunner[util.ProgMap](frags.NewSessionManager(), resources.NewFileResourceLoader("."), ai,
+		frags.WithLogger(log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)),
 		frags.WithScriptEngine(NewJavascriptScriptingEngine()),
 	)
 	return &runner, nil
@@ -100,7 +102,7 @@ var debugScriptCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		res, err := runner.ScriptEngine().RunCode(frags.WithFragsContext(cmd.Context(), 15*time.Minute), string(code), data, runner)
+		res, err := runner.ScriptEngine().RunCode(util.WithFragsContext(cmd.Context(), 15*time.Minute), string(code), data, runner)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
@@ -139,7 +141,7 @@ var debugTransformerCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		res, err := transformer.Transform(frags.WithFragsContext(cmd.Context(), 15*time.Minute), data, runner)
+		res, err := transformer.Transform(util.WithFragsContext(cmd.Context(), 15*time.Minute), data, runner)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

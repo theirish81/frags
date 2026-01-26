@@ -78,3 +78,13 @@ require (
 	google.golang.org/grpc v1.66.2 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
+
+replace github.com/theirish81/frags v0.18.1 => ../
+replace github.com/theirish81/frags/chatgpt v0.18.0 => ../chatgpt
+replace	github.com/theirish81/frags/gemini v0.18.0 => ../gemini
+replace	github.com/theirish81/frags/ollama v0.18.0 => ../ollama
+
+replace github.com/theirish81/fragsfunctions/fs v0.4.0 => ../../fragsfunctions/fs
+replace	github.com/theirish81/fragsfunctions/http v0.4.0 => ../../fragsfunctions/http
+replace	github.com/theirish81/fragsfunctions/postgres v0.4.0 => ../../fragsfunctions/postgres
+replace github.com/theirish81/fragsfunctions v0.4.0 => ../../fragsfunctions

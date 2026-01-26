@@ -44,22 +44,23 @@ type ExportableRunner interface {
 
 // Runner is a struct that runs a session manager.
 type Runner[T any] struct {
-	sessionManager  SessionManager
-	status          *SafeMap[string, SessionStatus]
-	resourceLoader  resources.ResourceLoader
-	ai              Ai
-	dataStructure   *T
-	params          any
-	marshalingMutex sync.Mutex
-	statusMutex     sync.Mutex
-	sessionChan     chan sessionTask
-	sessionWorkers  int
-	wg              sync.WaitGroup
-	running         bool
-	logger          *log.StreamerLogger
-	scriptEngine    ScriptEngine
-	kFormat         bool
-	vars            evaluators.Vars
+	sessionManager    SessionManager
+	status            *SafeMap[string, SessionStatus]
+	resourceLoader    resources.ResourceLoader
+	ai                Ai
+	dataStructure     *T
+	params            any
+	marshalingMutex   sync.Mutex
+	statusMutex       sync.Mutex
+	sessionChan       chan sessionTask
+	sessionWorkers    int
+	wg                sync.WaitGroup
+	running           bool
+	logger            *log.StreamerLogger
+	scriptEngine      ScriptEngine
+	kFormat           bool
+	vars              evaluators.Vars
+	ExternalFunctions ExternalFunctions
 }
 
 // SessionStatus is the status of a session.
@@ -84,10 +85,11 @@ type sessionTask struct {
 
 // RunnerOptions are options for the runner.
 type RunnerOptions struct {
-	sessionWorkers int
-	logger         *log.StreamerLogger
-	kFormat        bool
-	scriptEngine   ScriptEngine
+	sessionWorkers    int
+	logger            *log.StreamerLogger
+	kFormat           bool
+	scriptEngine      ScriptEngine
+	externalFunctions ExternalFunctions
 }
 
 // RunnerOption is an option for the runner.
@@ -118,6 +120,12 @@ func WithScriptEngine(scriptEngine ScriptEngine) RunnerOption {
 	}
 }
 
+func WithExternalFunctions(externalFunctions ExternalFunctions) RunnerOption {
+	return func(o *RunnerOptions) {
+		o.externalFunctions = externalFunctions
+	}
+}
+
 // NewRunner creates a new runner.
 func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.ResourceLoader, ai Ai, options ...RunnerOption) Runner[T] {
 	opts := RunnerOptions{
@@ -134,17 +142,18 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 		status.Store(k, queuedSessionStatus)
 	}
 	return Runner[T]{
-		sessionManager:  sessionManager,
-		status:          status,
-		resourceLoader:  resourceLoader,
-		ai:              ai,
-		marshalingMutex: sync.Mutex{},
-		statusMutex:     sync.Mutex{},
-		sessionWorkers:  opts.sessionWorkers,
-		logger:          opts.logger,
-		kFormat:         opts.kFormat,
-		scriptEngine:    opts.scriptEngine,
-		vars:            make(evaluators.Vars),
+		sessionManager:    sessionManager,
+		status:            status,
+		resourceLoader:    resourceLoader,
+		ai:                ai,
+		marshalingMutex:   sync.Mutex{},
+		statusMutex:       sync.Mutex{},
+		sessionWorkers:    opts.sessionWorkers,
+		logger:            opts.logger,
+		kFormat:           opts.kFormat,
+		scriptEngine:      opts.scriptEngine,
+		ExternalFunctions: opts.externalFunctions,
+		vars:              make(evaluators.Vars),
 	}
 }
 
@@ -667,7 +676,11 @@ func (r *Runner[T]) ListFailedSessions() []string {
 }
 
 func (r *Runner[T]) RunFunction(ctx *util.FragsContext, name string, args map[string]any) (any, error) {
-	return r.ai.RunFunction(ctx, FunctionCaller{Name: name, Args: args}, r)
+	f, ok := r.ExternalFunctions[name]
+	if ok {
+		return f.Run(ctx, args, r)
+	}
+	return nil, fmt.Errorf("function %s not found", name)
 }
 
 func (r *Runner[T]) Logger() *log.StreamerLogger {

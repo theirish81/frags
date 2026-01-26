@@ -25,7 +25,7 @@ import (
 	"text/template"
 
 	"github.com/spf13/cobra"
-	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -47,7 +47,7 @@ and only later make the output into a document, which is particularly useful dur
 			return
 		}
 		format = formatTemplate
-		progMap := frags.ProgMap{}
+		progMap := util.ProgMap{}
 		if err := yaml.Unmarshal(data, &progMap); err != nil {
 			cmd.PrintErrln(err)
 			return

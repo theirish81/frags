@@ -35,6 +35,9 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/util"
 )
 
 type executeRequest struct {
@@ -112,23 +115,23 @@ tools configuration in the HTTP request.
 ***WARNING***: this mode can easily turn into a security threat and allow RCE! Use this mode only in development or
 safe environments.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var log *slog.Logger
+		var logger *slog.Logger
 		if debug {
-			log = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelDebug,
 			}))
 		} else {
-			log = slog.Default()
+			logger = slog.Default()
 		}
 		e := echo.New()
-		addRequestLoggerMiddleware(e, log)
+		addRequestLoggerMiddleware(e, logger)
 		if apiKey != "" {
 			e.Use(apiKeyMiddleware)
 		}
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/execute", func(c echo.Context) error {
-			ctx := frags.WithFragsContext(c.Request().Context(), 15*time.Minute)
+			ctx := util.WithFragsContext(c.Request().Context(), 15*time.Minute)
 			defer ctx.Cancel()
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
@@ -148,8 +151,8 @@ safe environments.`,
 				return err
 			}
 			if c.QueryParam("streaming") == "true" {
-				level := frags.ChannelLevel(c.QueryParam("level"))
-				streamerLogger := frags.NewStreamerLogger(log, make(chan frags.Event, 100), level)
+				level := log.ChannelLevel(c.QueryParam("level"))
+				streamerLogger := log.NewStreamerLogger(logger, make(chan log.Event, 100), level)
 				defer streamerLogger.Close()
 				streamer := NewStreamer(c, streamerLogger)
 				streamer.Start()
@@ -157,10 +160,10 @@ safe environments.`,
 				if err != nil {
 					return err
 				}
-				return streamer.Finish(frags.NewEvent(frags.ResultEventType, frags.RunnerComponent).WithContent(result))
+				return streamer.Finish(log.NewEvent(log.ResultEventType, log.RunnerComponent).WithContent(result))
 
 			} else {
-				streamerLogger := frags.NewStreamerLogger(slog.Default(), nil, frags.InfoChannelLevel)
+				streamerLogger := log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel)
 				result, err := execute(ctx, sm, req.Parameters, req.Tools, loader, streamerLogger)
 				if err != nil {
 					return err
@@ -184,23 +187,23 @@ tools.json file.
 ***WARNING***: while way safer than "execute", also this mode offer possibility for exploitation. Check your plans
 carefully and use this mode only in development or safe environments.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var log *slog.Logger
+		var logger *slog.Logger
 		if debug {
-			log = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelDebug,
 			}))
 		} else {
-			log = slog.Default()
+			logger = slog.Default()
 		}
 		e := echo.New()
-		addRequestLoggerMiddleware(e, log)
+		addRequestLoggerMiddleware(e, logger)
 		if apiKey != "" {
 			e.Use(apiKeyMiddleware)
 		}
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/run/:file", func(c echo.Context) error {
-			ctx := frags.WithFragsContext(c.Request().Context(), 15*time.Minute)
+			ctx := util.WithFragsContext(c.Request().Context(), 15*time.Minute)
 			defer ctx.Cancel()
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
@@ -227,8 +230,8 @@ carefully and use this mode only in development or safe environments.`,
 				return err
 			}
 			if c.QueryParam("streaming") == "true" {
-				level := frags.ChannelLevel(c.QueryParam("level"))
-				streamerLogger := frags.NewStreamerLogger(log, make(chan frags.Event, 100), level)
+				level := log.ChannelLevel(c.QueryParam("level"))
+				streamerLogger := log.NewStreamerLogger(logger, make(chan log.Event, 100), level)
 				defer streamerLogger.Close()
 				streamer := NewStreamer(c, streamerLogger)
 				streamer.Start()
@@ -236,10 +239,10 @@ carefully and use this mode only in development or safe environments.`,
 				if err != nil {
 					return err
 				}
-				return streamer.Finish(frags.NewEvent(frags.ResultEventType, frags.RunnerComponent).WithContent(result))
+				return streamer.Finish(log.NewEvent(log.ResultEventType, log.RunnerComponent).WithContent(result))
 
 			} else {
-				streamerLogger := frags.NewStreamerLogger(slog.Default(), nil, frags.InfoChannelLevel)
+				streamerLogger := log.NewStreamerLogger(logger, nil, log.InfoChannelLevel)
 				result, err := execute(ctx, sm, req.Parameters, toolsConfig, loader, streamerLogger)
 				if err != nil {
 					return err
@@ -302,16 +305,16 @@ func checkTraversalPath(filename string) error {
 }
 
 // filesMapToResourceLoader converts a map of files to a frags.ResourceLoader.
-func filesMapToResourceLoader(files map[string]string) (frags.ResourceLoader, error) {
-	loader := frags.NewBytesLoader()
+func filesMapToResourceLoader(files map[string]string) (resources.ResourceLoader, error) {
+	loader := resources.NewBytesLoader()
 	for k, v := range files {
 		decoded, err := base64.StdEncoding.DecodeString(v)
 		if err != nil {
 			return nil, err
 		}
-		loader.SetResource(frags.ResourceData{
+		loader.SetResource(resources.ResourceData{
 			Identifier:  k,
-			MediaType:   frags.GetMediaType(k),
+			MediaType:   util.GetMediaType(k),
 			ByteContent: decoded,
 		})
 	}

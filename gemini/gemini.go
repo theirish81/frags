@@ -7,6 +7,10 @@ import (
 
 	"github.com/jinzhu/copier"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/schema"
+	"github.com/theirish81/frags/util"
 	"google.golang.org/genai"
 )
 
@@ -26,7 +30,7 @@ type Ai struct {
 	client       *genai.Client
 	systemPrompt string
 	content      []*genai.Content
-	Functions    frags.Functions
+	Functions    frags.ExternalFunctions
 	config       Config
 }
 
@@ -55,7 +59,7 @@ func NewAI(client *genai.Client, config Config) *Ai {
 	return &Ai{
 		client:    client,
 		content:   make([]*genai.Content, 0),
-		Functions: frags.Functions{},
+		Functions: frags.ExternalFunctions{},
 		config:    config,
 	}
 }
@@ -72,13 +76,13 @@ func (d *Ai) New() frags.Ai {
 }
 
 // Ask performs a query against the Gemini API, according to the Frags interface
-func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, tools frags.ToolDefinitions,
-	runner frags.ExportableRunner, resources ...frags.ResourceData) ([]byte, error) {
+func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools frags.ToolDefinitions,
+	runner frags.ExportableRunner, rx ...resources.ResourceData) ([]byte, error) {
 	parts := make([]*genai.Part, 0)
-	for _, resource := range resources {
-		runner.Logger().Debug(frags.NewEvent(frags.LoadEventType, frags.AiComponent).WithResource(resource.Identifier).WithEngine(engine))
+	for _, resource := range rx {
+		runner.Logger().Debug(log.NewEvent(log.LoadEventType, log.AiComponent).WithResource(resource.Identifier).WithEngine(engine))
 		content := resource.ByteContent
-		if resource.MediaType == frags.MediaText {
+		if resource.MediaType == util.MediaText {
 			content = []byte(fmt.Sprintf("=== %s ===\n%s\n===\n", resource.Identifier, string(resource.ByteContent)))
 		}
 		parts = append(parts, genai.NewPartFromBytes(content, resource.MediaType))
@@ -86,18 +90,18 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 	parts = append(parts, genai.NewPartFromText(text))
 	genAiSchema := &genai.Schema{}
 	ct := jsonContentType
-	if schema == nil {
+	if sx == nil {
 		ct = textContentType
 		genAiSchema = nil
 	} else {
-		if err := copier.Copy(genAiSchema, schema); err != nil {
+		if err := copier.Copy(genAiSchema, sx); err != nil {
 			return nil, err
 		}
 	}
 	newMsg := genai.NewContentFromParts(parts, genai.RoleUser)
 
 	tx, err := d.configureTools(tools)
-	runner.Logger().Debug(frags.NewEvent(frags.GenericEventType, frags.AiComponent).WithEngine(engine).WithMessage("configured tools").WithContent(tools))
+	runner.Logger().Debug(log.NewEvent(log.GenericEventType, log.AiComponent).WithEngine(engine).WithMessage("configured tools").WithContent(tools))
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +120,7 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 	out := ""
 	d.content = append(d.content, newMsg)
 	for keepGoing {
-		runner.Logger().Debug(frags.NewEvent(frags.StartEventType, frags.AiComponent).WithMessage("generating content").WithContent(d.content[len(d.content)-1]).WithEngine(engine))
+		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(d.content[len(d.content)-1]).WithEngine(engine))
 		res, err := d.client.Models.GenerateContent(ctx, d.config.Model, d.content, &cfg)
 		if err != nil {
 			return nil, err
@@ -126,11 +130,11 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 			for _, fc := range res.FunctionCalls() {
 				d.content = append(d.content, genai.NewContentFromFunctionCall(fc.Name, fc.Args, genai.RoleModel))
 
-				fres, ferr := d.RunFunction(ctx, frags.FunctionCall{Name: fc.Name, Args: fc.Args}, runner)
+				fres, ferr := d.RunFunction(ctx, frags.FunctionCaller{Name: fc.Name, Args: fc.Args}, runner)
 				if ferr != nil {
 					return nil, ferr
 				} else {
-					d.content = append(d.content, genai.NewContentFromFunctionResponse(fc.Name, frags.AnyToResultMap(fres), genai.RoleUser))
+					d.content = append(d.content, genai.NewContentFromFunctionResponse(fc.Name, util.AnyToResultMap(fres), genai.RoleUser))
 				}
 			}
 			keepGoing = true
@@ -140,7 +144,7 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 			d.content = append(d.content, candidate.Content)
 			out = joinParts(candidate.Content.Parts)
 			internetSearch := candidate.GroundingMetadata != nil
-			runner.Logger().Debug(frags.NewEvent(frags.EndEventType, frags.AiComponent).WithMessage("generated content").WithEngine(engine).WithContent(out).WithArg("internet_search", internetSearch))
+			runner.Logger().Debug(log.NewEvent(log.EndEventType, log.AiComponent).WithMessage("generated content").WithEngine(engine).WithContent(out).WithArg("internet_search", internetSearch))
 		}
 	}
 	return []byte(out), nil
@@ -203,7 +207,7 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) 
 	return tx, nil
 }
 
-func (d *Ai) SetFunctions(functions frags.Functions) {
+func (d *Ai) SetFunctions(functions frags.ExternalFunctions) {
 	d.Functions = functions
 }
 
@@ -215,7 +219,7 @@ func joinParts(parts []*genai.Part) string {
 	return out
 }
 
-func (d *Ai) RunFunction(ctx *frags.FragsContext, functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
+func (d *Ai) RunFunction(ctx *util.FragsContext, functionCall frags.FunctionCaller, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
 		return fx.Run(ctx, functionCall.Args, runner)
 	}

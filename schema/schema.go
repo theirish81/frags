@@ -27,12 +27,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const SchemaObject = "object"
-const SchemaString = "string"
-const SchemaInteger = "integer"
-const SchemaNumber = "number"
-const SchemaBoolean = "boolean"
-const SchemaArray = "array"
+const Object = "object"
+const String = "string"
+const Integer = "integer"
+const Number = "number"
+const Boolean = "boolean"
+const Array = "array"
 
 // Schema represents a JSON schema with x-phase and x-session extensions.
 type Schema struct {

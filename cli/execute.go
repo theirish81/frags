@@ -23,11 +23,15 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/evaluators"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/util"
 )
 
 // execute executes the plan using the specified parameters
-func execute(ctx *frags.FragsContext, sm frags.SessionManager, paramsMap map[string]any, toolConfig frags.ToolsConfig,
-	rl frags.ResourceLoader, log *frags.StreamerLogger) (*frags.ProgMap, error) {
+func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[string]any, toolConfig frags.ToolsConfig,
+	rl resources.ResourceLoader, logger *log.StreamerLogger) (*util.ProgMap, error) {
 	// parameters can only be strings via CLI, so we tell the parameter validator to enable loose type checking,
 	// that is, if a string contains a number, it will be parsed as a number if the schema expects it
 	sm.Parameters.SetLooseType(true)
@@ -39,7 +43,7 @@ func execute(ctx *frags.FragsContext, sm frags.SessionManager, paramsMap map[str
 	}), true); err != nil {
 		return nil, err
 	} else {
-		sm.Vars, err = frags.EvaluateMapValues(sm.Vars, frags.NewEvalScope().WithVars(env))
+		sm.Vars, err = evaluators.EvaluateMapValues(sm.Vars, evaluators.NewEvalScope().WithVars(env))
 	}
 
 	ai, err := initAi()
@@ -54,19 +58,19 @@ func execute(ctx *frags.FragsContext, sm frags.SessionManager, paramsMap map[str
 		_ = mcpTools.Close()
 	}()
 	ai.SetFunctions(functions)
-	log.Info(frags.NewEvent(frags.GenericEventType, frags.RunnerComponent).WithMessage("available functions").WithArg("functions", functions.String()))
+	logger.Info(log.NewEvent(log.GenericEventType, log.RunnerComponent).WithMessage("available functions").WithArg("functions", functions.String()))
 
 	workers := cfg.ParallelWorkers
 	if workers <= 0 {
 		workers = 1
 	}
 
-	runner := frags.NewRunner[frags.ProgMap](
+	runner := frags.NewRunner[util.ProgMap](
 		sm,
 		rl,
 		ai,
 		frags.WithSessionWorkers(workers),
-		frags.WithLogger(log),
+		frags.WithLogger(logger),
 		frags.WithUseKFormat(cfg.UseKFormat),
 		frags.WithScriptEngine(NewJavascriptScriptingEngine()),
 	)

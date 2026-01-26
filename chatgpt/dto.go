@@ -18,7 +18,7 @@
 package chatgpt
 
 import (
-	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/schema"
 )
 
 const PartTypeInputText = "input_text"
@@ -44,7 +44,7 @@ type ResponseRequest struct {
 	PreviousResponseID string        `json:"previous_response_id,omitempty"`
 }
 
-func NewResponseRequest(model string, input []Message, instructions string, tools []ChatGptTool, schema *frags.Schema) ResponseRequest {
+func NewResponseRequest(model string, input []Message, instructions string, tools []ChatGptTool, schema *schema.Schema) ResponseRequest {
 	req := ResponseRequest{
 		Model:        model,
 		Input:        input,

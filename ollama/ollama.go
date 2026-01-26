@@ -12,6 +12,10 @@ import (
 	"time"
 
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/schema"
+	"github.com/theirish81/frags/util"
 )
 
 const engine = "ollama"
@@ -27,7 +31,7 @@ type Ai struct {
 	config       Config
 	messages     []Message
 	systemPrompt string
-	Functions    frags.Functions
+	Functions    frags.ExternalFunctions
 }
 
 type Config struct {
@@ -59,7 +63,7 @@ func NewAI(baseURL string, config Config) *Ai {
 				MaxIdleConnsPerHost: 10,
 			},
 		},
-		Functions: frags.Functions{},
+		Functions: frags.ExternalFunctions{},
 		messages:  make([]Message, 0),
 	}
 }
@@ -77,8 +81,8 @@ func (d *Ai) New() frags.Ai {
 }
 
 // Ask performs a query against the Ollama API, according to the Frags interface
-func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, tools frags.ToolDefinitions,
-	runner frags.ExportableRunner, resources ...frags.ResourceData) ([]byte, error) {
+func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools frags.ToolDefinitions,
+	runner frags.ExportableRunner, rx ...resources.ResourceData) ([]byte, error) {
 	if len(d.systemPrompt) > 0 && len(d.messages) == 0 {
 		d.messages = append(d.messages, Message{
 			Content: d.systemPrompt,
@@ -89,12 +93,12 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 		Content: "",
 		Role:    "user",
 	}
-	for _, r := range resources {
-		if r.MediaType != frags.MediaText {
+	for _, r := range rx {
+		if r.MediaType != util.MediaText {
 			return nil, errors.New("ollama only supports text resources")
 		}
 		message.Content += message.Content + " === " + r.Identifier + " === \n" + string(r.ByteContent) + "\n===\n"
-		runner.Logger().Debug(frags.NewEvent(frags.LoadEventType, frags.AiComponent).WithMessage("adding file resource").WithEngine(engine).WithResource(r.Identifier))
+		runner.Logger().Debug(log.NewEvent(log.LoadEventType, log.AiComponent).WithMessage("adding file resource").WithEngine(engine).WithResource(r.Identifier))
 	}
 	message.Content += "\n" + text
 	d.messages = append(d.messages, message)
@@ -102,7 +106,7 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 		Messages: d.messages,
 		Model:    d.config.Model,
 		Think:    false,
-		Format:   schema,
+		Format:   sx,
 		Tools:    make([]ToolDefinition, 0),
 		Options: Options{
 			NumPredict:  d.config.NumPredict,
@@ -112,13 +116,13 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 		},
 	}
 	request.Tools, _ = d.configureTools(tools)
-	runner.Logger().Debug(frags.NewEvent(frags.GenericEventType, frags.AiComponent).WithMessage("configured tools").WithEngine(engine).WithContent(request.Tools))
+	runner.Logger().Debug(log.NewEvent(log.GenericEventType, log.AiComponent).WithMessage("configured tools").WithEngine(engine).WithContent(request.Tools))
 	keepGoing := true
 	out := ""
 	for keepGoing {
 		request.Messages = d.messages
 		err := func() error {
-			runner.Logger().Debug(frags.NewEvent(frags.StartEventType, frags.AiComponent).WithMessage("generating content").WithEngine(engine).WithContent(request.Messages[len(request.Messages)-1]))
+			runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithEngine(engine).WithContent(request.Messages[len(request.Messages)-1]))
 			responseMessage, err := d.sendRequest(ctx, request)
 			if err != nil {
 				return err
@@ -131,7 +135,7 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 				}
 			} else {
 				out = responseMessage.Message.Content
-				runner.Logger().Debug(frags.NewEvent(frags.EndEventType, frags.AiComponent).WithMessage("generated content").WithEngine(engine).WithContent(out))
+				runner.Logger().Debug(log.NewEvent(log.EndEventType, log.AiComponent).WithMessage("generated content").WithEngine(engine).WithContent(out))
 				keepGoing = false
 			}
 			return nil
@@ -144,9 +148,9 @@ func (d *Ai) Ask(ctx *frags.FragsContext, text string, schema *frags.Schema, too
 	return []byte(out), nil
 }
 
-func (d *Ai) handleFunctionCall(ctx *frags.FragsContext, responseMessage Response, runner frags.ExportableRunner) error {
+func (d *Ai) handleFunctionCall(ctx *util.FragsContext, responseMessage Response, runner frags.ExportableRunner) error {
 	for _, fc := range responseMessage.Message.ToolCalls {
-		res, err := d.RunFunction(ctx, frags.FunctionCall{Name: fc.Function.Name, Args: fc.Function.Arguments}, runner)
+		res, err := d.RunFunction(ctx, frags.FunctionCaller{Name: fc.Function.Name, Args: fc.Function.Arguments}, runner)
 		if err != nil {
 			return err
 		}
@@ -167,7 +171,7 @@ func (d *Ai) SetSystemPrompt(systemPrompt string) {
 	d.systemPrompt = systemPrompt
 }
 
-func (d *Ai) SetFunctions(functions frags.Functions) {
+func (d *Ai) SetFunctions(functions frags.ExternalFunctions) {
 	d.Functions = functions
 }
 
@@ -249,7 +253,7 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ToolDefinition, erro
 	return tx, nil
 }
 
-func (d *Ai) RunFunction(ctx *frags.FragsContext, functionCall frags.FunctionCall, runner frags.ExportableRunner) (any, error) {
+func (d *Ai) RunFunction(ctx *util.FragsContext, functionCall frags.FunctionCaller, runner frags.ExportableRunner) (any, error) {
 	if fx, ok := d.Functions[functionCall.Name]; ok {
 		return fx.Run(ctx, functionCall.Args, runner)
 	}
