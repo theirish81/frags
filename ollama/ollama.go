@@ -254,9 +254,5 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ToolDefinition, erro
 }
 
 func (d *Ai) RunFunction(ctx *util.FragsContext, functionCall frags.FunctionCaller, runner frags.ExportableRunner) (any, error) {
-	if fx, ok := d.Functions[functionCall.Name]; ok {
-		return fx.Run(ctx, functionCall.Args, runner)
-	}
-	return nil, errors.New("function not found")
-
+	return runner.RunFunction(ctx, functionCall.Name, functionCall.Args)
 }

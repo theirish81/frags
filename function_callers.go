@@ -109,7 +109,7 @@ func (r *Runner[T]) runFunctionCaller(ctx *util.FragsContext, fc FunctionCaller,
 	} else if fc.Code != nil {
 		return r.ScriptEngine().RunCode(ctx, *clonedFc.Code, clonedFc.Args, r)
 	} else {
-		return r.ai.RunFunction(ctx, clonedFc, r)
+		return r.RunFunction(ctx, clonedFc.Name, clonedFc.Args)
 	}
 }
 

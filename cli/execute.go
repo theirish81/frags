@@ -71,8 +71,8 @@ func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[stri
 		ai,
 		frags.WithSessionWorkers(workers),
 		frags.WithLogger(logger),
-		frags.WithUseKFormat(cfg.UseKFormat),
 		frags.WithScriptEngine(NewJavascriptScriptingEngine()),
+		frags.WithExternalFunctions(functions),
 	)
 	// execute
 	return runner.Run(ctx, paramsMap)

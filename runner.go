@@ -109,11 +109,6 @@ func WithSessionWorkers(sessionWorkers int) RunnerOption {
 	}
 }
 
-func WithUseKFormat(kFormat bool) RunnerOption {
-	return func(o *RunnerOptions) {
-		o.kFormat = kFormat
-	}
-}
 func WithScriptEngine(scriptEngine ScriptEngine) RunnerOption {
 	return func(o *RunnerOptions) {
 		o.scriptEngine = scriptEngine
