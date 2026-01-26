@@ -42,8 +42,8 @@ func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[stri
 		return strings.HasPrefix(item, "FRAGS_")
 	}), true); err != nil {
 		return nil, err
-	} else {
-		sm.Vars, err = evaluators.EvaluateMapValues(sm.Vars, evaluators.NewEvalScope().WithVars(env))
+	} else if len(env) > 0 {
+		sm.Vars, err = evaluators.EvaluateMapValues(sm.Vars, evaluators.NewEvalScope().WithParams(paramsMap).WithVars(env))
 	}
 
 	ai, err := initAi()

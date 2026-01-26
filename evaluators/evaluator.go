@@ -58,6 +58,16 @@ func (e EvalScope) WithVars(vars map[string]any) EvalScope {
 	return e
 }
 
+func (e EvalScope) WithParams(params map[string]any) EvalScope {
+	if params == nil {
+		e[ParamsAttr] = make(map[string]any)
+	}
+	for k, v := range params {
+		e[ParamsAttr].(map[string]any)[k] = v
+	}
+	return e
+}
+
 // Vars returns the vars map.
 func (e EvalScope) Vars() map[string]any {
 	return e[VarsAttr].(map[string]any)
