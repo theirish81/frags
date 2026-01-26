@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/util"
 )
 
 type T struct {
@@ -40,8 +42,8 @@ func TestRunner_Run(t *testing.T) {
 	err := mgr.FromYAML(sessionData)
 	assert.Nil(t, err)
 	ai := NewDummyAi()
-	runner := NewRunner[T](mgr, NewDummyResourceLoader(), ai)
-	out, err := runner.Run(NewFragsContext(time.Minute), map[string]string{"animal": "dog", "animals": "giraffes"})
+	runner := NewRunner[T](mgr, resources.NewDummyResourceLoader(), ai)
+	out, err := runner.Run(util.NewFragsContext(time.Minute), map[string]string{"animal": "dog", "animals": "giraffes"})
 
 	assert.Nil(t, err)
 	assert.NotEmpty(t, out.P1)
@@ -60,8 +62,8 @@ func TestRunner_RunDependenciesAndContext(t *testing.T) {
 	err := mgr.FromYAML(sessionData)
 	assert.Nil(t, err)
 	ai := NewDummyAi()
-	runner := NewRunner[map[string]string](mgr, NewDummyResourceLoader(), ai, WithSessionWorkers(3))
-	out, err := runner.Run(NewFragsContext(time.Minute), nil)
+	runner := NewRunner[map[string]string](mgr, resources.NewDummyResourceLoader(), ai, WithSessionWorkers(3))
+	out, err := runner.Run(util.NewFragsContext(time.Minute), nil)
 	assert.Nil(t, err)
 	assert.Contains(t, (*out)["summary"], "CURRENT CONTEXT")
 	assert.Contains(t, (*out)["summary"], "animal1")
@@ -75,12 +77,12 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 	err := mgr.FromYAML(sessionData)
 	assert.Nil(t, err)
 	ai := NewDummyAi()
-	runner := NewRunner[map[string]string](mgr, NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
+	runner := NewRunner[map[string]string](mgr, resources.NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
 	runner.dataStructure = &map[string]string{}
-	res, err := runner.loadSessionResources(NewFragsContext(time.Minute), "s1", mgr.Sessions["s1"])
+	res, err := runner.loadSessionResources(util.NewFragsContext(time.Minute), "s1", mgr.Sessions["s1"])
 	assert.NoError(t, err)
 	assert.Equal(t, "stuff.csv", res[0].Identifier)
-	assert.Equal(t, MediaJson, res[0].MediaType)
+	assert.Equal(t, util.MediaJson, res[0].MediaType)
 	fmt.Println(string(res[0].ByteContent))
 	out := make([]any, 0)
 	err = json.Unmarshal(res[0].ByteContent, &out)
@@ -97,16 +99,16 @@ func TestRunner_RunAllFunctionCalls(t *testing.T) {
 	err := mgr.FromYAML(sessionData)
 	assert.Nil(t, err)
 	ai := NewDummyAi()
-	runner := NewRunner[map[string]string](mgr, NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
+	runner := NewRunner[map[string]string](mgr, resources.NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
 	runner.dataStructure = &map[string]string{}
-	fcs := FunctionCalls{
+	fcs := FunctionCallers{
 		{
 			Name: "f1",
 			Func: func(m map[string]any) (any, error) {
 				return "val1", nil
 			},
-			In:  Ptr[FunctionCallDestination](VarsFunctionCallDestination),
-			Var: StrPtr("f1"),
+			In:  util.Ptr[FunctionCallDestination](VarsFunctionCallDestination),
+			Var: util.StrPtr("f1"),
 		},
 		{
 			Name: "f2",
@@ -114,11 +116,11 @@ func TestRunner_RunAllFunctionCalls(t *testing.T) {
 				return "val2 + " + m["f1"].(string), nil
 			},
 			Args: map[string]any{"f1": "{{.vars.f1}}"},
-			In:   Ptr[FunctionCallDestination](VarsFunctionCallDestination),
-			Var:  StrPtr("f2"),
+			In:   util.Ptr[FunctionCallDestination](VarsFunctionCallDestination),
+			Var:  util.StrPtr("f2"),
 		},
 	}
-	out, err := runner.RunAllFunctionCalls(NewFragsContext(time.Minute), fcs, runner.newEvalScope())
+	out, err := runner.RunAllFunctionCallers(util.NewFragsContext(time.Minute), fcs, runner.newEvalScope())
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]any{"f1": "val1", "f2": "val2 + val1"}, out)
 }

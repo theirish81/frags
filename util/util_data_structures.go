@@ -15,7 +15,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+/*
+ * Copyright (C) 2026 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package util
 
 import (
 	"encoding/json"
@@ -41,11 +58,11 @@ func (p *ProgMap) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// emptyMap is a map[string]any that's initialized with no entries.
-var emptyMap = make(map[string]any)
+// EmptyMap is a map[string]any that's initialized with no entries.
+var EmptyMap = make(map[string]any)
 
-// isMapAny returns true if the given data is a map[string]any
-func isMapAny(data any) bool {
+// IsMapAny returns true if the given data is a map[string]any
+func IsMapAny(data any) bool {
 	_, ok := data.(map[string]any)
 	return ok
 }
@@ -61,8 +78,8 @@ func AnyToResultMap(data any) map[string]any {
 	}
 }
 
-// initDataStructure initializes the data structure, assuming it's either a map or a struct
-func initDataStructure[T any]() *T {
+// InitDataStructure initializes the data structure, assuming it's either a map or a struct
+func InitDataStructure[T any]() *T {
 	var v T
 	val := reflect.ValueOf(&v).Elem()
 	if val.Kind() == reflect.Map {

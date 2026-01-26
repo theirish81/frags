@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/theirish81/frags/util"
 )
 
 func TestRunner_CheckDependencies(t *testing.T) {
@@ -41,7 +42,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 	}
 	res, err := rx.CheckDependencies(Dependencies{
 		{
-			Session: StrPtr("foo"),
+			Session: util.StrPtr("foo"),
 		},
 	})
 	assert.Nil(t, err)
@@ -49,7 +50,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: StrPtr("fuz"),
+			Session: util.StrPtr("fuz"),
 		},
 	})
 	assert.Nil(t, err)
@@ -57,7 +58,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: StrPtr("bar"),
+			Session: util.StrPtr("bar"),
 		},
 	})
 	assert.Nil(t, err)
@@ -65,7 +66,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: StrPtr("baz"),
+			Session: util.StrPtr("baz"),
 		},
 	})
 	assert.Nil(t, err)
@@ -73,7 +74,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: StrPtr("bat"),
+			Session: util.StrPtr("bat"),
 		},
 	})
 	assert.Nil(t, err)
@@ -81,7 +82,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session: StrPtr("bam"),
+			Session: util.StrPtr("bam"),
 		},
 	})
 	assert.Nil(t, err)
@@ -89,8 +90,8 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session:    StrPtr("fuz"),
-			Expression: StrPtr("context.foo == 'bar'"),
+			Session:    util.StrPtr("fuz"),
+			Expression: util.StrPtr("context.foo == 'bar'"),
 		},
 	})
 	assert.Nil(t, err)
@@ -98,8 +99,8 @@ func TestRunner_CheckDependencies(t *testing.T) {
 
 	res, err = rx.CheckDependencies(Dependencies{
 		{
-			Session:    StrPtr("fuz"),
-			Expression: StrPtr("context.foo == 'ban'"),
+			Session:    util.StrPtr("fuz"),
+			Expression: util.StrPtr("context.foo == 'ban'"),
 		},
 	})
 	assert.Nil(t, err)

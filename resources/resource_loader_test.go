@@ -1,4 +1,21 @@
 /*
+ * Copyright (C) 2026 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/*
  * Copyright (C) 2025 Simone Pezzano
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,7 +32,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package resources
 
 import (
 	"os"
@@ -23,25 +40,26 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/theirish81/frags/util"
 )
 
 func TestFileResourceLoader(t *testing.T) {
 	t.Run("successfully loads an existing file", func(t *testing.T) {
-		loader := NewFileResourceLoader("./test_data")
+		loader := NewFileResourceLoader("../test_data")
 		identifier := "story.txt"
 		resource, err := loader.LoadResource(identifier, nil)
-
-		expectedContent, readErr := os.ReadFile(filepath.Join("./test_data", identifier))
+		assert.NoError(t, err)
+		expectedContent, readErr := os.ReadFile(filepath.Join("../test_data", identifier))
 		assert.NoError(t, readErr)
 
 		assert.NoError(t, err)
 		assert.Equal(t, identifier, resource.Identifier)
 		assert.Equal(t, expectedContent, resource.ByteContent)
-		assert.Equal(t, MediaText, resource.MediaType)
+		assert.Equal(t, util.MediaText, resource.MediaType)
 	})
 
 	t.Run("returns an error for a non-existent file", func(t *testing.T) {
-		loader := NewFileResourceLoader("./test_data")
+		loader := NewFileResourceLoader("../test_data")
 		identifier := "non_existent_file.txt"
 		_, err := loader.LoadResource(identifier, nil)
 
@@ -55,7 +73,7 @@ func TestBytesLoader(t *testing.T) {
 		expectedResource := ResourceData{
 			Identifier:  "in-memory-resource",
 			ByteContent: []byte("This is some data in memory."),
-			MediaType:   MediaText,
+			MediaType:   util.MediaText,
 		}
 		loader.SetResource(expectedResource)
 
@@ -73,9 +91,9 @@ func TestBytesLoader(t *testing.T) {
 }
 
 func TestMultiResourceLoader(t *testing.T) {
-	fileLoader := NewFileResourceLoader("./test_data")
+	fileLoader := NewFileResourceLoader("../test_data")
 	bytesLoader := NewBytesLoader()
-	inMemoryResource := ResourceData{Identifier: "ram.txt", ByteContent: []byte("data from ram"), MediaType: MediaText}
+	inMemoryResource := ResourceData{Identifier: "ram.txt", ByteContent: []byte("data from ram"), MediaType: util.MediaText}
 	bytesLoader.SetResource(inMemoryResource)
 
 	multiLoader := NewMultiResourceLoader()
@@ -84,8 +102,8 @@ func TestMultiResourceLoader(t *testing.T) {
 
 	t.Run("successfully loads from file loader", func(t *testing.T) {
 		resource, err := multiLoader.LoadResource("story.txt", map[string]string{"loader": "fs"})
-		expectedContent, _ := os.ReadFile(filepath.Join("./test_data", "story.txt"))
-
+		assert.NoError(t, err)
+		expectedContent, err := os.ReadFile(filepath.Join("../test_data", "story.txt"))
 		assert.NoError(t, err)
 		assert.Equal(t, "story.txt", resource.Identifier)
 		assert.Equal(t, expectedContent, resource.ByteContent)

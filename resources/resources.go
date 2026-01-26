@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Simone Pezzano
+ * Copyright (C) 2026 Simone Pezzano
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -15,22 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package resources
 
-import (
-	"testing"
+type ResourceDestination string
 
-	"github.com/stretchr/testify/assert"
+const (
+	AiResourceDestination        ResourceDestination = "ai"
+	VarsResourceDestination      ResourceDestination = "vars"
+	PrePromptResourceDestination ResourceDestination = "prePrompt"
+	PromptResourceDestination    ResourceDestination = "prompt"
 )
-
-const json1 = `{"p1": "v1", "p2": "v2"}`
-const json2 = `{"p3": "v3", "p4": "v4"}`
-
-func TestProgMap_UnmarshalJSON(t *testing.T) {
-	progmap := ProgMap{}
-	err := progmap.UnmarshalJSON([]byte(json1))
-	assert.Nil(t, err)
-	err = progmap.UnmarshalJSON([]byte(json2))
-	assert.Nil(t, err)
-	assert.Equal(t, ProgMap{"p1": "v1", "p2": "v2", "p3": "v3", "p4": "v4"}, progmap)
-}

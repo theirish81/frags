@@ -15,7 +15,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+/*
+ * Copyright (C) 2026 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package util
 
 import (
 	"fmt"
@@ -23,9 +40,9 @@ import (
 	"strconv"
 )
 
-// stringValToFloat64 converts a reflect.Value allegedly containing a string to a float64, or returns an error if the
+// StringValToFloat64 converts a reflect.Value allegedly containing a string to a float64, or returns an error if the
 // conversion fails.
-func stringValToFloat64(v reflect.Value) (float64, error) {
+func StringValToFloat64(v reflect.Value) (float64, error) {
 	if !v.IsValid() {
 		return 0, fmt.Errorf("precondition failed: value is invalid")
 	}
@@ -41,9 +58,9 @@ func stringValToFloat64(v reflect.Value) (float64, error) {
 	return f, nil
 }
 
-// stringValToToBool converts a reflect.Value allegedly containing a string to a bool, or returns an error if the
+// StringValToToBool converts a reflect.Value allegedly containing a string to a bool, or returns an error if the
 // conversion fails.
-func stringValToToBool(v reflect.Value) (bool, error) {
+func StringValToToBool(v reflect.Value) (bool, error) {
 	if !v.IsValid() {
 		return false, fmt.Errorf("precondition failed: value is invalid")
 	}

@@ -20,6 +20,7 @@ package frags
 import (
 	"github.com/blues/jsonata-go"
 	"github.com/jmespath/go-jmespath"
+	"github.com/theirish81/frags/util"
 )
 
 type Parser string
@@ -78,7 +79,7 @@ func (t Transformers) FilterOnResource(name string) Transformers {
 }
 
 // Transform applies the transformation to the given data
-func (t Transformer) Transform(ctx *FragsContext, data any, runner ExportableRunner) (any, error) {
+func (t Transformer) Transform(ctx *util.FragsContext, data any, runner ExportableRunner) (any, error) {
 	runner.Logger().Debug(NewEvent(StartEventType, TransformerComponent).WithTransformer(t.Name))
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -89,15 +90,15 @@ func (t Transformer) Transform(ctx *FragsContext, data any, runner ExportableRun
 		switch *t.Parser {
 		case JsonParser:
 			var err error
-			data, err = parseJSON(data)
+			data, err = util.ParseJSON(data)
 			if err != nil {
-				return emptyMap, err
+				return util.EmptyMap, err
 			}
 		case CsvParser:
 			var err error
-			data, err = parseCSV(data)
+			data, err = util.ParseCSV(data)
 			if err != nil {
-				return emptyMap, err
+				return util.EmptyMap, err
 			}
 		}
 	}
@@ -105,38 +106,38 @@ func (t Transformer) Transform(ctx *FragsContext, data any, runner ExportableRun
 	if t.Jsonata != nil {
 		script, err := jsonata.Compile(*t.Jsonata)
 		if err != nil {
-			return emptyMap, err
+			return util.EmptyMap, err
 		}
 		data, err = script.Eval(data)
 		if err != nil {
-			return emptyMap, err
+			return util.EmptyMap, err
 		}
 	}
 	if t.JmesPath != nil {
 		var err error
 		data, err = jmespath.Search(*t.JmesPath, data)
 		if err != nil {
-			return emptyMap, err
+			return util.EmptyMap, err
 		}
 	}
 	if t.Expr != nil {
 		var err error
 		data, err = EvaluateExpression(*t.Expr, EvalScope{"args": data})
 		if err != nil {
-			return emptyMap, err
+			return util.EmptyMap, err
 		}
 	}
 	if t.Code != nil {
 		var err error
 		if data, err = runner.ScriptEngine().RunCode(ctx, *t.Code, data, runner); err != nil {
-			return emptyMap, err
+			return util.EmptyMap, err
 		}
 	}
 	return data, nil
 }
 
 // Transform applies all the transformations to the given data
-func (t Transformers) Transform(ctx *FragsContext, data any, runner ExportableRunner) (any, error) {
+func (t Transformers) Transform(ctx *util.FragsContext, data any, runner ExportableRunner) (any, error) {
 	tmp := data
 	var err error
 	for _, tx := range t {

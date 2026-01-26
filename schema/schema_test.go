@@ -1,4 +1,21 @@
 /*
+ * Copyright (C) 2026 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/*
  * Copyright (C) 2025 Simone Pezzano
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,12 +32,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package schema
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/theirish81/frags/util"
 )
 
 func TestSchema_GetPhase(t *testing.T) {
@@ -58,11 +76,11 @@ func TestSchema_GetContext(t *testing.T) {
 		Properties: map[string]*Schema{
 			"p1": {
 				Type:     SchemaString,
-				XSession: StrPtr("foo"),
+				XSession: util.StrPtr("foo"),
 			},
 			"p2": {
 				Type:     SchemaInteger,
-				XSession: StrPtr("bar"),
+				XSession: util.StrPtr("bar"),
 			},
 		},
 	}
@@ -140,7 +158,7 @@ func TestSchema_Resolve(t *testing.T) {
 	ref := "#/components/schemas/Address"
 	ref2 := "#/components/schemas/Person"
 
-	comp := Components{Schemas: map[string]Schema{
+	schemas := map[string]Schema{
 		"Address": {
 			Type: SchemaObject,
 			Properties: map[string]*Schema{
@@ -157,7 +175,6 @@ func TestSchema_Resolve(t *testing.T) {
 				},
 			},
 		},
-	},
 	}
 
 	schema := Schema{
@@ -168,7 +185,7 @@ func TestSchema_Resolve(t *testing.T) {
 			},
 		},
 	}
-	err := schema.Resolve(comp)
+	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 
 	personSchema := schema.Properties["person"]
@@ -184,14 +201,13 @@ func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
 
 	ref := "#/components/schemas/Address"
 
-	comp := Components{Schemas: map[string]Schema{
+	schemas := map[string]Schema{
 		"Address": {
 			Type: SchemaObject,
 			Properties: map[string]*Schema{
 				"street": {Type: SchemaString},
 			},
 		},
-	},
 	}
 
 	schema := Schema{
@@ -200,7 +216,7 @@ func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
 		},
 	}
 
-	err := schema.Resolve(comp)
+	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.NotNil(t, schema.AnyOf[0])
 	assert.Equal(t, SchemaObject, schema.AnyOf[0].Type)
@@ -210,14 +226,13 @@ func TestSessionManager_ResolveSchema_Items(t *testing.T) {
 
 	ref := "#/components/schemas/Address"
 
-	comp := Components{Schemas: map[string]Schema{
+	schemas := map[string]Schema{
 		"Address": {
 			Type: SchemaObject,
 			Properties: map[string]*Schema{
 				"street": {Type: SchemaString},
 			},
 		},
-	},
 	}
 
 	schema := Schema{
@@ -227,7 +242,7 @@ func TestSessionManager_ResolveSchema_Items(t *testing.T) {
 		},
 	}
 
-	err := schema.Resolve(comp)
+	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.NotNil(t, schema.Items)
 	assert.Equal(t, SchemaObject, schema.Items.Type)
@@ -237,7 +252,7 @@ func TestSessionManager_ResolveSchema_Circular(t *testing.T) {
 	refA := "#/components/schemas/A"
 	refB := "#/components/schemas/B"
 
-	comp := Components{Schemas: map[string]Schema{
+	schemas := map[string]Schema{
 		"A": {
 			Type: SchemaObject,
 			Properties: map[string]*Schema{
@@ -250,14 +265,13 @@ func TestSessionManager_ResolveSchema_Circular(t *testing.T) {
 				"a": {Ref: &refA},
 			},
 		},
-	},
 	}
 
 	schema := Schema{
 		Ref: &refA,
 	}
 
-	err := schema.Resolve(comp)
+	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 
 	aSchema := schema
@@ -274,7 +288,7 @@ func TestSessionManager_ResolveSchema_NotFound(t *testing.T) {
 	schema := Schema{
 		Ref: &ref,
 	}
-	err := schema.Resolve(Components{})
+	err := schema.Resolve(make(map[string]Schema))
 	assert.Error(t, err)
 }
 
@@ -283,14 +297,13 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 	phase := 1
 	session := "test_session"
 
-	comp := Components{Schemas: map[string]Schema{
+	schemas := map[string]Schema{
 		"Address": {
 			Type: SchemaObject,
 			Properties: map[string]*Schema{
 				"street": {Type: SchemaString},
 			},
 		},
-	},
 	}
 
 	schema := Schema{
@@ -304,7 +317,7 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 		},
 	}
 
-	err := schema.Resolve(comp)
+	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 
 	addressSchema := schema.Properties["shipping_address"]

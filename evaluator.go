@@ -26,6 +26,7 @@ import (
 	"text/template"
 
 	"github.com/expr-lang/expr"
+	"github.com/theirish81/frags/util"
 )
 
 const (
@@ -139,7 +140,7 @@ func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) 
 	if err != nil {
 		return nil, err
 	}
-	rv := ToConcreteValue(reflect.ValueOf(res))
+	rv := util.ToConcreteValue(reflect.ValueOf(res))
 	if rv.Kind() == reflect.Slice {
 		result := make([]any, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
@@ -184,9 +185,6 @@ var templateFuncs = template.FuncMap{
 	"json": func(v any) string {
 		json, _ := json.MarshalIndent(v, "", " ")
 		return string(json)
-	},
-	"kf": func(v any) string {
-		return ToKFormat(v)
 	},
 }
 

@@ -1,4 +1,21 @@
 /*
+ * Copyright (C) 2026 Simone Pezzano
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/*
  * Copyright (C) 2025 Simone Pezzano
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,7 +32,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package resources
 
 import (
 	"encoding/json"
@@ -26,6 +43,7 @@ import (
 	"reflect"
 
 	"github.com/samber/lo"
+	"github.com/theirish81/frags/util"
 )
 
 // ResourceData is a piece of data the LLM can use.
@@ -40,25 +58,25 @@ type ResourceData struct {
 
 type ResourceDataItems []ResourceData
 
-func (r ResourceDataItems) filterAiResources() ResourceDataItems {
+func (r ResourceDataItems) FilterAiResources() ResourceDataItems {
 	return lo.Filter(r, func(res ResourceData, index int) bool {
 		return res.In == AiResourceDestination
 	})
 }
 
-func (r ResourceDataItems) filterVarResourcesData() ResourceDataItems {
+func (r ResourceDataItems) FilterVarResourcesData() ResourceDataItems {
 	return lo.Filter(r, func(res ResourceData, index int) bool {
 		return res.In == VarsResourceDestination
 	})
 }
 
-func (r ResourceDataItems) filterPrePromptResources() ResourceDataItems {
+func (r ResourceDataItems) FilterPrePromptResources() ResourceDataItems {
 	return lo.Filter(r, func(res ResourceData, index int) bool {
 		return res.In == PrePromptResourceDestination
 	})
 }
 
-func (r ResourceDataItems) filterPromptResources() ResourceDataItems {
+func (r ResourceDataItems) FilterPromptResources() ResourceDataItems {
 	return lo.Filter(r, func(res ResourceData, index int) bool {
 		return res.In == PromptResourceDestination
 	})
@@ -70,7 +88,7 @@ func (r ResourceDataItems) filterPromptResources() ResourceDataItems {
 // has value, then ByteContent contains its JSON representation, but when a raw value needs to be stored, then
 // StructuredContent is nil and ByteContent contains the raw value.
 func (r *ResourceData) SetContent(data any) error {
-	switch ToConcreteValue(reflect.ValueOf(data)).Kind() {
+	switch util.ToConcreteValue(reflect.ValueOf(data)).Kind() {
 	case reflect.Slice, reflect.Array, reflect.Map:
 		switch t := data.(type) {
 		// In case this is an array of bytes, we keep it as byte response, there's no structure in this case
@@ -110,7 +128,7 @@ func NewFileResourceLoader(basePath string) *FileResourceLoader {
 
 // LoadResource loads a resource from the file system.
 func (l *FileResourceLoader) LoadResource(identifier string, _ map[string]string) (ResourceData, error) {
-	resource := ResourceData{Identifier: identifier, MediaType: GetMediaType(identifier)}
+	resource := ResourceData{Identifier: identifier, MediaType: util.GetMediaType(identifier)}
 	fileData, err := os.ReadFile(filepath.Join(l.basePath, identifier))
 	if err != nil {
 		return ResourceData{}, err
@@ -182,7 +200,7 @@ func NewDummyResourceLoader() *DummyResourceLoader {
 func (l *DummyResourceLoader) LoadResource(identifier string, params map[string]string) (ResourceData, error) {
 	return ResourceData{
 		Identifier:  identifier,
-		MediaType:   GetMediaType(identifier),
+		MediaType:   util.GetMediaType(identifier),
 		ByteContent: make([]byte, 0),
 	}, nil
 }

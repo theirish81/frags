@@ -19,6 +19,8 @@ package frags
 
 import (
 	"fmt"
+
+	"github.com/theirish81/frags/schema"
 )
 
 type ToolType string
@@ -39,12 +41,12 @@ const (
 // InputSchema defines the input schema for the tool. mcp and collection tools don't have an input schema.
 // Allowlist is a list of allowed functions when the tool is MCP or collection. If nil, all functions are allowed.
 type ToolDefinition struct {
-	Name        string    `json:"name" yaml:"name"`
-	Collection  string    `json:"-" yaml:"-"`
-	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
-	Type        ToolType  `json:"type" yaml:"type" validate:"required"`
-	InputSchema *Schema   `json:"inputSchema,omitempty" yaml:"inputSchema,omitempty"`
-	Allowlist   *[]string `json:"allowlist,omitempty" yaml:"allowlist,omitempty"`
+	Name        string         `json:"name" yaml:"name"`
+	Collection  string         `json:"-" yaml:"-"`
+	Description string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Type        ToolType       `json:"type" yaml:"type" validate:"required"`
+	InputSchema *schema.Schema `json:"inputSchema,omitempty" yaml:"inputSchema,omitempty"`
+	Allowlist   *[]string      `json:"allowlist,omitempty" yaml:"allowlist,omitempty"`
 }
 
 func (t ToolDefinition) String() string {
@@ -78,7 +80,7 @@ func (t *ToolDefinitions) HasType(tt ToolType) bool {
 type ToolsCollection interface {
 	Name() string
 	Description() string
-	AsFunctions() Functions
+	AsFunctions() ExternalFunctions
 }
 
 type ToolCollections []ToolsCollection
