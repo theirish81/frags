@@ -82,11 +82,11 @@ so it's subject to the limitations imposed by generating structured output.`,
 			},
 		}
 		mgr.Schema = &schema.Schema{
-			Type:     schema.SchemaObject,
+			Type:     schema.Object,
 			Required: []string{"answer"},
 			Properties: map[string]*schema.Schema{
 				"answer": {
-					Type:        schema.SchemaString,
+					Type:        schema.String,
 					Description: "the answer to the prompt",
 					XSession:    strPtr("default"),
 					XPhase:      0,
