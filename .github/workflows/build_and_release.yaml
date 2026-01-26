@@ -15,6 +15,14 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.24.8'
+      - name: Write version file
+        working-directory: cli
+        run: |
+          cat > version.go <<'EOF'
+          package main
+
+          const version = "${GITHUB_REF_NAME}"
+          EOF
       - name: Build
         working-directory: cli
         run: |

@@ -38,6 +38,7 @@ var (
 	apiKey       string
 	inputPath    string
 	parseInput   bool
+	versionParam bool
 )
 
 var rootCmd = cobra.Command{
@@ -46,9 +47,18 @@ var rootCmd = cobra.Command{
 	Long: `
 Frags is an advanced AI agent for complex data workflows—retrieval, transformation, extraction, and aggregation. Highly
 customizable and extensible, it prioritizes precision.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if versionParam {
+			cmd.Println(version)
+			return
+		}
+		_ = cmd.Help()
+	},
 }
 
 func init() {
+
+	rootCmd.Flags().BoolVarP(&versionParam, "version", "v", false, "print version")
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(askCmd)
 	rootCmd.AddCommand(renderCmd)
