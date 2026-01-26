@@ -119,7 +119,7 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 	out := ""
 	d.content = append(d.content, newMsg)
 	for keepGoing {
-		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(d.content[len(d.content)-1]).WithEngine(engine))
+		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(joinParts(d.content[len(d.content)-1].Parts)).WithEngine(engine))
 		res, err := d.client.Models.GenerateContent(ctx, d.config.Model, d.content, &cfg)
 		if err != nil {
 			return nil, err
