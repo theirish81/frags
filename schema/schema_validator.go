@@ -15,13 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package schema
 
 import (
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/theirish81/frags/util"
 )
 
 type ValidationError struct {
@@ -210,7 +212,7 @@ func (s *Schema) validateNumber(v reflect.Value, path string, softValidation boo
 	var num float64
 	kind := v.Kind()
 	if kind == reflect.String && softValidation {
-		if num, err := stringValToFloat64(v); err == nil {
+		if num, err := util.StringValToFloat64(v); err == nil {
 			return s.validateNumber(reflect.ValueOf(num), path, softValidation)
 		} else {
 			return &ValidationError{Path: path, Message: fmt.Sprintf("expected number, got %s", v.Kind())}
@@ -243,7 +245,7 @@ func (s *Schema) validateNumber(v reflect.Value, path string, softValidation boo
 
 func (s *Schema) validateBoolean(v reflect.Value, path string, softValidation bool) error {
 	if v.Kind() == reflect.String && softValidation {
-		if b, err := stringValToToBool(v); err == nil {
+		if b, err := util.StringValToToBool(v); err == nil {
 			return s.validateBoolean(reflect.ValueOf(b), path, softValidation)
 		} else {
 			return &ValidationError{Path: path, Message: fmt.Sprintf("expected boolean, got %s", v.Kind())}

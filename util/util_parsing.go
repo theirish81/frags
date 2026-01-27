@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package util
 
 import (
 	"bytes"
@@ -25,9 +25,9 @@ import (
 	"strings"
 )
 
-// parseJSON parses a JSON string into a map[string]any or a slice of any. If the argument is already a map[string]any
+// ParseJSON parses a JSON string into a map[string]any or a slice of any. If the argument is already a map[string]any
 // or a slice of any, it's returned as-is.
-func parseJSON(data any) (any, error) {
+func ParseJSON(data any) (any, error) {
 	switch t := data.(type) {
 	case map[string]any:
 		return t, nil
@@ -43,14 +43,14 @@ func parseJSON(data any) (any, error) {
 			return sliceOut, nil
 		}
 	case string:
-		return parseJSON([]byte(t))
+		return ParseJSON([]byte(t))
 	}
 	return nil, errors.New("cannot JSON-parse the input")
 }
 
-// parseCSV parses a CSV string into a [][]string. If the argument is already a [][]string, it's returned as-is.
+// ParseCSV parses a CSV string into a [][]string. If the argument is already a [][]string, it's returned as-is.
 // If the argument is a string or a []byte, it's parsed as CSV.
-func parseCSV(data any) ([][]string, error) {
+func ParseCSV(data any) ([][]string, error) {
 	switch t := data.(type) {
 	case [][]string:
 		return t, nil

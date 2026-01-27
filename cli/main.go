@@ -40,7 +40,6 @@ func main() {
 		cfg.OllamaBaseURL = "http://localhost:11434"
 		cfg.ParallelWorkers = 1
 		cfg.NumPredict = 1024
-		cfg.UseKFormat = false
 		cfg.ChatGptBaseURL = "https://api.openai.com/v1"
 		_ = mapstructure.Decode(&cfg, &data)
 		_ = viper.MergeConfigMap(data)

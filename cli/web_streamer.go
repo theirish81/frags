@@ -24,16 +24,16 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/log"
 )
 
 type Streamer struct {
 	c  echo.Context
-	l  *frags.StreamerLogger
+	l  *log.StreamerLogger
 	mx sync.Mutex
 }
 
-func NewStreamer(c echo.Context, logger *frags.StreamerLogger) *Streamer {
+func NewStreamer(c echo.Context, logger *log.StreamerLogger) *Streamer {
 	return &Streamer{
 		c:  c,
 		l:  logger,
@@ -49,7 +49,7 @@ func (s *Streamer) Start() {
 	}()
 }
 
-func (s *Streamer) streamEvents(c echo.Context, streamerLogger *frags.StreamerLogger) error {
+func (s *Streamer) streamEvents(c echo.Context, streamerLogger *log.StreamerLogger) error {
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Connection", "keep-alive")
@@ -74,7 +74,7 @@ func (s *Streamer) streamEvents(c echo.Context, streamerLogger *frags.StreamerLo
 	}
 }
 
-func (s *Streamer) Finish(finalEvent frags.Event) error {
+func (s *Streamer) Finish(finalEvent log.Event) error {
 	defer func() {
 		s.l.Close()
 	}()
@@ -98,7 +98,7 @@ func (s *Streamer) Write(data []byte) error {
 	return err
 }
 
-func toData(event frags.Event) ([]byte, error) {
+func toData(event log.Event) ([]byte, error) {
 	data, err := json.Marshal(event)
 	if err != nil {
 		return nil, err

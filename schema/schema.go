@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package schema
 
 import (
 	"errors"
@@ -27,12 +27,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const SchemaObject = "object"
-const SchemaString = "string"
-const SchemaInteger = "integer"
-const SchemaNumber = "number"
-const SchemaBoolean = "boolean"
-const SchemaArray = "array"
+const Object = "object"
+const String = "string"
+const Integer = "integer"
+const Number = "number"
+const Boolean = "boolean"
+const Array = "array"
 
 // Schema represents a JSON schema with x-phase and x-session extensions.
 type Schema struct {
@@ -136,12 +136,12 @@ func (s *Schema) GetSession(sessionID string) (Schema, error) {
 }
 
 // Resolve resolves all the references in the schema.
-func (s *Schema) Resolve(components Components) error {
-	return s.resolve(s, components, make(map[string]bool))
+func (s *Schema) Resolve(schemas map[string]Schema) error {
+	return s.resolve(s, schemas, make(map[string]bool))
 }
 
 // resolve resolves all the references in the schema (recursive function)
-func (s *Schema) resolve(schema *Schema, components Components, visited map[string]bool) error {
+func (s *Schema) resolve(schema *Schema, schemas map[string]Schema, visited map[string]bool) error {
 	if schema == nil {
 		return nil
 	}
@@ -154,7 +154,7 @@ func (s *Schema) resolve(schema *Schema, components Components, visited map[stri
 			visited[ref] = true
 			defer func() { delete(visited, ref) }()
 			schemaName := strings.TrimPrefix(ref, "#/components/schemas/")
-			if resolvedSchema, ok := components.Schemas[schemaName]; ok {
+			if resolvedSchema, ok := schemas[schemaName]; ok {
 				originalXPhase := schema.XPhase
 				originalXSession := schema.XSession
 
@@ -164,7 +164,7 @@ func (s *Schema) resolve(schema *Schema, components Components, visited map[stri
 				schema.XSession = originalXSession
 				schema.Ref = nil
 
-				if err := s.resolve(schema, components, visited); err != nil {
+				if err := s.resolve(schema, schemas, visited); err != nil {
 					return err
 				}
 			} else {
@@ -175,21 +175,21 @@ func (s *Schema) resolve(schema *Schema, components Components, visited map[stri
 
 	if schema.Properties != nil {
 		for _, propSchema := range schema.Properties {
-			if err := s.resolve(propSchema, components, visited); err != nil {
+			if err := s.resolve(propSchema, schemas, visited); err != nil {
 				return err
 			}
 		}
 	}
 
 	if schema.Items != nil {
-		if err := s.resolve(schema.Items, components, visited); err != nil {
+		if err := s.resolve(schema.Items, schemas, visited); err != nil {
 			return err
 		}
 	}
 
 	if schema.AnyOf != nil {
 		for _, anyOfSchema := range schema.AnyOf {
-			if err := s.resolve(anyOfSchema, components, visited); err != nil {
+			if err := s.resolve(anyOfSchema, schemas, visited); err != nil {
 				return err
 			}
 		}

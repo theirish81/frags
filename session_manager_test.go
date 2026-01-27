@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
+	"github.com/theirish81/frags/schema"
 	yaml2 "gopkg.in/yaml.v3"
 )
 
@@ -95,8 +96,8 @@ func TestParametersConfig_Validate(t *testing.T) {
 		Parameters: Parameters{
 			{
 				Name: "foo",
-				Schema: &Schema{
-					Type: SchemaInteger,
+				Schema: &schema.Schema{
+					Type: schema.Integer,
 				},
 			},
 		},

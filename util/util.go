@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package util
 
 import (
 	"context"
@@ -27,8 +27,8 @@ import (
 	"github.com/avast/retry-go/v5"
 )
 
-// parseDurationOrDefault parses a duration string into a time.Duration, or returns the default duration if parsing fails
-func parseDurationOrDefault(durationStr *string, defaultDuration time.Duration) time.Duration {
+// ParseDurationOrDefault parses a duration string into a time.Duration, or returns the default duration if parsing fails
+func ParseDurationOrDefault(durationStr *string, defaultDuration time.Duration) time.Duration {
 	if durationStr == nil || *durationStr == "" {
 		return defaultDuration
 	}

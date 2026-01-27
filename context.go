@@ -20,11 +20,14 @@ package frags
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/theirish81/frags/evaluators"
+	"github.com/theirish81/frags/util"
 )
 
 // contextualizePrompt adds the current context to the prompt. This includes the already extracted context, if enabled,
 // and optional pre-calls which will be called in this function.
-func (r *Runner[T]) contextualizePrompt(ctx *FragsContext, prompt string, session Session, scope EvalScope) (string, error) {
+func (r *Runner[T]) contextualizePrompt(ctx *util.FragsContext, prompt string, session Session, scope evaluators.EvalScope) (string, error) {
 	// we run the pre-calls first, so that they can be used in the prompt
 	preCallsContext, err := r.RunSessionAiPreCallsToTextContext(ctx, session, scope)
 	if err != nil {
@@ -44,7 +47,7 @@ func (r *Runner[T]) contextualizePrompt(ctx *FragsContext, prompt string, sessio
 
 // preCallCtx returns a string representation of a function call and its result, formatting it in a way that it can be
 // correctly read by the LLM. Its main purpose is to be inserted in the prompt as part of the context.
-func preCallCtx(call FunctionCall, res any) string {
+func preCallCtx(call FunctionCaller, res any) string {
 	data, _ := json.Marshal(res)
 	descr := ""
 	if call.Description != nil {

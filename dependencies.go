@@ -17,7 +17,11 @@
 
 package frags
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/theirish81/frags/evaluators"
+)
 
 // Dependency defines whether this session can run or should:
 // * wait on another Session to complete
@@ -56,7 +60,7 @@ func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyChec
 		}
 
 		if dep.Expression != nil {
-			pass, err := EvaluateBooleanExpression(*dep.Expression, r.newEvalScope().WithVars(r.vars))
+			pass, err := evaluators.EvaluateBooleanExpression(*dep.Expression, r.newEvalScope().WithVars(r.vars))
 			if err != nil {
 				return DependencyCheckUnsolvable, err
 			}

@@ -45,7 +45,6 @@ type Config struct {
 	TopK                     float32 `mapstructure:"TOP_K" yaml:"TOP_K"`
 	TopP                     float32 `mapstructure:"TOP_P" yaml:"TOP_P"`
 	NumPredict               int     `mapstructure:"NUM_PREDICT" yaml:"NUM_PREDICT"`
-	UseKFormat               bool    `mapstructure:"USE_K_FORMAT" yaml:"USE_K_FORMAT"`
 	ChatGptApiKey            string  `mapstructure:"CHATGPT_API_KEY" yaml:"CHATGPT_API_KEY"`
 	ChatGptBaseURL           string  `mapstructure:"CHATGPT_BASE_URL" yaml:"CHATGPT_BASE_URL"`
 }

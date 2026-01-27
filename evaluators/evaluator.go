@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package evaluators
 
 import (
 	"bytes"
@@ -26,14 +26,15 @@ import (
 	"text/template"
 
 	"github.com/expr-lang/expr"
+	"github.com/theirish81/frags/util"
 )
 
 const (
-	paramsAttr     = "params"
-	contextAttr    = "context"
-	componentsAttr = "components"
-	iteratorAttr   = "it"
-	varsAttr       = "vars"
+	ParamsAttr     = "params"
+	ContextAttr    = "context"
+	ComponentsAttr = "components"
+	IteratorAttr   = "it"
+	VarsAttr       = "vars"
 )
 
 // EvalScope is the scope for evaluating expressions.
@@ -41,7 +42,7 @@ type EvalScope map[string]any
 
 // WithIterator clones the scope and adds the iterator.
 func (e EvalScope) WithIterator(it any) EvalScope {
-	e[iteratorAttr] = it
+	e[IteratorAttr] = it
 	return e
 }
 
@@ -52,36 +53,34 @@ func (e EvalScope) WithVars(vars map[string]any) EvalScope {
 	}
 
 	for k, v := range vars {
-		e[varsAttr].(map[string]any)[k] = v
+		e[VarsAttr].(map[string]any)[k] = v
+	}
+	return e
+}
+
+func (e EvalScope) WithParams(params map[string]any) EvalScope {
+	if params == nil {
+		e[ParamsAttr] = make(map[string]any)
+	}
+	for k, v := range params {
+		e[ParamsAttr].(map[string]any)[k] = v
 	}
 	return e
 }
 
 // Vars returns the vars map.
 func (e EvalScope) Vars() map[string]any {
-	return e[varsAttr].(map[string]any)
+	return e[VarsAttr].(map[string]any)
 }
 
 // NewEvalScope is the EvalScope constructor, unbounded to a specific Runner.
 func NewEvalScope() EvalScope {
 	return EvalScope{
-		paramsAttr:     make(map[string]any),
-		contextAttr:    make(map[string]any),
-		componentsAttr: make(map[string]any),
-		varsAttr:       make(map[string]any),
+		ParamsAttr:     make(map[string]any),
+		ContextAttr:    make(map[string]any),
+		ComponentsAttr: make(map[string]any),
+		VarsAttr:       make(map[string]any),
 	}
-}
-
-// newEvalScope returns a new scope for evaluating expressions.
-func (r *Runner[T]) newEvalScope() EvalScope {
-	scope := EvalScope{
-		paramsAttr:     r.params,
-		contextAttr:    *r.dataStructure,
-		componentsAttr: r.sessionManager.Components,
-		varsAttr:       make(map[string]any),
-		iteratorAttr:   nil,
-	}
-	return scope.WithVars(r.vars)
 }
 
 // EvaluateTemplate evaluates a Golang template with the given scope.
@@ -139,7 +138,7 @@ func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) 
 	if err != nil {
 		return nil, err
 	}
-	rv := ToConcreteValue(reflect.ValueOf(res))
+	rv := util.ToConcreteValue(reflect.ValueOf(res))
 	if rv.Kind() == reflect.Slice {
 		result := make([]any, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
@@ -184,9 +183,6 @@ var templateFuncs = template.FuncMap{
 	"json": func(v any) string {
 		json, _ := json.MarshalIndent(v, "", " ")
 		return string(json)
-	},
-	"kf": func(v any) string {
-		return ToKFormat(v)
 	},
 }
 

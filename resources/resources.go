@@ -15,18 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package resources
 
-import "github.com/theirish81/frags/util"
+type ResourceDestination string
 
-// ScriptEngine is the interface that wraps the RunCode method. Frags provides NO script engines, it's the program
-// that includes Frags that provides one, if necessary. Beware though, most script engines pose a security risk.
-type ScriptEngine interface {
-	RunCode(ctx *util.FragsContext, code string, params any, runner ExportableRunner) (any, error)
-}
-
-type DummyScriptEngine struct{}
-
-func (d *DummyScriptEngine) RunCode(_ *util.FragsContext, _ string, _ any, _ ExportableRunner) (any, error) {
-	return make(map[string]any), nil
-}
+const (
+	AiResourceDestination        ResourceDestination = "ai"
+	VarsResourceDestination      ResourceDestination = "vars"
+	PrePromptResourceDestination ResourceDestination = "prePrompt"
+	PromptResourceDestination    ResourceDestination = "prompt"
+)

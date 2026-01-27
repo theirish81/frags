@@ -24,6 +24,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/schema"
+	"github.com/theirish81/frags/util"
 )
 
 var internetSearch bool
@@ -63,36 +67,36 @@ so it's subject to the limitations imposed by generating structured output.`,
 		if len(systemPrompt) > 0 {
 			mgr.SystemPrompt = &systemPrompt
 		}
-		resources := make([]frags.Resource, 0)
+		rx := make([]frags.Resource, 0)
 		for _, up := range uploads {
-			resources = append(resources, frags.Resource{
+			rx = append(rx, frags.Resource{
 				Identifier: up,
 			})
 		}
 		mgr.Sessions = frags.Sessions{
 			"default": {
-				PrePrompt: frags.StrPtrToArray(pp),
+				PrePrompt: util.StrPtrToArray(pp),
 				Prompt:    args[0],
 				Tools:     toolDefinitions,
-				Resources: resources,
+				Resources: rx,
 			},
 		}
-		mgr.Schema = &frags.Schema{
-			Type:     frags.SchemaObject,
+		mgr.Schema = &schema.Schema{
+			Type:     schema.Object,
 			Required: []string{"answer"},
-			Properties: map[string]*frags.Schema{
+			Properties: map[string]*schema.Schema{
 				"answer": {
-					Type:        frags.SchemaString,
+					Type:        schema.String,
 					Description: "the answer to the prompt",
 					XSession:    strPtr("default"),
 					XPhase:      0,
 				},
 			},
 		}
-		ctx := frags.WithFragsContext(cmd.Context(), 15*time.Minute)
+		ctx := util.WithFragsContext(cmd.Context(), 15*time.Minute)
 		defer ctx.Cancel()
 		out, err := execute(ctx, mgr, make(map[string]any), toolsConfig,
-			frags.NewFileResourceLoader("./"), frags.NewStreamerLogger(slog.Default(), nil, frags.InfoChannelLevel))
+			resources.NewFileResourceLoader("./"), log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

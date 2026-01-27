@@ -29,6 +29,8 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/jinzhu/copier"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	schema2 "github.com/theirish81/frags/schema"
+	"github.com/theirish81/frags/util"
 )
 
 // McpTools returns  McpTool instances for each server configuration
@@ -133,7 +135,7 @@ func (c *McpTool) ListTools(ctx context.Context) (ToolDefinitions, error) {
 	// Unfortunately the library seems to return InputSchema in multiple, bizzarre ways, so we need to make sure
 	// we convert it into something predictable.
 	for _, t := range tools.Tools {
-		schema := Schema{}
+		schema := schema2.Schema{}
 		switch typed := t.InputSchema.(type) {
 		case string:
 			if err := json.Unmarshal([]byte(typed), &schema); err != nil {
@@ -170,19 +172,19 @@ func (c *McpTool) ListTools(ctx context.Context) (ToolDefinitions, error) {
 }
 
 // AsFunctions returns the tools as functions
-func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
-	functions := Functions{}
+func (c *McpTool) AsFunctions(ctx context.Context) (ExternalFunctions, error) {
+	functions := ExternalFunctions{}
 	tools, err := c.ListTools(ctx)
 	if err != nil {
 		return functions, err
 	}
 	for _, t := range tools {
-		functions[t.Name] = Function{
+		functions[t.Name] = ExternalFunction{
 			Name:        t.Name,
 			Description: t.Description,
 			Collection:  c.Name,
 			Schema:      t.InputSchema,
-			Func: func(ctx *FragsContext, data map[string]any) (any, error) {
+			Func: func(ctx *util.FragsContext, data map[string]any) (any, error) {
 				return c.Run(ctx, t.Name, data)
 			},
 		}
@@ -191,7 +193,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (Functions, error) {
 }
 
 // Run runs a tool on the server
-func (c *McpTool) Run(ctx *FragsContext, name string, arguments any) (any, error) {
+func (c *McpTool) Run(ctx *util.FragsContext, name string, arguments any) (any, error) {
 	res, err := c.session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      name,
 		Arguments: arguments,
@@ -237,8 +239,8 @@ func (m McpTools) Close() error {
 }
 
 // AsFunctions returns all the tools as functions
-func (m McpTools) AsFunctions(ctx context.Context) (Functions, error) {
-	functions := Functions{}
+func (m McpTools) AsFunctions(ctx context.Context) (ExternalFunctions, error) {
+	functions := ExternalFunctions{}
 	for _, t := range m {
 		fs, err := t.AsFunctions(ctx)
 		if err != nil {

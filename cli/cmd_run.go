@@ -26,6 +26,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/util"
 )
 
 var runCmd = &cobra.Command{
@@ -40,14 +43,14 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		var streamerLogger *frags.StreamerLogger
+		var streamerLogger *log.StreamerLogger
 		if debug {
-			streamerLogger = frags.NewStreamerLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			streamerLogger = log.NewStreamerLogger(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 				Level: slog.LevelDebug,
-			})), nil, frags.DebugChannelLevel)
+			})), nil, log.DebugChannelLevel)
 
 		} else {
-			streamerLogger = frags.NewStreamerLogger(slog.Default(), nil, frags.InfoChannelLevel)
+			streamerLogger = log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel)
 		}
 
 		planData, err := os.ReadFile(args[0])
@@ -70,10 +73,10 @@ var runCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		ctx := frags.WithFragsContext(cmd.Context(), 15*time.Minute)
+		ctx := util.WithFragsContext(cmd.Context(), 15*time.Minute)
 		defer ctx.Cancel()
 		result, err := execute(ctx, sm, paramsMap, toolsConfig,
-			frags.NewFileResourceLoader(filepath.Dir(args[0])), streamerLogger)
+			resources.NewFileResourceLoader(filepath.Dir(args[0])), streamerLogger)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

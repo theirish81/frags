@@ -22,6 +22,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/theirish81/frags/evaluators"
+	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/schema"
+	"github.com/theirish81/frags/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -45,7 +49,7 @@ import (
 // len(IterateOn) times. Use an github.com/expr-lang/expr expression.
 // Vars defines variables that are local to the session.
 type Session struct {
-	PreCalls        FunctionCalls   `json:"preCalls" yaml:"preCalls" validate:"omitempty,dive"`
+	PreCalls        FunctionCallers `json:"preCalls" yaml:"preCalls" validate:"omitempty,dive"`
 	PrePrompt       PrePrompt       `json:"prePrompt" yaml:"prePrompt"`
 	Prompt          string          `json:"prompt" yaml:"prompt" validate:"omitempty,min=3"`
 	NextPhasePrompt string          `json:"nextPhasePrompt" yaml:"nextPhasePrompt"`
@@ -80,13 +84,13 @@ func (p *PrePrompt) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // RenderPrePrompts renders the pre-prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrePrompts(scope EvalScope) (PrePrompt, error) {
+func (s *Session) RenderPrePrompts(scope evaluators.EvalScope) (PrePrompt, error) {
 	if s.PrePrompt == nil || len(s.PrePrompt) == 0 {
 		return nil, errors.New("prePrompt is nil or empty")
 	}
 	renderedPrePrompt := make(PrePrompt, 0)
 	for _, p := range s.PrePrompt {
-		r, err := EvaluateTemplate(p, scope)
+		r, err := evaluators.EvaluateTemplate(p, scope)
 		renderedPrePrompt = append(renderedPrePrompt, r)
 		if err != nil {
 			return renderedPrePrompt, err
@@ -105,30 +109,21 @@ func (s *Session) HasPrompt() bool {
 }
 
 // RenderPrompt renders the prompt (which may contain Go templates), with the given scope
-func (s *Session) RenderPrompt(scope EvalScope) (string, error) {
-	return EvaluateTemplate(s.Prompt, scope)
+func (s *Session) RenderPrompt(scope evaluators.EvalScope) (string, error) {
+	return evaluators.EvaluateTemplate(s.Prompt, scope)
 }
 
 // RenderNextPhasePrompt renders the next phase prompt (which may contain Go templat es), with the given scope
-func (s *Session) RenderNextPhasePrompt(scope EvalScope) (string, error) {
-	return EvaluateTemplate(s.NextPhasePrompt, scope)
+func (s *Session) RenderNextPhasePrompt(scope evaluators.EvalScope) (string, error) {
+	return evaluators.EvaluateTemplate(s.NextPhasePrompt, scope)
 }
-
-type ResourceDestination string
-
-const (
-	AiResourceDestination        ResourceDestination = "ai"
-	VarsResourceDestination      ResourceDestination = "vars"
-	PrePromptResourceDestination ResourceDestination = "prePrompt"
-	PromptResourceDestination    ResourceDestination = "prompt"
-)
 
 // Resource defines a resource to load, with an identifier and a map of parameters
 type Resource struct {
-	Identifier string               `json:"identifier" yaml:"identifier" validate:"required,min=1"`
-	Params     map[string]string    `json:"params" yaml:"params"`
-	In         *ResourceDestination `json:"in" yaml:"in" validate:"omitempty,oneof=ai vars prePrompt prompt"`
-	Var        *string              `json:"var" yaml:"var"`
+	Identifier string                         `json:"identifier" yaml:"identifier" validate:"required,min=1"`
+	Params     map[string]string              `json:"params" yaml:"params"`
+	In         *resources.ResourceDestination `json:"in" yaml:"in" validate:"omitempty,oneof=ai vars prePrompt prompt"`
+	Var        *string                        `json:"var" yaml:"var"`
 }
 
 // Sessions is a map of session IDs to sessions.
@@ -141,14 +136,14 @@ type SessionManager struct {
 	SystemPrompt *string           `yaml:"systemPrompt,omitempty" json:"systemPrompt,omitempty"`
 	Components   Components        `yaml:"components" json:"components"`
 	Sessions     Sessions          `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
-	Schema       *Schema           `yaml:"schema,omitempty" json:"schema,omitempty"`
+	Schema       *schema.Schema    `yaml:"schema,omitempty" json:"schema,omitempty"`
 	Vars         map[string]any    `yaml:"vars" json:"vars,omitempty"`
-	PreCalls     FunctionCalls     `yaml:"preCalls" json:"preCalls,omitempty"`
+	PreCalls     FunctionCallers   `yaml:"preCalls" json:"preCalls,omitempty"`
 }
 
 type Parameter struct {
-	Name   string  `yaml:"name" json:"name"`
-	Schema *Schema `yaml:"schema" json:"schema"`
+	Name   string         `yaml:"name" json:"name"`
+	Schema *schema.Schema `yaml:"schema" json:"schema"`
 }
 
 type Parameters []Parameter
@@ -187,18 +182,18 @@ func (p *ParametersConfig) UnmarshalJSON(data []byte) error {
 }
 
 func (p *ParametersConfig) Validate(data any) error {
-	schema := Schema{Type: SchemaObject, Properties: map[string]*Schema{}, Required: make([]string, 0)}
+	sx := schema.Schema{Type: schema.Object, Properties: map[string]*schema.Schema{}, Required: make([]string, 0)}
 	for _, param := range p.Parameters {
-		schema.Required = append(schema.Required, param.Name)
-		schema.Properties[param.Name] = param.Schema
+		sx.Required = append(sx.Required, param.Name)
+		sx.Properties[param.Name] = param.Schema
 	}
-	return schema.Validate(data, &ValidatorOptions{SoftValidation: p.LooseType})
+	return sx.Validate(data, &schema.ValidatorOptions{SoftValidation: p.LooseType})
 }
 
 // Components holds the reusable components of the sessions and schema
 type Components struct {
-	Prompts map[string]string `yaml:"prompts" json:"prompts"`
-	Schemas map[string]Schema `yaml:"schemas" json:"schemas"`
+	Prompts map[string]string        `yaml:"prompts" json:"prompts"`
+	Schemas map[string]schema.Schema `yaml:"schemas" json:"schemas"`
 }
 
 // NewSessionManager creates a new SessionManager.
@@ -212,7 +207,7 @@ func (s *SessionManager) SetSession(sessionID string, session Session) {
 }
 
 // SetSchema sets the schema in the SessionManager.
-func (s *SessionManager) SetSchema(schema Schema) {
+func (s *SessionManager) SetSchema(schema schema.Schema) {
 	s.Schema = &schema
 }
 
@@ -224,19 +219,19 @@ func (s *SessionManager) FromYAML(data []byte) error {
 // initNullSchema initializes the schema if it is nil
 func (s *SessionManager) initNullSchema() {
 	if s.Schema == nil {
-		schema := Schema{
-			Type:       SchemaObject,
-			Properties: map[string]*Schema{},
+		sx := schema.Schema{
+			Type:       schema.Object,
+			Properties: map[string]*schema.Schema{},
 			Required:   make([]string, 0),
 		}
 		for k, _ := range s.Sessions {
-			schema.Properties[k] = &Schema{
-				Type:     SchemaString,
-				XSession: StrPtr(k),
+			sx.Properties[k] = &schema.Schema{
+				Type:     schema.String,
+				XSession: util.StrPtr(k),
 				XPhase:   0,
 			}
-			schema.Required = append(schema.Required, k)
+			sx.Required = append(sx.Required, k)
 		}
-		s.Schema = &schema
+		s.Schema = &sx
 	}
 }

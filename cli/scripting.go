@@ -20,6 +20,7 @@ package main
 import (
 	"github.com/dop251/goja"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/util"
 )
 
 type JavascriptScriptingEngine struct {
@@ -29,7 +30,7 @@ func NewJavascriptScriptingEngine() *JavascriptScriptingEngine {
 	return &JavascriptScriptingEngine{}
 }
 
-func (e *JavascriptScriptingEngine) RunCode(ctx *frags.FragsContext, code string, params any, runner frags.ExportableRunner) (any, error) {
+func (e *JavascriptScriptingEngine) RunCode(ctx *util.FragsContext, code string, params any, runner frags.ExportableRunner) (any, error) {
 	vm := goja.New()
 	var args any
 	switch t := params.(type) {
