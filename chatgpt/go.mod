@@ -2,7 +2,7 @@ module github.com/theirish81/frags/chatgpt
 
 go 1.24.8
 
-require github.com/theirish81/frags v0.18.1
+require github.com/theirish81/frags v0.19.0
 
 require (
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
@@ -27,5 +27,3 @@ require (
 	golang.org/x/text v0.32.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/theirish81/frags v0.18.1 => ../

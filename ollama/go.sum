@@ -44,8 +44,8 @@ github.com/samber/lo v1.52.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRo
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/theirish81/frags v0.18.1 h1:CoKenOIKKr8mGS0FOqBt2vk1ADIUpJ16iZgIROBTmFo=
-github.com/theirish81/frags v0.18.1/go.mod h1:5RiW+S2Xlq0TIpxy+OC/zZYKJ9DZCzNzJnq4E+Fdz9Y=
+github.com/theirish81/frags v0.19.0 h1:uX0390baxuq6PnuB1MknICoZFh0RXscoeFs9KMxceJU=
+github.com/theirish81/frags v0.19.0/go.mod h1:5RiW+S2Xlq0TIpxy+OC/zZYKJ9DZCzNzJnq4E+Fdz9Y=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
 github.com/yosida95/uritemplate/v3 v3.0.2/go.mod h1:ILOh0sOhIJR3+L/8afwt/kE++YT040gmv5BQTMR2HP4=
 golang.org/x/crypto v0.46.0 h1:cKRW/pmt1pKAfetfu+RCEvjvZkA9RimPbh7bhFjGVBU=

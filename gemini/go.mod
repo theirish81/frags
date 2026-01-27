@@ -6,7 +6,7 @@ toolchain go1.24.8
 
 require (
 	github.com/jinzhu/copier v0.4.0
-	github.com/theirish81/frags v0.18.1
+	github.com/theirish81/frags v0.19.0
 	google.golang.org/genai v1.43.0
 )
 
@@ -45,5 +45,3 @@ require (
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/theirish81/frags v0.18.1 => ../
