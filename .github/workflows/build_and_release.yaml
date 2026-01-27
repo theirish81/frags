@@ -18,7 +18,7 @@ jobs:
       - name: Write version file
         working-directory: cli
         run: |
-          cat > version.go <<'EOF'
+          cat > version.go <<EOF
           package main
 
           const version = "${GITHUB_REF_NAME}"
