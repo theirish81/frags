@@ -10,13 +10,13 @@ require (
 	github.com/samber/lo v1.52.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.18.1
-	github.com/theirish81/frags/chatgpt v0.18.0
-	github.com/theirish81/frags/gemini v0.18.0
-	github.com/theirish81/frags/ollama v0.18.0
-	github.com/theirish81/fragsfunctions/fs v0.4.0
-	github.com/theirish81/fragsfunctions/http v0.4.0
-	github.com/theirish81/fragsfunctions/postgres v0.4.0
+	github.com/theirish81/frags v0.19.0
+	github.com/theirish81/frags/chatgpt v0.19.0
+	github.com/theirish81/frags/gemini v0.19.0
+	github.com/theirish81/frags/ollama v0.19.0
+	github.com/theirish81/fragsfunctions/fs v0.5.0
+	github.com/theirish81/fragsfunctions/http v0.5.0
+	github.com/theirish81/fragsfunctions/postgres v0.5.0
 	google.golang.org/genai v1.43.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -61,7 +61,7 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/theirish81/fragsfunctions v0.4.0 // indirect
+	github.com/theirish81/fragsfunctions v0.5.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
@@ -78,13 +78,3 @@ require (
 	google.golang.org/grpc v1.66.2 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
-
-replace github.com/theirish81/frags v0.18.1 => ../
-replace github.com/theirish81/frags/chatgpt v0.18.0 => ../chatgpt
-replace	github.com/theirish81/frags/gemini v0.18.0 => ../gemini
-replace	github.com/theirish81/frags/ollama v0.18.0 => ../ollama
-
-replace github.com/theirish81/fragsfunctions/fs v0.4.0 => ../../fragsfunctions/fs
-replace	github.com/theirish81/fragsfunctions/http v0.4.0 => ../../fragsfunctions/http
-replace	github.com/theirish81/fragsfunctions/postgres v0.4.0 => ../../fragsfunctions/postgres
-replace github.com/theirish81/fragsfunctions v0.4.0 => ../../fragsfunctions
