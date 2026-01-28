@@ -86,16 +86,20 @@ func renderResult(out any) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		tpl, err := template.New("template").Parse(string(tplText))
-		if err != nil {
-			return nil, err
-		}
-		var buf bytes.Buffer
-		if err := tpl.Execute(&buf, out); err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
+		return renderTemplate(string(tplText), out)
 	default: // yaml
 		return yaml.Marshal(out)
 	}
+}
+
+func renderTemplate(tplText string, out any) ([]byte, error) {
+	tpl, err := template.New("template").Parse(tplText)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := tpl.Execute(&buf, out); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

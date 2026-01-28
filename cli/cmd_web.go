@@ -45,6 +45,7 @@ type executeRequest struct {
 	Plan       Plan              `json:"plan"`
 	Parameters map[string]any    `json:"parameters"`
 	Resources  map[string]string `json:"resources"`
+	Template   string            `json:"template"`
 }
 
 type Plan struct {
@@ -160,7 +161,11 @@ safe environments.`,
 				if err != nil {
 					return err
 				}
-				return streamer.Finish(log.NewEvent(log.ResultEventType, log.RunnerComponent).WithContent(result))
+				output, _, err := dataOrRenderTemplate(c, req, result)
+				if err != nil {
+					return err
+				}
+				return streamer.Finish(log.NewEvent(log.ResultEventType, log.RunnerComponent).WithContent(output))
 
 			} else {
 				streamerLogger := log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel)
@@ -168,7 +173,16 @@ safe environments.`,
 				if err != nil {
 					return err
 				}
-				return c.JSON(http.StatusOK, result)
+				output, isTemplate, err := dataOrRenderTemplate(c, req, result)
+				if err != nil {
+					return err
+				}
+				if isTemplate {
+					c.Response().Header().Set("Content-Type", "text/markdown")
+					return c.String(http.StatusOK, output.(string))
+				} else {
+					return c.JSON(http.StatusOK, result)
+				}
 			}
 		})
 		if err := e.Start(fmt.Sprintf(":%d", port)); err != nil {
@@ -209,8 +223,8 @@ carefully and use this mode only in development or safe environments.`,
 			if err := c.Bind(&req); err != nil {
 				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 			}
-			fileRef := filepath.Clean(c.Param("file") + ".yaml")
-			if err := checkTraversalPath(fileRef); err != nil {
+			fileRef, err := safePath(c.Param("file") + ".yaml")
+			if err != nil {
 				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 			}
 			planData, err := os.ReadFile(path.Join(rootDir, fileRef))
@@ -239,7 +253,11 @@ carefully and use this mode only in development or safe environments.`,
 				if err != nil {
 					return err
 				}
-				return streamer.Finish(log.NewEvent(log.ResultEventType, log.RunnerComponent).WithContent(result))
+				output, _, err := dataOrRenderLoadedTemplate(c, result)
+				if err != nil {
+					return err
+				}
+				return streamer.Finish(log.NewEvent(log.ResultEventType, log.RunnerComponent).WithContent(output))
 
 			} else {
 				streamerLogger := log.NewStreamerLogger(logger, nil, log.InfoChannelLevel)
@@ -247,7 +265,17 @@ carefully and use this mode only in development or safe environments.`,
 				if err != nil {
 					return err
 				}
-				return c.JSON(http.StatusOK, result)
+				output, isTemplate, err := dataOrRenderLoadedTemplate(c, result)
+				if err != nil {
+					return err
+				}
+				if isTemplate {
+					c.Response().Header().Set("Content-Type", "text/markdown")
+					return c.String(http.StatusOK, output.(string))
+				} else {
+					return c.JSON(http.StatusOK, result)
+				}
+
 			}
 		})
 		if err := e.Start(fmt.Sprintf(":%d", port)); err != nil {
@@ -294,6 +322,12 @@ func addRequestLoggerMiddleware(e *echo.Echo, log *slog.Logger) {
 	}))
 }
 
+func safePath(path string) (string, error) {
+	path = filepath.Clean(path)
+	err := checkTraversalPath(path)
+	return path, err
+}
+
 // checkTraversalPath checks if the given filename is safe to use in a file system traversal.
 func checkTraversalPath(filename string) error {
 	if strings.Contains(filename, "..") ||
@@ -329,4 +363,28 @@ func apiKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		return next(c)
 	}
+}
+
+func dataOrRenderTemplate(c echo.Context, req executeRequest, data *util.ProgMap) (any, bool, error) {
+	if c.Request().Header.Get("Accept") == "text/markdown" && req.Template != "" {
+		res, err := renderTemplate(req.Template, data)
+		return string(res), true, err
+	}
+	return data, false, nil
+}
+
+func dataOrRenderLoadedTemplate(c echo.Context, data *util.ProgMap) (any, bool, error) {
+	if c.Request().Header.Get("Accept") == "text/markdown" {
+		fileRef, err := safePath(c.Param("file"))
+		if err != nil {
+			return nil, false, echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		template, err := os.ReadFile(path.Join(rootDir, fileRef+".md"))
+		if err != nil {
+			return nil, false, err
+		}
+		res, err := renderTemplate(string(template), data)
+		return string(res), true, err
+	}
+	return data, false, nil
 }
