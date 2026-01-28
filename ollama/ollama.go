@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/theirish81/frags"
@@ -100,12 +101,13 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		message.Content += message.Content + " === " + r.Identifier + " === \n" + string(r.ByteContent) + "\n===\n"
 		runner.Logger().Debug(log.NewEvent(log.LoadEventType, log.AiComponent).WithMessage("adding file resource").WithEngine(engine).WithResource(r.Identifier))
 	}
+	useThinking := strings.HasPrefix(text, "/think")
 	message.Content += "\n" + text
 	d.messages = append(d.messages, message)
 	request := Request{
 		Messages: d.messages,
 		Model:    d.config.Model,
-		Think:    false,
+		Think:    useThinking,
 		Format:   sx,
 		Tools:    make([]ToolDefinition, 0),
 		Options: Options{
