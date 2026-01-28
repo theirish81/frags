@@ -377,7 +377,7 @@ func dataOrRenderLoadedTemplate(c echo.Context, data *util.ProgMap) (any, bool, 
 	if c.Request().Header.Get("Accept") == "text/markdown" {
 		fileRef, err := safePath(c.Param("file"))
 		if err != nil {
-			return nil, false, err
+			return nil, false, echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
 		template, err := os.ReadFile(path.Join(rootDir, fileRef+".md"))
 		if err != nil {
