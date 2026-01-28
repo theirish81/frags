@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sync"
 
 	"github.com/theirish81/frags"
 	"github.com/theirish81/frags/log"
@@ -41,6 +42,7 @@ type Ai struct {
 	content      Messages
 	Functions    frags.ExternalFunctions
 	files        map[string]string
+	uploadMutex  sync.Mutex
 }
 type Config struct {
 	Model string `yaml:"model" json:"model"`
@@ -58,13 +60,14 @@ func (d *Ai) SetSystemPrompt(prompt string) {
 
 func NewAI(baseURL string, apiKey string, config Config) *Ai {
 	return &Ai{
-		apiKey:     apiKey,
-		baseURL:    baseURL,
-		config:     config,
-		content:    make([]Message, 0),
-		Functions:  frags.ExternalFunctions{},
-		files:      make(map[string]string),
-		httpClient: NewHttpClient(baseURL, apiKey),
+		apiKey:      apiKey,
+		baseURL:     baseURL,
+		config:      config,
+		content:     make([]Message, 0),
+		Functions:   frags.ExternalFunctions{},
+		files:       make(map[string]string),
+		httpClient:  NewHttpClient(baseURL, apiKey),
+		uploadMutex: sync.Mutex{},
 	}
 }
 
@@ -79,6 +82,7 @@ func (d *Ai) New() frags.Ai {
 		config:       d.config,
 		systemPrompt: d.systemPrompt,
 		files:        d.files,
+		uploadMutex:  sync.Mutex{},
 	}
 }
 
@@ -98,16 +102,24 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 			// attach them to the message itself.
 			msg.Content.InsertTextPart(fmt.Sprintf("=== %s === \n%s\n ===\n", r.Identifier, string(r.ByteContent)))
 		default:
-			fid, ok := d.files[r.Identifier]
-			if !ok {
-				fd, err := d.httpClient.FileUpload(ctx, r.Identifier, r.ByteContent)
-				if err != nil {
-					return nil, err
+			if err = func() error {
+				d.uploadMutex.Lock()
+				defer d.uploadMutex.Unlock()
+				fid, ok := d.files[r.Identifier]
+				if !ok {
+					fd, err := d.httpClient.FileUpload(ctx, r.Identifier, r.ByteContent)
+					if err != nil {
+						return err
+					}
+					fid = fd.Id
+					d.files[r.Identifier] = fd.Id
 				}
-				fid = fd.Id
-				d.files[r.Identifier] = fd.Id
+				msg.Content.InsertFileMessage(fid)
+				return nil
+			}(); err != nil {
+				return nil, err
 			}
-			msg.Content.InsertFileMessage(fid)
+
 		}
 	}
 	d.content = append(d.content, msg)
