@@ -43,13 +43,10 @@ func initDebugEnv(ctx context.Context) (*frags.Runner[util.ProgMap], error) {
 	if err != nil {
 		return nil, err
 	}
-	mcpTools, _, _, functions, err := connectMcpAndCollections(ctx, toolsConfig)
+	_, _, _, functions, err := connectMcpAndCollections(ctx, toolsConfig)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = mcpTools.Close()
-	}()
 	ai.SetFunctions(functions)
 	runner := frags.NewRunner[util.ProgMap](frags.NewSessionManager(), resources.NewFileResourceLoader("."), ai,
 		frags.WithLogger(log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)),
@@ -98,6 +95,10 @@ var debugScriptCmd = &cobra.Command{
 		}
 
 		runner, err := initDebugEnv(cmd.Context())
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
 		data, err := loadDebugData()
 		if err != nil {
 			cmd.PrintErrln(err)
