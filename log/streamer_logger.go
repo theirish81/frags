@@ -47,6 +47,7 @@ const SessionComponent EventComponent = "session"
 const PrePromptComponent EventComponent = "prePrompt"
 const PromptComponent EventComponent = "prompt"
 const AiComponent EventComponent = "ai"
+const AppComponent EventComponent = "app"
 
 type ChannelLevel string
 
@@ -144,6 +145,11 @@ func (e Event) WithTransformer(transformer string) Event {
 
 func (e Event) WithEngine(engine string) Event {
 	e.Engine = &engine
+	return e
+}
+
+func (e Event) WithLevel(level string) Event {
+	e.Level = level
 	return e
 }
 

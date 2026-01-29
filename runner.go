@@ -611,6 +611,7 @@ func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) 
 		r.logger.Info(log.NewEvent(log.StartEventType, log.SessionComponent).WithSession(t.id))
 		func() {
 			success := true
+			var sessionErr error
 			// we will create a context for each session, so we can cancel it if it takes too long
 			sessionContext := mainContext.Child(t.timeout)
 			// This "defer" is crucial!
@@ -624,12 +625,12 @@ func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) 
 						WithIteration(index).WithSession(t.id))
 					success = false
 				}
-				sessionContext.Cancel()
+				sessionContext.Cancel(nil)
 				if success {
 					r.SetStatus(t.id, finishedSessionStatus)
 				} else {
 					r.SetStatus(t.id, failedSessionStatus)
-					mainContext.Cancel()
+					mainContext.Cancel(sessionErr)
 				}
 				r.logger.Info(log.NewEvent(log.EndEventType, log.SessionComponent).WithSession(t.id))
 				r.wg.Done()
@@ -637,6 +638,7 @@ func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) 
 			r.SetStatus(t.id, runningSessionStatus)
 			if err := r.runSession(sessionContext, t.id, t.session); err != nil {
 				success = false
+				sessionErr = err
 				r.logger.Err(log.NewEvent(log.ErrorEventType, log.WorkerComponent).WithIteration(index).WithSession(t.id).WithErr(err))
 			}
 		}()
