@@ -42,7 +42,7 @@ type Ai struct {
 	content      Messages
 	Functions    frags.ExternalFunctions
 	files        map[string]string
-	uploadMutex  sync.Mutex
+	uploadMutex  *sync.Mutex
 }
 type Config struct {
 	Model string `yaml:"model" json:"model"`
@@ -67,7 +67,7 @@ func NewAI(baseURL string, apiKey string, config Config) *Ai {
 		Functions:   frags.ExternalFunctions{},
 		files:       make(map[string]string),
 		httpClient:  NewHttpClient(baseURL, apiKey),
-		uploadMutex: sync.Mutex{},
+		uploadMutex: &sync.Mutex{},
 	}
 }
 
@@ -82,7 +82,7 @@ func (d *Ai) New() frags.Ai {
 		config:       d.config,
 		systemPrompt: d.systemPrompt,
 		files:        d.files,
-		uploadMutex:  sync.Mutex{},
+		uploadMutex:  d.uploadMutex,
 	}
 }
 
