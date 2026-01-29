@@ -94,7 +94,7 @@ so it's subject to the limitations imposed by generating structured output.`,
 			},
 		}
 		ctx := util.WithFragsContext(cmd.Context(), 15*time.Minute)
-		defer ctx.Cancel()
+		defer ctx.Cancel(nil)
 		out, err := execute(ctx, mgr, make(map[string]any), toolsConfig,
 			resources.NewFileResourceLoader("./"), log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
 		if err != nil {

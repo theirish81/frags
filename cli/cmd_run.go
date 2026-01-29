@@ -74,7 +74,7 @@ var runCmd = &cobra.Command{
 			return
 		}
 		ctx := util.WithFragsContext(cmd.Context(), 15*time.Minute)
-		defer ctx.Cancel()
+		defer ctx.Cancel(nil)
 		result, err := execute(ctx, sm, paramsMap, toolsConfig,
 			resources.NewFileResourceLoader(filepath.Dir(args[0])), streamerLogger)
 		if err != nil {

@@ -133,7 +133,7 @@ safe environments.`,
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/execute", func(c echo.Context) error {
 			ctx := util.WithFragsContext(c.Request().Context(), 15*time.Minute)
-			defer ctx.Cancel()
+			defer ctx.Cancel(nil)
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
 				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
@@ -158,14 +158,15 @@ safe environments.`,
 				streamer := NewStreamer(c, streamerLogger)
 				streamer.Start()
 				result, err := execute(ctx, sm, req.Parameters, req.Tools, loader, streamerLogger)
+				time.Sleep(100 * time.Millisecond)
 				if err != nil {
-					return err
+					return streamer.Finish(log.NewEvent(log.ErrorEventType, log.AppComponent).WithErr(err).WithLevel("err"))
 				}
 				output, _, err := dataOrRenderTemplate(c, req, result)
 				if err != nil {
 					return err
 				}
-				return streamer.Finish(log.NewEvent(log.ResultEventType, log.RunnerComponent).WithContent(output))
+				return streamer.Finish(log.NewEvent(log.ResultEventType, log.AppComponent).WithContent(output).WithLevel("info"))
 
 			} else {
 				streamerLogger := log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel)
@@ -218,7 +219,7 @@ carefully and use this mode only in development or safe environments.`,
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/run/:file", func(c echo.Context) error {
 			ctx := util.WithFragsContext(c.Request().Context(), 15*time.Minute)
-			defer ctx.Cancel()
+			defer ctx.Cancel(nil)
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
 				return echo.NewHTTPError(http.StatusBadRequest, err.Error())
@@ -250,14 +251,15 @@ carefully and use this mode only in development or safe environments.`,
 				streamer := NewStreamer(c, streamerLogger)
 				streamer.Start()
 				result, err := execute(ctx, sm, req.Parameters, toolsConfig, loader, streamerLogger)
+				time.Sleep(100 * time.Millisecond)
 				if err != nil {
-					return err
+					return streamer.Finish(log.NewEvent(log.ErrorEventType, log.AppComponent).WithErr(err).WithLevel("err"))
 				}
 				output, _, err := dataOrRenderLoadedTemplate(c, result)
 				if err != nil {
 					return err
 				}
-				return streamer.Finish(log.NewEvent(log.ResultEventType, log.RunnerComponent).WithContent(output))
+				return streamer.Finish(log.NewEvent(log.ResultEventType, log.AppComponent).WithContent(output).WithLevel("info"))
 
 			} else {
 				streamerLogger := log.NewStreamerLogger(logger, nil, log.InfoChannelLevel)
