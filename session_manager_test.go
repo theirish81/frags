@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
+	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/schema"
 	yaml2 "gopkg.in/yaml.v3"
 )
@@ -111,4 +112,16 @@ func TestParametersConfig_UnmarshalYAML(t *testing.T) {
 	err := yaml2.Unmarshal([]byte(yaml), &px)
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", px.Parameters[0].Name)
+}
+
+func TestSession_RenderPrePrompts(t *testing.T) {
+	s := Session{
+		PrePrompt: PrePrompt{
+			"foobar {{ .yay }}",
+		},
+	}
+	sx, err := s.RenderPrePrompts(evaluators.EvalScope{"yay": "baz"})
+	assert.NoError(t, err)
+	assert.Len(t, sx, 1)
+	assert.Equal(t, "foobar baz", sx[0])
 }
