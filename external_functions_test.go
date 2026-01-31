@@ -29,11 +29,13 @@ import (
 func TestExternalFunction_Run(t *testing.T) {
 	runner := NewRunner[util.ProgMap](NewSessionManager(), resources.NewDummyResourceLoader(), NewDummyAi())
 	ef := ExternalFunction{
-		Name: "f1",
+		Name:       "f1",
+		Collection: "c1",
 		Func: func(ctx *util.FragsContext, args map[string]any) (any, error) {
 			return args, nil
 		},
 	}
+	efc := ExternalFunctions{"f1": ef}
 	runner.sessionManager.Transformers = &Transformers{
 		{
 			Name:            "t1",
@@ -41,7 +43,7 @@ func TestExternalFunction_Run(t *testing.T) {
 			Expr:            util.StrPtr("{\"yay\": args.foo}"),
 		},
 	}
-	res, err := ef.Run(util.NewFragsContext(1*time.Minute), map[string]any{"foo": "bar"}, &runner)
+	res, err := efc.ListByCollection("c1").Get("f1").Run(util.NewFragsContext(1*time.Minute), map[string]any{"foo": "bar"}, &runner)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]any{"yay": "bar"}, res)
 }
