@@ -232,7 +232,7 @@ func (l *StreamerLogger) Channel() chan Event {
 func (l *StreamerLogger) Debug(event Event) {
 	event.Level = "debug"
 	l.logger.Debug(event.Message, event.ToArray()...)
-	if l.channelLevel == DebugChannelLevel || l.channelLevel == InfoChannelLevel {
+	if l.channelLevel == DebugChannelLevel {
 		l.Send(event)
 	}
 }
