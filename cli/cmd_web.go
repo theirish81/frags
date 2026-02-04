@@ -217,6 +217,7 @@ carefully and use this mode only in development or safe environments.`,
 		}
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
+		initMCP(e)
 		e.POST("/run/:file", func(c echo.Context) error {
 			ctx := util.WithFragsContext(c.Request().Context(), 15*time.Minute)
 			defer ctx.Cancel(nil)
