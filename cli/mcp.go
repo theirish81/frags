@@ -51,7 +51,7 @@ func initMCP(e *echo.Echo) {
 				}
 				plans = append(plans, planDef{Name: entry.Name(), Parameters: pm})
 			}
-			return toCallResult(plans, "plans"), nil, nil
+			return toCallResult(plans, "plans", nil), nil, nil
 		})
 	mcp.AddTool(mcpServer, toolPlanRun,
 		func(ctx context.Context, request *mcp.CallToolRequest, args runPlanParams) (*mcp.CallToolResult, any, error) {
@@ -72,7 +72,7 @@ func initMCP(e *echo.Echo) {
 			if err != nil {
 				return nil, nil, err
 			}
-			return toCallResult(res, "result"), nil, nil
+			return toCallResult(res, "result", sm.Schema), nil, nil
 		})
 	method := mcp.NewStreamableHTTPHandler(func(request *http.Request) *mcp.Server {
 		return mcpServer
@@ -86,8 +86,11 @@ type runPlanParams struct {
 	Parameters map[string]any `json:"parameters"`
 }
 
-func toCallResult(data any, rootObjectName string) *mcp.CallToolResult {
+func toCallResult(data any, rootObjectName string, sx *schema.Schema) *mcp.CallToolResult {
 	output := map[string]any{rootObjectName: data}
+	if sx != nil {
+		output["response_schema"] = sx
+	}
 	content, _ := json.Marshal(output)
 	return &mcp.CallToolResult{StructuredContent: output, Content: []mcp.Content{
 		&mcp.TextContent{
