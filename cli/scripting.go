@@ -43,7 +43,10 @@ func (e *JavascriptScriptingEngine) RunCode(ctx *util.FragsContext, code string,
 		return nil, err
 	}
 	if err := vm.Set("runFunction", func(name string, args map[string]any) any {
-		res, _ := runner.RunFunction(ctx, name, args)
+		res, err := runner.RunFunction(ctx, name, args)
+		if err != nil {
+			panic(vm.NewTypeError(err.Error()))
+		}
 		return res
 	}); err != nil {
 		return nil, err
