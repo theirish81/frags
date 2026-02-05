@@ -23,7 +23,6 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -234,7 +233,7 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 	r.running = false
 	err = nil
 	if failedSessions := r.ListFailedSessions(); len(failedSessions) > 0 {
-		err = errors.New("some sessions failed: " + strings.Join(failedSessions, ","))
+		err = util.SessionsFailedError{FailedSessions: failedSessions, Err: ctx.Err()}
 	}
 	return r.dataStructure, err
 }
