@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/avast/retry-go/v5"
@@ -106,6 +107,15 @@ func SetInContext(context any, varName string, value any) error {
 	}
 
 	return nil
+}
+
+type SessionsFailedError struct {
+	FailedSessions []string
+	Err            error
+}
+
+func (s SessionsFailedError) Error() string {
+	return fmt.Sprintf("failed sessions: %s - more details: %s", strings.Join(s.FailedSessions, ","), s.Err.Error())
 }
 
 type CtxError struct {
