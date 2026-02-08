@@ -104,7 +104,7 @@ func TestRunner_RunAllFunctionCalls(t *testing.T) {
 	fcs := FunctionCallers{
 		{
 			Name: "f1",
-			Func: func(m map[string]any) (any, error) {
+			Func: func(ctx *util.FragsContext, m map[string]any) (any, error) {
 				return "val1", nil
 			},
 			In:  util.Ptr[FunctionCallDestination](VarsFunctionCallDestination),
@@ -112,7 +112,7 @@ func TestRunner_RunAllFunctionCalls(t *testing.T) {
 		},
 		{
 			Name: "f2",
-			Func: func(m map[string]any) (any, error) {
+			Func: func(ctx *util.FragsContext, m map[string]any) (any, error) {
 				return "val2 + " + m["f1"].(string), nil
 			},
 			Args: map[string]any{"f1": "{{.vars.f1}}"},

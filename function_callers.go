@@ -37,14 +37,16 @@ const (
 // IMPORTANT: if Code is not nil, this will trigger the execution of the scripting engine. If the engine is nil, nothing
 // will happen.
 type FunctionCaller struct {
-	Name        string                            `yaml:"name" json:"name"`
-	Code        *string                           `yaml:"code" json:"code"`
-	Args        map[string]any                    `yaml:"args" json:"args"`
-	Description *string                           `yaml:"description" json:"description"`
-	In          *FunctionCallDestination          `yaml:"in" json:"in" validate:"omitempty,oneof=ai vars context"`
-	Var         *string                           `yaml:"var" json:"var"`
-	Func        func(map[string]any) (any, error) `yaml:"-" json:"-"`
+	Name        string                     `yaml:"name" json:"name"`
+	Code        *string                    `yaml:"code" json:"code"`
+	Args        map[string]any             `yaml:"args" json:"args"`
+	Description *string                    `yaml:"description" json:"description"`
+	In          *FunctionCallDestination   `yaml:"in" json:"in" validate:"omitempty,oneof=ai vars context"`
+	Var         *string                    `yaml:"var" json:"var"`
+	Func        FunctionCallerCallbackFunc `yaml:"-" json:"-"`
 }
+
+type FunctionCallerCallbackFunc func(ctx *util.FragsContext, data map[string]any) (any, error)
 
 type FunctionCallers []FunctionCaller
 
@@ -105,7 +107,7 @@ func (r *Runner[T]) runFunctionCaller(ctx *util.FragsContext, fc FunctionCaller,
 		return nil, err
 	}
 	if fc.Func != nil {
-		return fc.Func(clonedFc.Args)
+		return fc.Func(ctx, clonedFc.Args)
 	} else if fc.Code != nil {
 		return r.ScriptEngine().RunCode(ctx, *clonedFc.Code, clonedFc.Args, r)
 	} else {
