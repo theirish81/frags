@@ -34,6 +34,8 @@ func readToolsFile() (frags.ToolsConfig, error) {
 	data, err := os.ReadFile("tools.json")
 	if errors.Is(err, os.ErrNotExist) {
 		data = []byte("{}")
+	} else if err != nil {
+		return frags.ToolsConfig{}, err
 	}
 	return parseToolsConfig(data)
 }
