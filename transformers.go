@@ -36,16 +36,19 @@ const (
 // Jsonata expression or a custom script (if the scripting engine is available). The transformer will run on specific
 // triggers. We currently support only OnFunctionOutput.
 type Transformer struct {
-	Name             string  `yaml:"name" json:"name"`
-	OnFunctionInput  *string `yaml:"onFunctionInput,omitempty" json:"onFunctionInput,omitempty"`
-	OnFunctionOutput *string `yaml:"onFunctionOutput,omitempty" json:"onFunctionOutput,omitempty"`
-	OnResource       *string `yaml:"onResource,omitempty" json:"onResource,omitempty"`
-	Jsonata          *string `yaml:"jsonata" json:"jsonata"`
-	JmesPath         *string `yaml:"jmesPath" json:"jmesPath"`
-	Expr             *string `yaml:"expr" json:"expr"`
-	Parser           *Parser `yaml:"parser" json:"parser"`
-	Code             *string `yaml:"code" json:"code"`
+	Name             string                  `yaml:"name" json:"name"`
+	OnFunctionInput  *string                 `yaml:"onFunctionInput,omitempty" json:"onFunctionInput,omitempty"`
+	OnFunctionOutput *string                 `yaml:"onFunctionOutput,omitempty" json:"onFunctionOutput,omitempty"`
+	OnResource       *string                 `yaml:"onResource,omitempty" json:"onResource,omitempty"`
+	Jsonata          *string                 `yaml:"jsonata" json:"jsonata"`
+	JmesPath         *string                 `yaml:"jmesPath" json:"jmesPath"`
+	Expr             *string                 `yaml:"expr" json:"expr"`
+	Parser           *Parser                 `yaml:"parser" json:"parser"`
+	Code             *string                 `yaml:"code" json:"code"`
+	Func             TransformerCallbackFunc `yaml:"-" json:"-"`
 }
+
+type TransformerCallbackFunc func(ctx *util.FragsContext, data any, runner ExportableRunner) (any, error)
 
 type Transformers []Transformer
 
@@ -132,6 +135,12 @@ func (t Transformer) Transform(ctx *util.FragsContext, data any, runner Exportab
 	if t.Code != nil {
 		var err error
 		if data, err = runner.ScriptEngine().RunCode(ctx, *t.Code, data, runner); err != nil {
+			return util.EmptyMap, err
+		}
+	}
+	if t.Func != nil {
+		var err error
+		if data, err = t.Func(ctx, data, runner); err != nil {
 			return util.EmptyMap, err
 		}
 	}
