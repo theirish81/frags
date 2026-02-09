@@ -41,11 +41,18 @@ import (
 )
 
 type executeRequest struct {
-	Tools      frags.ToolsConfig `json:"tools"`
-	Plan       Plan              `json:"plan"`
-	Parameters map[string]any    `json:"parameters"`
-	Resources  map[string]string `json:"resources"`
-	Template   string            `json:"template"`
+	Tools      *frags.ToolsConfig `json:"tools"`
+	Plan       Plan               `json:"plan"`
+	Parameters map[string]any     `json:"parameters"`
+	Resources  map[string]string  `json:"resources"`
+	Template   string             `json:"template"`
+}
+
+func (r *executeRequest) ToolsOrDefault(def frags.ToolsConfig) frags.ToolsConfig {
+	if r.Tools == nil {
+		return def
+	}
+	return *r.Tools
 }
 
 type Plan struct {
@@ -151,13 +158,17 @@ safe environments.`,
 			if err != nil {
 				return err
 			}
+			toolsConfig, err := readToolsFile()
+			if err != nil {
+				return err
+			}
 			if c.QueryParam("streaming") == "true" {
 				level := log.ChannelLevel(c.QueryParam("level"))
 				streamerLogger := log.NewStreamerLogger(logger, make(chan log.Event, 100), level)
 				defer streamerLogger.Close()
 				streamer := NewStreamer(c, streamerLogger)
 				streamer.Start()
-				result, err := execute(ctx, sm, req.Parameters, req.Tools, loader, streamerLogger)
+				result, err := execute(ctx, sm, req.Parameters, req.ToolsOrDefault(toolsConfig), loader, streamerLogger)
 				time.Sleep(100 * time.Millisecond)
 				if err != nil {
 					return streamer.Finish(log.NewEvent(log.ErrorEventType, log.AppComponent).WithErr(err).WithLevel("err"))
@@ -170,7 +181,7 @@ safe environments.`,
 
 			} else {
 				streamerLogger := log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel)
-				result, err := execute(ctx, sm, req.Parameters, req.Tools, loader, streamerLogger)
+				result, err := execute(ctx, sm, req.Parameters, req.ToolsOrDefault(toolsConfig), loader, streamerLogger)
 				if err != nil {
 					return err
 				}
@@ -217,6 +228,7 @@ carefully and use this mode only in development or safe environments.`,
 		}
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
+		initMCP(e)
 		e.POST("/run/:file", func(c echo.Context) error {
 			ctx := util.WithFragsContext(c.Request().Context(), 15*time.Minute)
 			defer ctx.Cancel(nil)
@@ -250,7 +262,7 @@ carefully and use this mode only in development or safe environments.`,
 				defer streamerLogger.Close()
 				streamer := NewStreamer(c, streamerLogger)
 				streamer.Start()
-				result, err := execute(ctx, sm, req.Parameters, toolsConfig, loader, streamerLogger)
+				result, err := execute(ctx, sm, req.Parameters, req.ToolsOrDefault(toolsConfig), loader, streamerLogger)
 				time.Sleep(100 * time.Millisecond)
 				if err != nil {
 					return streamer.Finish(log.NewEvent(log.ErrorEventType, log.AppComponent).WithErr(err).WithLevel("err"))
@@ -263,7 +275,7 @@ carefully and use this mode only in development or safe environments.`,
 
 			} else {
 				streamerLogger := log.NewStreamerLogger(logger, nil, log.InfoChannelLevel)
-				result, err := execute(ctx, sm, req.Parameters, toolsConfig, loader, streamerLogger)
+				result, err := execute(ctx, sm, req.Parameters, req.ToolsOrDefault(toolsConfig), loader, streamerLogger)
 				if err != nil {
 					return err
 				}
