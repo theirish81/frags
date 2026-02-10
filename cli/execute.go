@@ -50,7 +50,7 @@ func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[stri
 	if err != nil {
 		return nil, err
 	}
-	mcpTools, _, _, functions, err := connectMcpAndCollections(ctx, toolConfig)
+	mcpTools, _, definitions, functions, err := connectMcpAndCollections(ctx, toolConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +73,7 @@ func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[stri
 		frags.WithLogger(logger),
 		frags.WithScriptEngine(NewJavascriptScriptingEngine()),
 		frags.WithExternalFunctions(functions),
+		frags.WithToolsDefinitions(definitions),
 	)
 	// execute
 	return runner.Run(ctx, paramsMap)
