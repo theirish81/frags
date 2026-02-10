@@ -193,7 +193,7 @@ safe environments.`,
 					c.Response().Header().Set("Content-Type", "text/markdown")
 					return c.String(http.StatusOK, output.(string))
 				} else {
-					return c.JSON(http.StatusOK, result)
+					return c.JSON(http.StatusOK, output)
 				}
 			}
 		})
@@ -267,7 +267,7 @@ carefully and use this mode only in development or safe environments.`,
 				if err != nil {
 					return streamer.Finish(log.NewEvent(log.ErrorEventType, log.AppComponent).WithErr(err).WithLevel("err"))
 				}
-				output, _, err := dataOrRenderLoadedTemplate(c, result)
+				output, _, err := dataOrRenderLoadedTemplate(c, sm, result)
 				if err != nil {
 					return err
 				}
@@ -279,7 +279,7 @@ carefully and use this mode only in development or safe environments.`,
 				if err != nil {
 					return err
 				}
-				output, isTemplate, err := dataOrRenderLoadedTemplate(c, result)
+				output, isTemplate, err := dataOrRenderLoadedTemplate(c, sm, result)
 				if err != nil {
 					return err
 				}
@@ -287,7 +287,7 @@ carefully and use this mode only in development or safe environments.`,
 					c.Response().Header().Set("Content-Type", "text/markdown")
 					return c.String(http.StatusOK, output.(string))
 				} else {
-					return c.JSON(http.StatusOK, result)
+					return c.JSON(http.StatusOK, output)
 				}
 
 			}
@@ -387,7 +387,7 @@ func dataOrRenderTemplate(c echo.Context, req executeRequest, data *util.ProgMap
 	return data, false, nil
 }
 
-func dataOrRenderLoadedTemplate(c echo.Context, data *util.ProgMap) (any, bool, error) {
+func dataOrRenderLoadedTemplate(c echo.Context, sm frags.SessionManager, data *util.ProgMap) (any, bool, error) {
 	if c.Request().Header.Get("Accept") == "text/markdown" {
 		fileRef, err := safePath(c.Param("file"))
 		if err != nil {
@@ -399,6 +399,12 @@ func dataOrRenderLoadedTemplate(c echo.Context, data *util.ProgMap) (any, bool, 
 		}
 		res, err := renderTemplate(string(template), data)
 		return string(res), true, err
+	}
+	if c.QueryParam("schema") == "true" {
+		data = &util.ProgMap{
+			"result": data,
+			"schema": sm.Schema,
+		}
 	}
 	return data, false, nil
 }
