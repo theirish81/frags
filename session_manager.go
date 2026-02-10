@@ -126,19 +126,47 @@ type Resource struct {
 	Var        *string                        `json:"var" yaml:"var"`
 }
 
+// RequiredTool allows the plan writer to define what tools are certainly required, and allow for the runner to check
+// requirements and possibly fail if the requirements are not met
+type RequiredTool struct {
+	Name string   `json:"name" yaml:"name" validate:"required,min=1"`
+	Type ToolType `json:"type" yaml:"type" validate:"required,min=1"`
+}
+
+// RequiredTools is a collection of RequiredTool
+type RequiredTools []RequiredTool
+
+// Check verifies whether the RequiredTools are present in the toolDefinitions. An error will be returned if a tool
+// is missing. However, if toolDefinitions is nil, this function will pass and return no error.
+func (r RequiredTools) Check(toolDefinitions ToolDefinitions) error {
+	// if toolDefinitions is nil, it means that no toolDefinitions collection has been passed to the runner therefore,
+	// this check would most definitely fail. We avoid throwing an error in this case, because clearly the calling
+	// application decided to pass no toolDefinitions, technically disabling this check.
+	if toolDefinitions == nil {
+		return nil
+	}
+	for _, req := range r {
+		if !toolDefinitions.Contains(req.Name, req.Type) {
+			return fmt.Errorf("required tool %s/%s not found", req.Type, req.Name)
+		}
+	}
+	return nil
+}
+
 // Sessions is a map of session IDs to sessions.
 type Sessions map[string]Session
 
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {
-	Parameters   *ParametersConfig `yaml:"parameters,omitempty" json:"parameters,omitempty"`
-	Transformers *Transformers     `yaml:"transformers,omitempty" json:"transformers,omitempty"`
-	SystemPrompt *string           `yaml:"systemPrompt,omitempty" json:"systemPrompt,omitempty"`
-	Components   Components        `yaml:"components" json:"components"`
-	Sessions     Sessions          `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
-	Schema       *schema.Schema    `yaml:"schema,omitempty" json:"schema,omitempty"`
-	Vars         map[string]any    `yaml:"vars" json:"vars,omitempty"`
-	PreCalls     FunctionCallers   `yaml:"preCalls" json:"preCalls,omitempty"`
+	Parameters    *ParametersConfig `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	RequiredTools RequiredTools     `yaml:"requiredTools,omitempty" json:"requiredTools,omitempty"`
+	Transformers  *Transformers     `yaml:"transformers,omitempty" json:"transformers,omitempty"`
+	SystemPrompt  *string           `yaml:"systemPrompt,omitempty" json:"systemPrompt,omitempty"`
+	Components    Components        `yaml:"components" json:"components"`
+	Sessions      Sessions          `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
+	Schema        *schema.Schema    `yaml:"schema,omitempty" json:"schema,omitempty"`
+	Vars          map[string]any    `yaml:"vars" json:"vars,omitempty"`
+	PreCalls      FunctionCallers   `yaml:"preCalls" json:"preCalls,omitempty"`
 }
 
 type Parameter struct {
@@ -156,6 +184,8 @@ type ParametersConfig struct {
 	LooseType bool
 }
 
+// SetLooseType sets the type check to "loose". It means that whenever the validator finds a string in a parameter,
+// it will investigate whether the string represents the expected type
 func (p *ParametersConfig) SetLooseType(looseType bool) {
 	if p != nil {
 		p.LooseType = looseType

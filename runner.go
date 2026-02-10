@@ -60,6 +60,7 @@ type Runner[T any] struct {
 	kFormat           bool
 	vars              evaluators.Vars
 	ExternalFunctions ExternalFunctions
+	ToolsDefinitions  ToolDefinitions
 }
 
 // SessionStatus is the status of a session.
@@ -89,6 +90,7 @@ type RunnerOptions struct {
 	kFormat           bool
 	scriptEngine      ScriptEngine
 	externalFunctions ExternalFunctions
+	toolsDefinitions  ToolDefinitions
 }
 
 // RunnerOption is an option for the runner.
@@ -120,6 +122,12 @@ func WithExternalFunctions(externalFunctions ExternalFunctions) RunnerOption {
 	}
 }
 
+func WithToolsDefinitions(toolsDefinitions ToolDefinitions) RunnerOption {
+	return func(o *RunnerOptions) {
+		o.toolsDefinitions = toolsDefinitions
+	}
+}
+
 // NewRunner creates a new runner.
 func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.ResourceLoader, ai Ai, options ...RunnerOption) Runner[T] {
 	opts := RunnerOptions{
@@ -147,6 +155,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 		kFormat:           opts.kFormat,
 		scriptEngine:      opts.scriptEngine,
 		ExternalFunctions: opts.externalFunctions,
+		ToolsDefinitions:  opts.toolsDefinitions,
 		vars:              make(evaluators.Vars),
 	}
 }
@@ -167,11 +176,14 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 	}
 	r.params = params
 
-	// checking whether the plan has input parameters required, and comparing with the input params
+	// checking whether the plan has input parameters required and comparing with the input params
 	if err := r.checkParametersRequirements(); err != nil {
 		return nil, err
 	}
-
+	// checking whether the plan has tools required and comparing them with the tools definitions
+	if err := r.checkToolsRequirements(); err != nil {
+		return nil, err
+	}
 	// initializing the session channel. This is where session tasks will be dispatched
 	r.sessionChan = make(chan sessionTask)
 	defer func() {
@@ -242,6 +254,13 @@ func (r *Runner[T]) checkParametersRequirements() error {
 		return nil
 	}
 	return r.sessionManager.Parameters.Validate(r.params)
+}
+
+func (r *Runner[T]) checkToolsRequirements() error {
+	if r.sessionManager.RequiredTools != nil {
+		return r.sessionManager.RequiredTools.Check(r.ToolsDefinitions)
+	}
+	return nil
 }
 
 // scanSessions keeps scanning sessions until completion, sending tasks to workers and orchestrating priority and

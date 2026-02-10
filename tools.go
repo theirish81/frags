@@ -75,6 +75,16 @@ func (t *ToolDefinitions) HasType(tt ToolType) bool {
 	return false
 }
 
+// Contains checks whether a certain combination of tool name and tool type appears in tools definitions
+func (t *ToolDefinitions) Contains(name string, toolType ToolType) bool {
+	for _, tool := range *t {
+		if tool.Name == name && tool.Type == toolType {
+			return true
+		}
+	}
+	return false
+}
+
 // ToolsCollection is a collection of functions. This is an integration commodity that standardizes how collections
 // are defined so that multiple integrations can easily integrate one with the other.
 type ToolsCollection interface {
