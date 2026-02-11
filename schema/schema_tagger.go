@@ -23,6 +23,9 @@ import (
 )
 
 func StructToSchema(v any) *Schema {
+	if customized, ok := v.(Customizer); ok {
+		return customized.GenerateSchema()
+	}
 	t := reflect.TypeOf(v)
 
 	if v == nil {
@@ -182,4 +185,8 @@ func parseFragsTag(schema *Schema, tag string) {
 			// Could parse max values for numbers
 		}
 	}
+}
+
+type Customizer interface {
+	GenerateSchema() *Schema
 }
