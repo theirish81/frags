@@ -16,6 +16,7 @@ require (
 	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
+	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
 )
 
 require (

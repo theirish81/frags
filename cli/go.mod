@@ -4,7 +4,6 @@ go 1.24.8
 
 require (
 	cloud.google.com/go/auth v0.9.3
-	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/jsonschema-go v0.3.0
 	github.com/labstack/echo/v4 v4.15.0
@@ -29,6 +28,7 @@ require (
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
 	github.com/blues/jsonata-go v1.5.4 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
+	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3 // indirect
 	github.com/expr-lang/expr v1.17.7 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
@@ -78,3 +78,5 @@ require (
 	google.golang.org/grpc v1.66.2 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
+
+replace github.com/theirish81/frags v0.21.0 => ../
