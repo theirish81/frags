@@ -39,6 +39,10 @@ type s1 struct {
 	MapOfS3   map[string]s3 `json:"mapOfS3"`
 }
 
+type s4 struct {
+	Foo string
+}
+
 func TestMergeJSONInto(t *testing.T) {
 	s1 := s1{}
 	err := MergeJSONInto(&s1, []byte(`{"s2": {"p1":1, "p2": 2}, "arrayOfS2": [{"p1": 3, "p2": 4}]}`))
@@ -99,5 +103,11 @@ func TestMergeJSONInto2(t *testing.T) {
 	assert.Equal(t, float64(2), root["d"].(map[string]any)["e"].(map[string]any)["f"])
 	assert.Equal(t, float64(3), root["arr"].([]any)[2])
 	assert.Equal(t, float64(4), root["arr"].([]any)[3])
+}
 
+func TestMergeJSONInto3(t *testing.T) {
+	s4 := s4{}
+	err := MergeJSONInto(&s4, []byte(`{"Foo": "bar"}`))
+	assert.NoError(t, err)
+	assert.Equal(t, "bar", s4.Foo)
 }

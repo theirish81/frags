@@ -347,17 +347,17 @@ func unmarshalIntoValue(raw json.RawMessage, v reflect.Value) error {
 func fieldJSONName(f reflect.StructField) string {
 	tag := f.Tag.Get("json")
 	if tag == "" {
-		return lowerFirstRune(f.Name)
+		return firstRune(f.Name)
 	}
 	parts := strings.Split(tag, ",")
 	name := parts[0]
 	if name == "" {
-		return lowerFirstRune(f.Name)
+		return firstRune(f.Name)
 	}
 	return name
 }
 
-func lowerFirstRune(s string) string {
+func firstRune(s string) string {
 	if s == "" {
 		return s
 	}
@@ -365,6 +365,6 @@ func lowerFirstRune(s string) string {
 	if len(r) == 0 {
 		return s
 	}
-	r[0] = []rune(strings.ToLower(string(r[0])))[0]
+	r[0] = []rune(string(r[0]))[0]
 	return string(r)
 }
