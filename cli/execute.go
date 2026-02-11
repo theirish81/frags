@@ -26,6 +26,7 @@ import (
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/scriptengines"
 	"github.com/theirish81/frags/util"
 )
 
@@ -71,7 +72,7 @@ func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[stri
 		ai,
 		frags.WithSessionWorkers(workers),
 		frags.WithLogger(logger),
-		frags.WithScriptEngine(NewJavascriptScriptingEngine()),
+		frags.WithScriptEngine(scriptengines.NewJavascriptScriptingEngine()),
 		frags.WithExternalFunctions(functions),
 		frags.WithToolsDefinitions(definitions),
 	)

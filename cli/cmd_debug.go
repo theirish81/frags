@@ -28,6 +28,7 @@ import (
 	"github.com/theirish81/frags"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/scriptengines"
 	"github.com/theirish81/frags/util"
 	"gopkg.in/yaml.v3"
 )
@@ -50,7 +51,7 @@ func initDebugEnv(ctx context.Context) (*frags.Runner[util.ProgMap], error) {
 	ai.SetFunctions(functions)
 	runner := frags.NewRunner[util.ProgMap](frags.NewSessionManager(), resources.NewFileResourceLoader("."), ai,
 		frags.WithLogger(log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)),
-		frags.WithScriptEngine(NewJavascriptScriptingEngine()),
+		frags.WithScriptEngine(scriptengines.NewJavascriptScriptingEngine()),
 		frags.WithExternalFunctions(functions),
 	)
 	return &runner, nil
