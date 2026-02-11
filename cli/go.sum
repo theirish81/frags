@@ -153,6 +153,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/subosito/gotenv v1.6.0 h1:9NlTDc1FTs4qu0DDq7AEtTPNw6SVm7uBMsUCUjABIf8=
 github.com/subosito/gotenv v1.6.0/go.mod h1:Dk4QP5c2W3ibzajGcXpNraDfq2IrhjMIvMSWPKKo0FU=
+github.com/theirish81/frags v0.22.0 h1:ZG+2CUjw7rYzqW8bAYHw4hKg522qMvBwIGokAInO/Ok=
+github.com/theirish81/frags v0.22.0/go.mod h1:HIF7eeCaiIv59yy/joJwLjKSaS92QYHkOieK8yanQbU=
 github.com/theirish81/frags/chatgpt v0.19.1 h1:zeh3n6vtR+W59gsuYNsVvqtAmgUsq88NCZ2yFtZWnog=
 github.com/theirish81/frags/chatgpt v0.19.1/go.mod h1:hpI0Rx2fy4n3SUE9+oJsSArGT/2bTFCjy0CFZoQ4V6Q=
 github.com/theirish81/frags/gemini v0.19.0 h1:KkLnY65+xzI6VtEvj2IlIlfvHZUrWR4Ma8CBky8X4nY=
