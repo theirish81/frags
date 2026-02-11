@@ -412,3 +412,32 @@ func TestStructToSchema_NonStructInput(t *testing.T) {
 	schema = StructToSchema([]string{"a", "b"})
 	assert.Nil(t, schema)
 }
+
+type interfacedTagger struct {
+	Name string `json:"name"`
+	Foo  FooVal `json:"foo"`
+}
+
+type FooVal []string
+
+func (i *FooVal) GenerateSchema() *Schema {
+	return &Schema{
+		OneOf: []*Schema{
+			{
+				Type: "string",
+			},
+			{
+				Type: "array",
+				Items: &Schema{
+					Type: "string",
+				},
+			},
+		},
+	}
+}
+
+func TestInterfaceImplementation(t *testing.T) {
+	schema := StructToSchema(interfacedTagger{})
+	assert.Equal(t, "string", schema.Properties["foo"].OneOf[0].Type)
+	assert.Equal(t, "array", schema.Properties["foo"].OneOf[1].Type)
+}

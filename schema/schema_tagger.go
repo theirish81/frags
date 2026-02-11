@@ -23,6 +23,9 @@ import (
 )
 
 func StructToSchema(v any) *Schema {
+	if customized, ok := v.(Customizer); ok {
+		return customized.GenerateSchema()
+	}
 	t := reflect.TypeOf(v)
 
 	if v == nil {
@@ -67,16 +70,25 @@ func StructToSchema(v any) *Schema {
 				continue
 			}
 		}
+		var fieldSchema *Schema
+		fieldType := field.Type
+		hasCustomSchema := false
+		if fieldType.Implements(reflect.TypeOf((*Customizer)(nil)).Elem()) || reflect.PointerTo(fieldType).Implements(reflect.TypeOf((*Customizer)(nil)).Elem()) {
+			val := reflect.New(field.Type).Interface()
 
-		// Create field schema
-		fieldSchema := createFieldSchema(field)
-
-		// Parse frags tag
-		fragsTag := field.Tag.Get("frags")
-		if fragsTag != "" {
-			parseFragsTag(fieldSchema, fragsTag)
+			if customizer, ok := val.(Customizer); ok {
+				hasCustomSchema = true
+				fieldSchema = customizer.GenerateSchema()
+			}
 		}
-
+		if !hasCustomSchema {
+			fieldSchema = createFieldSchema(field)
+			// Parse frags tag
+			fragsTag := field.Tag.Get("frags")
+			if fragsTag != "" {
+				parseFragsTag(fieldSchema, fragsTag)
+			}
+		}
 		schema.Properties[fieldName] = fieldSchema
 		schema.Required = append(schema.Required, fieldName)
 	}
@@ -87,7 +99,6 @@ func StructToSchema(v any) *Schema {
 // createFieldSchema creates a Schema for a single field
 func createFieldSchema(field reflect.StructField) *Schema {
 	schema := &Schema{}
-
 	fieldType := field.Type
 
 	// Handle pointer types
@@ -182,4 +193,8 @@ func parseFragsTag(schema *Schema, tag string) {
 			// Could parse max values for numbers
 		}
 	}
+}
+
+type Customizer interface {
+	GenerateSchema() *Schema
 }

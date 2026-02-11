@@ -36,6 +36,7 @@ const Array = "array"
 
 // Schema represents a JSON schema with x-phase and x-session extensions.
 type Schema struct {
+	OneOf            []*Schema          `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
 	AnyOf            []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
 	Default          any                `json:"default,omitempty" yaml:"default,omitempty"`
 	Description      string             `json:"description,omitempty" yaml:"description,omitempty"`
@@ -189,6 +190,13 @@ func (s *Schema) resolve(schema *Schema, schemas map[string]Schema, visited map[
 
 	if schema.AnyOf != nil {
 		for _, anyOfSchema := range schema.AnyOf {
+			if err := s.resolve(anyOfSchema, schemas, visited); err != nil {
+				return err
+			}
+		}
+	}
+	if schema.OneOf != nil {
+		for _, anyOfSchema := range schema.OneOf {
 			if err := s.resolve(anyOfSchema, schemas, visited); err != nil {
 				return err
 			}
