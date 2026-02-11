@@ -7,25 +7,28 @@ toolchain go1.24.8
 require (
 	github.com/avast/retry-go/v5 v5.0.0
 	github.com/blues/jsonata-go v1.5.4
+	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
 	github.com/expr-lang/expr v1.17.7
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/go-viper/mapstructure/v2 v2.5.0
+	github.com/google/uuid v1.6.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
-	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/google/jsonschema-go v0.3.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
