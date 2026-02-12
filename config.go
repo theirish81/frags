@@ -20,8 +20,8 @@ package frags
 // ToolsConfig defines the configuration for the MCP clients and collections. This serves no specific purpose
 // within Frags itself, but it can be used by integrating applications to standardize the configuration format.
 type ToolsConfig struct {
-	McpServers  McpServerConfigs       `json:"mcpServers"`
-	Collections ToolsCollectionConfigs `json:"collections"`
+	McpServers  McpServerConfigs       `json:"mcpServers,omitempty"`
+	Collections ToolsCollectionConfigs `json:"collections,omitempty"`
 }
 
 // AsToolDefinitions returns the tools config as tool definitions
@@ -31,7 +31,7 @@ func (t ToolsConfig) AsToolDefinitions() ToolDefinitions {
 
 // CollectionConfig defines the configuration for a collection
 type CollectionConfig struct {
-	Params   map[string]string `json:"params"`
+	Params   map[string]string `json:"params,omitempty"`
 	Disabled bool              `json:"disabled"`
 }
 
@@ -52,13 +52,13 @@ func (t ToolsCollectionConfigs) AsToolDefinitions() ToolDefinitions {
 
 // McpServerConfig defines the configuration to connect to a MCP server
 type McpServerConfig struct {
-	Command   string            `json:"command"`
-	Args      []string          `json:"args"`
-	Env       map[string]string `json:"env"`
-	Cwd       string            `json:"cwd"`
-	Transport string            `json:"transport"`
-	Url       string            `json:"url"`
-	Headers   map[string]string `json:"headers"`
+	Command   string            `json:"command,omitempty"`
+	Args      []string          `json:"args,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
+	Cwd       string            `json:"cwd,omitempty"`
+	Transport string            `json:"transport,omitempty"`
+	Url       string            `json:"url,omitempty"`
+	Headers   map[string]string `json:"headers,omitempty"`
 	Disabled  bool              `json:"disabled"`
 }
 

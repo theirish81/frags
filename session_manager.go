@@ -49,18 +49,18 @@ import (
 // len(IterateOn) times. Use an github.com/expr-lang/expr expression.
 // Vars defines variables that are local to the session.
 type Session struct {
-	PreCalls        FunctionCallers `json:"preCalls" yaml:"preCalls" validate:"omitempty,dive"`
-	PrePrompt       PrePrompt       `json:"prePrompt" yaml:"prePrompt"`
-	Prompt          string          `json:"prompt" yaml:"prompt" validate:"omitempty,min=3"`
-	NextPhasePrompt string          `json:"nextPhasePrompt" yaml:"nextPhasePrompt"`
-	Resources       []Resource      `json:"resources" yaml:"resources" validate:"dive"`
-	Timeout         *string         `json:"timeout" yaml:"timeout"`
-	DependsOn       Dependencies    `json:"dependsOn" yaml:"dependsOn"`
+	PreCalls        FunctionCallers `json:"preCalls,omitempty" yaml:"preCalls" validate:"omitempty,dive"`
+	PrePrompt       PrePrompt       `json:"prePrompt,omitempty" yaml:"prePrompt,omitempty"`
+	Prompt          string          `json:"prompt,omitempty" yaml:"prompt,omitempty" validate:"omitempty,min=3"`
+	NextPhasePrompt string          `json:"nextPhasePrompt,omitempty" yaml:"nextPhasePrompt,omitempty"`
+	Resources       []Resource      `json:"resources,omitempty" yaml:"resources,omitempty" validate:"dive"`
+	Timeout         *string         `json:"timeout,omitempty" yaml:"timeout,omitempty"`
+	DependsOn       Dependencies    `json:"dependsOn,omitempty" yaml:"dependsOn,omitempty"`
 	Context         bool            `json:"context" yaml:"context"`
-	Attempts        int             `json:"attempts" yaml:"attempts"`
-	Tools           ToolDefinitions `json:"tools" yaml:"tools"`
-	IterateOn       *string         `json:"iterateOn" yaml:"iterateOn"`
-	Vars            map[string]any  `json:"vars" yaml:"vars"`
+	Attempts        int             `json:"attempts,omitempty" yaml:"attempts,omitempty"`
+	Tools           ToolDefinitions `json:"tools,omitempty" yaml:"tools,omitempty"`
+	IterateOn       *string         `json:"iterateOn,omitempty" yaml:"iterateOn,omitempty"`
+	Vars            map[string]any  `json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 
 type PrePrompt []string
@@ -162,11 +162,11 @@ type SessionManager struct {
 	RequiredTools RequiredTools     `yaml:"requiredTools,omitempty" json:"requiredTools,omitempty"`
 	Transformers  *Transformers     `yaml:"transformers,omitempty" json:"transformers,omitempty"`
 	SystemPrompt  *string           `yaml:"systemPrompt,omitempty" json:"systemPrompt,omitempty"`
-	Components    Components        `yaml:"components" json:"components"`
+	Components    Components        `yaml:"components,omitempty" json:"components,omitempty"`
 	Sessions      Sessions          `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
 	Schema        *schema.Schema    `yaml:"schema,omitempty" json:"schema,omitempty"`
-	Vars          map[string]any    `yaml:"vars" json:"vars,omitempty"`
-	PreCalls      FunctionCallers   `yaml:"preCalls" json:"preCalls,omitempty"`
+	Vars          map[string]any    `yaml:"vars,omitempty" json:"vars,omitempty"`
+	PreCalls      FunctionCallers   `yaml:"preCalls,omitempty" json:"preCalls,omitempty"`
 }
 
 type Parameter struct {
@@ -190,6 +190,19 @@ func (p *ParametersConfig) SetLooseType(looseType bool) {
 	if p != nil {
 		p.LooseType = looseType
 	}
+}
+func (p *ParametersConfig) MarshalYAML() (interface{}, error) {
+	if p == nil {
+		return nil, nil
+	}
+	return p.Parameters, nil
+}
+
+func (p *ParametersConfig) MarshalJSON() ([]byte, error) {
+	if p == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(p.Parameters)
 }
 
 func (p *ParametersConfig) UnmarshalYAML(node *yaml.Node) error {
@@ -222,8 +235,8 @@ func (p *ParametersConfig) Validate(data any) error {
 
 // Components holds the reusable components of the sessions and schema
 type Components struct {
-	Prompts map[string]string        `yaml:"prompts" json:"prompts"`
-	Schemas map[string]schema.Schema `yaml:"schemas" json:"schemas"`
+	Prompts map[string]string        `yaml:"prompts" json:"prompts,omitempty"`
+	Schemas map[string]schema.Schema `yaml:"schemas" json:"schemas,omitempty"`
 }
 
 // NewSessionManager creates a new SessionManager.
