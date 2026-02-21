@@ -441,3 +441,15 @@ type dcrResponse struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret,omitempty"`
 }
+
+type NopOauthAuthProvider struct{}
+
+func (NopOauthAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) {
+	return nil, errors.New("unreachable")
+}
+func (NopOauthAuthProvider) Token() TokenResult {
+	return TokenResult{}
+}
+func (NopOauthAuthProvider) New(config OAuthProviderConfig, logger *log.StreamerLogger) GenericOauthProvider {
+	return NewOAuthProvider(config, logger)
+}
