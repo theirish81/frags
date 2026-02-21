@@ -36,6 +36,7 @@ const EndEventType EventType = "end"
 const LoadEventType EventType = "load"
 const ErrorEventType EventType = "error"
 const ResultEventType EventType = "result"
+const AuthEventType EventType = "auth"
 
 type EventComponent string
 
@@ -48,6 +49,7 @@ const PrePromptComponent EventComponent = "prePrompt"
 const PromptComponent EventComponent = "prompt"
 const AiComponent EventComponent = "ai"
 const AppComponent EventComponent = "app"
+const McpComponent EventComponent = "mcp"
 
 type ChannelLevel string
 

@@ -29,6 +29,8 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/jinzhu/copier"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/mcpauth"
 	schema2 "github.com/theirish81/frags/schema"
 	"github.com/theirish81/frags/util"
 )
@@ -46,11 +48,12 @@ func (m McpServerConfigs) McpTools() McpTools {
 
 // McpTool is a wrapper around the MCP client
 type McpTool struct {
-	Name         string
-	serverConfig McpServerConfig
-	client       *mcp.Client
-	session      *mcp.ClientSession
-	log          *slog.Logger
+	Name          string
+	serverConfig  McpServerConfig
+	client        *mcp.Client
+	session       *mcp.ClientSession
+	oauthProvider mcpauth.GenericOauthProvider
+	log           *slog.Logger
 }
 
 // NewMcpTool creates a new MCP client wrapper
@@ -63,22 +66,28 @@ func NewMcpTool(name string, serverConfig McpServerConfig) *McpTool {
 		log: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		})),
+		oauthProvider: &mcpauth.OAuthProvider{},
 	}
+}
+
+func (c *McpTool) WithOAuthProvider(oauthProvider mcpauth.GenericOauthProvider) *McpTool {
+	c.oauthProvider = oauthProvider
+	return c
 }
 
 // Connect connects to the MCP server
-func (c *McpTool) Connect(ctx context.Context) error {
+func (c *McpTool) Connect(ctx context.Context, logger *log.StreamerLogger) error {
 	if len(c.serverConfig.Command) > 0 {
-		return c.ConnectStd(ctx)
+		return c.ConnectStd(ctx, logger)
 	}
 	if c.serverConfig.Transport == "sse" {
-		return c.ConnectSSE(ctx)
+		return c.ConnectSSE(ctx, logger)
 	}
-	return c.ConnectStreamableHttp(ctx)
+	return c.ConnectStreamableHttp(ctx, logger)
 }
 
 // ConnectStd connects to the MCP server using a std/stdout transport
-func (c *McpTool) ConnectStd(ctx context.Context) error {
+func (c *McpTool) ConnectStd(ctx context.Context, _ *log.StreamerLogger) error {
 	var err error
 	cmd := exec.Command(c.serverConfig.Command, c.serverConfig.Args...)
 	cmd.Env = make([]string, 0)
@@ -93,34 +102,73 @@ func (c *McpTool) ConnectStd(ctx context.Context) error {
 }
 
 // ConnectSSE connects to the MCP server using an SSE transport
-func (c *McpTool) ConnectSSE(ctx context.Context) error {
-	client := http.Client{
-		Timeout:   30 * time.Minute,
-		Transport: NewMcpTransport(c.serverConfig.Headers),
-	}
+func (c *McpTool) ConnectSSE(ctx context.Context, logger *log.StreamerLogger) error {
+	authProvider := c.selectAuthProvider(logger)
+	var httpClient *http.Client
 	var err error
+	if authProvider != nil {
+		httpClient, err = authProvider.Authenticate(ctx)
+		if err != nil {
+			return err
+		}
+	} else {
+		httpClient = &http.Client{
+			Timeout: 30 * time.Minute,
+		}
+	}
+
+	if len(c.serverConfig.Headers) > 0 {
+		httpClient.Transport = NewMcpTransport(c.serverConfig.Headers, httpClient.Transport)
+	}
 	c.session, err = c.client.Connect(ctx, &mcp.SSEClientTransport{
 		Endpoint:   c.serverConfig.Url,
-		HTTPClient: &client,
+		HTTPClient: httpClient,
 	}, nil)
 	return err
 }
 
+func (c *McpTool) selectAuthProvider(logger *log.StreamerLogger) mcpauth.AuthProvider {
+	if c.serverConfig.Token != nil {
+		return mcpauth.NewStaticTokenProvider(*c.serverConfig.Token, "")
+	}
+	if _, ok := c.serverConfig.Headers["Authorization"]; ok {
+		return nil
+	}
+	return c.oauthProvider.New(mcpauth.OAuthProviderConfig{
+		MCPEndpoint:  c.serverConfig.Url,
+		ClientID:     c.serverConfig.ClientID,
+		ClientSecret: c.serverConfig.ClientSecret,
+	}, logger)
+}
+
 // ConnectStreamableHttp connects to the MCP server using a Streamable HTTP transport, which is now the default.
 // In case of failure, it falls back to SSE transport
-func (c *McpTool) ConnectStreamableHttp(ctx context.Context) error {
-	client := http.Client{
-		Timeout:   30 * time.Minute,
-		Transport: NewMcpTransport(c.serverConfig.Headers),
-	}
+func (c *McpTool) ConnectStreamableHttp(ctx context.Context, logger *log.StreamerLogger) error {
+	authProvider := c.selectAuthProvider(logger)
+	var httpClient *http.Client
 	var err error
+	if authProvider != nil {
+		httpClient, err = authProvider.Authenticate(ctx)
+		if err != nil {
+			return err
+		}
+	} else {
+		httpClient = &http.Client{
+			Timeout: 30 * time.Minute,
+		}
+	}
+
+	if len(c.serverConfig.Headers) > 0 {
+		httpClient.Transport = NewMcpTransport(c.serverConfig.Headers, httpClient.Transport)
+	}
+
 	c.session, err = c.client.Connect(ctx, &mcp.StreamableClientTransport{
 		Endpoint:   c.serverConfig.Url,
-		HTTPClient: &client,
+		HTTPClient: httpClient,
 	}, nil)
 	if err != nil {
 		c.log.Warn("Streamable HTTP transport failed, falling back to SSE transport", "error", err.Error())
-		return c.ConnectSSE(ctx)
+		return c.ConnectSSE(ctx, logger)
 	}
 	return err
 }
@@ -219,13 +267,20 @@ func (c *McpTool) Close() error {
 type McpTools []*McpTool
 
 // Connect connects to all the servers
-func (m McpTools) Connect(ctx context.Context) error {
+func (m McpTools) Connect(ctx context.Context, logger *log.StreamerLogger) error {
 	for _, t := range m {
-		if err := t.Connect(ctx); err != nil {
+		if err := t.Connect(ctx, logger); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (m McpTools) WithOAuthProvider(oauthProvider mcpauth.GenericOauthProvider) McpTools {
+	for _, t := range m {
+		t.WithOAuthProvider(oauthProvider)
+	}
+	return m
 }
 
 // Close closes all the connections
@@ -288,30 +343,23 @@ func convertTextContent(content *mcp.TextContent) any {
 
 // McpTransport is a wrapper around the default http.RoundTripper that adds default headers to every request
 type McpTransport struct {
-	Base    http.RoundTripper
-	Headers map[string]string
+	inner   http.RoundTripper
+	headers map[string]string
 }
 
 // NewMcpTransport creates a new McpTransport instance
-func NewMcpTransport(headers map[string]string) *McpTransport {
-	return &McpTransport{
-		Headers: headers,
-		Base: &http.Transport{
-			ResponseHeaderTimeout: 30 * time.Second,
-			IdleConnTimeout:       90 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+func NewMcpTransport(headers map[string]string, inner http.RoundTripper) *McpTransport {
+	if inner == nil {
+		inner = http.DefaultTransport
 	}
+	return &McpTransport{headers: headers, inner: inner}
 }
 
 // RoundTrip adds default headers to the request
 func (t *McpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req2 := req.Clone(req.Context())
-
-	// Add your default headers
-	for key, value := range t.Headers {
-		req2.Header.Set(key, value)
+	cloned := req.Clone(req.Context())
+	for k, v := range t.headers {
+		cloned.Header.Set(k, v)
 	}
-	return t.Base.RoundTrip(req2)
+	return t.inner.RoundTrip(cloned)
 }
