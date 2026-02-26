@@ -59,6 +59,8 @@ type OAuthProviderConfig struct {
 	// field; if that is also empty, ["repo", "read:user"] is used as a fallback.
 	Scopes []string
 
+	State *string
+
 	HTTPClient *http.Client
 }
 
@@ -291,6 +293,60 @@ func (p *OAuthProvider) registerClient(ctx context.Context, asMeta *authServerMe
 	}
 	p.logger.Info(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("registered client_id").WithArg("client_id", resp.ClientID))
 	return resp.ClientID, resp.ClientSecret, nil
+}
+
+func (p *OAuthProvider) AuthLink(ctx context.Context) (string, error) {
+	// 1. Probe.
+	resourceMetaURL, err := p.probe(ctx)
+	if err != nil {
+		return "", fmt.Errorf("probe: %w", err)
+	}
+	if resourceMetaURL == "" {
+		// No auth required — return a plain client with a zero TokenResult.
+		return "", nil
+	}
+
+	// 2 & 3. Discover metadata.
+	prm, asMeta, err := p.discoverMetadata(ctx, resourceMetaURL)
+	if err != nil {
+		return "", fmt.Errorf("discovery: %w", err)
+	}
+
+	// 4. Register client (or use pre-configured ClientID).
+	clientID, clientSecret, err := p.registerClient(ctx, asMeta)
+	if err != nil {
+		return "", fmt.Errorf("client registration: %w", err)
+	}
+
+	verifier, err := randBase64(32)
+	if err != nil {
+		return "", err
+	}
+	var state string
+	if p.cfg.State != nil {
+		state = *p.cfg.State
+	} else {
+		state, err = randBase64(16)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	scopes := p.cfg.Scopes
+	if len(scopes) == 0 {
+		scopes = prm.ScopesSupported
+	}
+	if len(scopes) == 0 {
+		scopes = []string{"repo", "read:user"} // sensible default for GitHub
+	}
+
+	conf := p.oauthConfig(asMeta, clientID, clientSecret, scopes)
+	authURL := conf.AuthCodeURL(state,
+		oauth2.SetAuthURLParam("code_challenge", s256(verifier)),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		oauth2.SetAuthURLParam("resource", p.cfg.MCPEndpoint), // RFC 8707
+	)
+	return authURL, nil
 }
 
 // runFlow does the Authorization Code + PKCE flow
