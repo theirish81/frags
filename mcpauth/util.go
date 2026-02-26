@@ -67,7 +67,7 @@ func (p *OAuthProvider) postJSON(ctx context.Context, u string, in, out any) err
 	return json.Unmarshal(respBody, out)
 }
 
-func randBase64(n int) (string, error) {
+func RandBase64(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
 		return "", err

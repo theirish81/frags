@@ -38,6 +38,14 @@ const (
 	httpsProtocol RedirectProtocol = "https://"
 )
 
+type DiscoveryResources struct {
+	ResourceMetaURL           string
+	ProtectedResourceMetadata *ProtectedResourceMetadata
+	AuthServerMetadata        *AuthServerMetadata
+	ClientID                  string
+	ClientSecret              string
+}
+
 // OAuthProviderConfig is the configuration for OAuthProvider.
 type OAuthProviderConfig struct {
 	MCPEndpoint string
@@ -60,6 +68,8 @@ type OAuthProviderConfig struct {
 	Scopes []string
 
 	State *string
+
+	Verifier *string
 
 	HTTPClient *http.Client
 }
@@ -117,6 +127,24 @@ func (c *OAuthProviderConfig) clientSecret() string {
 	return ""
 }
 
+func (c *OAuthProviderConfig) verifier() string {
+	if c.Verifier != nil {
+		return *c.Verifier
+	}
+	verifier, _ := RandBase64(32)
+	c.Verifier = &verifier
+	return verifier
+}
+
+func (c *OAuthProviderConfig) state() string {
+	if c.State != nil {
+		return *c.State
+	}
+	state, _ := RandBase64(16)
+	c.State = &state
+	return state
+}
+
 // OAuthProvider implements AuthProvider using the standard MCP OAuth 2.1 flow:
 //
 //  1. Probe the server unauthenticated → capture WWW-Authenticate header.
@@ -124,7 +152,7 @@ func (c *OAuthProviderConfig) clientSecret() string {
 //  3. Fetch Authorization Server Metadata
 //  4. Dynamic Client Registration - skipped if ClientID is pre-set.
 //  5. Authorization Code + PKCE — opens browser, listens for local callback.
-//  6. Token exchange — code + PKCE verifier → access_token + refresh_token.
+//  6. Token exchange — code + PKCE Verifier → access_token + refresh_token.
 type OAuthProvider struct {
 	cfg    OAuthProviderConfig
 	tok    TokenResult
@@ -141,32 +169,53 @@ func (p *OAuthProvider) New(config OAuthProviderConfig, logger *log.StreamerLogg
 	return NewOAuthProvider(config, logger)
 }
 
-// Authenticate implements AuthProvider.
-func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) {
+func (*OAuthProvider) Name() string {
+	return ""
+}
+
+func (p *OAuthProvider) Discover(ctx context.Context) (*DiscoveryResources, bool, error) {
+	resources := DiscoveryResources{}
 	// 1. Probe.
 	resourceMetaURL, err := p.probe(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("probe: %w", err)
+		return nil, true, fmt.Errorf("probe: %w", err)
 	}
 	if resourceMetaURL == "" {
 		// No auth required — return a plain client with a zero TokenResult.
-		return p.cfg.httpClient(), nil
+		return nil, false, nil
 	}
+	resources.ResourceMetaURL = resourceMetaURL
 
 	// 2 & 3. Discover metadata.
 	prm, asMeta, err := p.discoverMetadata(ctx, resourceMetaURL)
 	if err != nil {
-		return nil, fmt.Errorf("discovery: %w", err)
+		return nil, true, fmt.Errorf("discovery: %w", err)
 	}
+	resources.ProtectedResourceMetadata = prm
+	resources.AuthServerMetadata = asMeta
 
 	// 4. Register client (or use pre-configured ClientID).
 	clientID, clientSecret, err := p.registerClient(ctx, asMeta)
 	if err != nil {
-		return nil, fmt.Errorf("client registration: %w", err)
+		return nil, true, fmt.Errorf("client registration: %w", err)
 	}
+	resources.ClientID = clientID
+	resources.ClientSecret = clientSecret
+	return &resources, true, nil
+}
 
+// Authenticate implements AuthProvider.
+func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) {
+
+	resources, requiresAuth, err := p.Discover(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("discover: %w", err)
+	}
+	if !requiresAuth {
+		return p.cfg.httpClient(), nil
+	}
 	// 5 & 6. Authorization Code + PKCE.
-	oauthTok, err := p.runFlow(ctx, prm, asMeta, clientID, clientSecret)
+	oauthTok, err := p.runFlow(ctx, resources)
 	if err != nil {
 		return nil, fmt.Errorf("oauth flow: %w", err)
 	}
@@ -180,7 +229,7 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 	}
 
 	// Build a live token source that handles refresh transparently.
-	conf := p.oauthConfig(asMeta, clientID, clientSecret, nil)
+	conf := p.OauthConfig(resources.AuthServerMetadata, resources.ClientID, resources.ClientSecret, nil)
 	p.ts = conf.TokenSource(ctx, oauthTok)
 
 	return oauth2.NewClient(ctx, p.ts), nil
@@ -234,8 +283,8 @@ func (p *OAuthProvider) probe(ctx context.Context) (string, error) {
 	return parsed.Scheme + "://" + parsed.Host + "/.well-known/oauth-protected-resource", nil
 }
 
-func (p *OAuthProvider) discoverMetadata(ctx context.Context, resourceMetaURL string) (*protectedResourceMetadata, *authServerMetadata, error) {
-	var prm protectedResourceMetadata
+func (p *OAuthProvider) discoverMetadata(ctx context.Context, resourceMetaURL string) (*ProtectedResourceMetadata, *AuthServerMetadata, error) {
+	var prm ProtectedResourceMetadata
 	p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithArg("resource_metadata", resourceMetaURL))
 	if err := p.getJSON(ctx, resourceMetaURL, &prm); err != nil {
 		return nil, nil, fmt.Errorf("resource metadata: %w", err)
@@ -252,7 +301,7 @@ func (p *OAuthProvider) discoverMetadata(ctx context.Context, resourceMetaURL st
 		wellKnown += "/" + path
 	}
 
-	var asMeta authServerMetadata
+	var asMeta AuthServerMetadata
 	p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithArg("auth_server_metadata", wellKnown))
 	if err := p.getJSON(ctx, wellKnown, &asMeta); err != nil {
 		// Some servers only expose OIDC discovery.
@@ -268,11 +317,13 @@ func (p *OAuthProvider) discoverMetadata(ctx context.Context, resourceMetaURL st
 	return &prm, &asMeta, nil
 }
 
-func (p *OAuthProvider) registerClient(ctx context.Context, asMeta *authServerMetadata) (clientID, clientSecret string, err error) {
-	if id := p.cfg.clientID(); id != "" {
+func (p *OAuthProvider) registerClient(ctx context.Context, asMeta *AuthServerMetadata) (clientID, clientSecret string, err error) {
+	return p.cfg.clientID(), p.cfg.clientSecret(), nil
+	/*if id := p.cfg.clientID(); id != "" {
 		p.logger.Info(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("using configured client_id"))
 		return id, p.cfg.clientSecret(), nil
 	}
+
 	if asMeta.RegistrationEndpoint == "" {
 		return "", "", errors.New("auth server has no registration_endpoint and no ClientID is configured")
 	}
@@ -292,55 +343,23 @@ func (p *OAuthProvider) registerClient(ctx context.Context, asMeta *authServerMe
 		return "", "", errors.New("DCR response missing client_id")
 	}
 	p.logger.Info(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("registered client_id").WithArg("client_id", resp.ClientID))
-	return resp.ClientID, resp.ClientSecret, nil
+	return resp.ClientID, resp.ClientSecret, nil*/
 }
 
-func (p *OAuthProvider) AuthLink(ctx context.Context) (string, error) {
-	// 1. Probe.
-	resourceMetaURL, err := p.probe(ctx)
-	if err != nil {
-		return "", fmt.Errorf("probe: %w", err)
-	}
-	if resourceMetaURL == "" {
-		// No auth required — return a plain client with a zero TokenResult.
-		return "", nil
-	}
+func (p *OAuthProvider) AuthLink(resources *DiscoveryResources) (string, error) {
 
-	// 2 & 3. Discover metadata.
-	prm, asMeta, err := p.discoverMetadata(ctx, resourceMetaURL)
-	if err != nil {
-		return "", fmt.Errorf("discovery: %w", err)
-	}
-
-	// 4. Register client (or use pre-configured ClientID).
-	clientID, clientSecret, err := p.registerClient(ctx, asMeta)
-	if err != nil {
-		return "", fmt.Errorf("client registration: %w", err)
-	}
-
-	verifier, err := randBase64(32)
-	if err != nil {
-		return "", err
-	}
-	var state string
-	if p.cfg.State != nil {
-		state = *p.cfg.State
-	} else {
-		state, err = randBase64(16)
-		if err != nil {
-			return "", err
-		}
-	}
+	verifier := p.cfg.verifier()
+	state := p.cfg.state()
 
 	scopes := p.cfg.Scopes
 	if len(scopes) == 0 {
-		scopes = prm.ScopesSupported
+		scopes = resources.ProtectedResourceMetadata.ScopesSupported
 	}
 	if len(scopes) == 0 {
 		scopes = []string{"repo", "read:user"} // sensible default for GitHub
 	}
 
-	conf := p.oauthConfig(asMeta, clientID, clientSecret, scopes)
+	conf := p.OauthConfig(resources.AuthServerMetadata, resources.ClientID, resources.ClientSecret, scopes)
 	authURL := conf.AuthCodeURL(state,
 		oauth2.SetAuthURLParam("code_challenge", s256(verifier)),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
@@ -349,26 +368,37 @@ func (p *OAuthProvider) AuthLink(ctx context.Context) (string, error) {
 	return authURL, nil
 }
 
-// runFlow does the Authorization Code + PKCE flow
-func (p *OAuthProvider) runFlow(ctx context.Context, prm *protectedResourceMetadata, asMeta *authServerMetadata, clientID, clientSecret string) (*oauth2.Token, error) {
-	verifier, err := randBase64(32)
-	if err != nil {
-		return nil, err
-	}
-	state, err := randBase64(16)
-	if err != nil {
-		return nil, err
-	}
+func (p *OAuthProvider) Exchange(ctx context.Context, code string, resources *DiscoveryResources) (*oauth2.Token, error) {
 
 	scopes := p.cfg.Scopes
 	if len(scopes) == 0 {
-		scopes = prm.ScopesSupported
+		scopes = resources.ProtectedResourceMetadata.ScopesSupported
 	}
 	if len(scopes) == 0 {
 		scopes = []string{"repo", "read:user"} // sensible default for GitHub
 	}
 
-	conf := p.oauthConfig(asMeta, clientID, clientSecret, scopes)
+	conf := p.OauthConfig(resources.AuthServerMetadata, resources.ClientID, resources.ClientSecret, scopes)
+	return conf.Exchange(ctx, code,
+		oauth2.SetAuthURLParam("code_verifier", p.cfg.verifier()),
+		oauth2.SetAuthURLParam("resource", p.cfg.MCPEndpoint), // RFC 8707
+	)
+}
+
+// runFlow does the Authorization Code + PKCE flow
+func (p *OAuthProvider) runFlow(ctx context.Context, resources *DiscoveryResources) (*oauth2.Token, error) {
+	verifier := p.cfg.verifier()
+	state := p.cfg.state()
+
+	scopes := p.cfg.Scopes
+	if len(scopes) == 0 {
+		scopes = resources.ProtectedResourceMetadata.ScopesSupported
+	}
+	if len(scopes) == 0 {
+		scopes = []string{"repo", "read:user"} // sensible default for GitHub
+	}
+
+	conf := p.OauthConfig(resources.AuthServerMetadata, resources.ClientID, resources.ClientSecret, scopes)
 	authURL := conf.AuthCodeURL(state,
 		oauth2.SetAuthURLParam("code_challenge", s256(verifier)),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
@@ -396,8 +426,8 @@ func (p *OAuthProvider) runFlow(ctx context.Context, prm *protectedResourceMetad
 				return
 			}
 			if q.Get("state") != state {
-				errCh <- errors.New("state mismatch — possible CSRF")
-				_, _ = fmt.Fprintln(w, "State mismatch — you may close this tab.")
+				errCh <- errors.New("State mismatch — possible CSRF")
+				_, _ = fmt.Fprintln(w, "state mismatch — you may close this tab.")
 				return
 			}
 			code := q.Get("code")
@@ -442,7 +472,7 @@ func (p *OAuthProvider) runFlow(ctx context.Context, prm *protectedResourceMetad
 	return token, nil
 }
 
-func (p *OAuthProvider) oauthConfig(asMeta *authServerMetadata, clientID, clientSecret string, scopes []string) *oauth2.Config {
+func (p *OAuthProvider) OauthConfig(asMeta *AuthServerMetadata, clientID, clientSecret string, scopes []string) *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
@@ -472,13 +502,13 @@ func (rt *capturingTransport) RoundTrip(req *http.Request) (*http.Response, erro
 
 // ─── OAuth metadata structs ───────────────────────────────────────────────────
 
-type protectedResourceMetadata struct {
+type ProtectedResourceMetadata struct {
 	Resource             string   `json:"resource"`
 	AuthorizationServers []string `json:"authorization_servers"`
 	ScopesSupported      []string `json:"scopes_supported"`
 }
 
-type authServerMetadata struct {
+type AuthServerMetadata struct {
 	Issuer                string `json:"issuer"`
 	AuthorizationEndpoint string `json:"authorization_endpoint"`
 	TokenEndpoint         string `json:"token_endpoint"`
