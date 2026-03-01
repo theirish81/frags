@@ -52,14 +52,17 @@ func (t ToolsCollectionConfigs) AsToolDefinitions() ToolDefinitions {
 
 // McpServerConfig defines the configuration to connect to a MCP server
 type McpServerConfig struct {
-	Command   string            `json:"command,omitempty"`
-	Args      []string          `json:"args,omitempty"`
-	Env       map[string]string `json:"env,omitempty"`
-	Cwd       string            `json:"cwd,omitempty"`
-	Transport string            `json:"transport,omitempty"`
-	Url       string            `json:"url,omitempty"`
-	Headers   map[string]string `json:"headers,omitempty"`
-	Disabled  bool              `json:"disabled"`
+	Command      string            `json:"command,omitempty"`
+	Args         []string          `json:"args,omitempty"`
+	Env          map[string]string `json:"env,omitempty"`
+	Cwd          string            `json:"cwd,omitempty"`
+	Transport    string            `json:"transport,omitempty"`
+	Url          string            `json:"url,omitempty"`
+	Headers      map[string]string `json:"headers,omitempty"`
+	Disabled     bool              `json:"disabled"`
+	ClientID     *string           `json:"client_id,omitempty"`
+	ClientSecret *string           `json:"client_secret,omitempty"`
+	Token        *string           `json:"token,omitempty"`
 }
 
 // McpServerConfigs is a map of MCP servers
