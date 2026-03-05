@@ -40,7 +40,7 @@ type Schema struct {
 	AnyOf            []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
 	Default          any                `json:"default,omitempty" yaml:"default,omitempty"`
 	Description      string             `json:"description,omitempty" yaml:"description,omitempty"`
-	Enum             []string           `json:"enum,omitempty" yaml:"enum,omitempty"`
+	Enum             []any              `json:"enum,omitempty" yaml:"enum,omitempty"`
 	Example          any                `json:"example,omitempty" yaml:"example,omitempty"`
 	Format           string             `json:"format,omitempty" yaml:"format,omitempty"`
 	Items            *Schema            `json:"items,omitempty" yaml:"items,omitempty"`

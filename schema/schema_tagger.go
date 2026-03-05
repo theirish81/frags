@@ -20,6 +20,8 @@ package schema
 import (
 	"reflect"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 func StructToSchema(v any) *Schema {
@@ -180,7 +182,7 @@ func parseFragsTag(schema *Schema, tag string) {
 			schema.Description = strings.TrimPrefix(part, "description=")
 		} else if strings.HasPrefix(part, "enum=") {
 			enumStr := strings.TrimPrefix(part, "enum=")
-			schema.Enum = strings.Split(enumStr, "|")
+			schema.Enum = stringArrayToAny(strings.Split(enumStr, "|"))
 		} else if strings.HasPrefix(part, "format=") {
 			schema.Format = strings.TrimPrefix(part, "format=")
 		} else if strings.HasPrefix(part, "pattern=") {
@@ -193,6 +195,12 @@ func parseFragsTag(schema *Schema, tag string) {
 			// Could parse max values for numbers
 		}
 	}
+}
+
+func stringArrayToAny(items []string) []any {
+	return lo.Map[string, any](items, func(item string, index int) any {
+		return item
+	})
 }
 
 type Customizer interface {
