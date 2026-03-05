@@ -66,7 +66,7 @@ func NewMcpTool(name string, serverConfig McpServerConfig) *McpTool {
 		log: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		})),
-		oauthProvider: &mcpauth.OAuthProvider{},
+		oauthProvider: &mcpauth.NopOauthAuthProvider{},
 	}
 }
 

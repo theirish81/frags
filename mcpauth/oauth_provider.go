@@ -531,13 +531,13 @@ type dcrResponse struct {
 type NopOauthAuthProvider struct{}
 
 func (NopOauthAuthProvider) Authenticate(_ context.Context) (*http.Client, error) {
-	return nil, errors.New("unreachable")
+	return http.DefaultClient, nil
 }
 
 func (NopOauthAuthProvider) Token() TokenResult { return TokenResult{} }
 
-func (NopOauthAuthProvider) New(config OAuthProviderConfig, logger *log.StreamerLogger) GenericOauthProvider {
-	return NewOAuthProvider(config, logger)
+func (NopOauthAuthProvider) New(_ OAuthProviderConfig, _ *log.StreamerLogger) GenericOauthProvider {
+	return NopOauthAuthProvider{}
 }
 
 func derefOr(p *string, fallback string) string {
