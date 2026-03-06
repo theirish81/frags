@@ -129,8 +129,8 @@ func TestStructToSchema_FragsEnum(t *testing.T) {
 
 	assert.NotNil(t, schema)
 
-	assert.Equal(t, []string{"admin", "user", "guest"}, schema.Properties["role"].Enum)
-	assert.Equal(t, []string{"active", "inactive", "pending"}, schema.Properties["status"].Enum)
+	assert.Equal(t, []any{"admin", "user", "guest"}, schema.Properties["role"].Enum)
+	assert.Equal(t, []any{"active", "inactive", "pending"}, schema.Properties["status"].Enum)
 	assert.Nil(t, schema.Properties["plain"].Enum)
 }
 
@@ -195,7 +195,7 @@ func TestStructToSchema_MultipleFragsTags(t *testing.T) {
 
 	// Role - description and enum
 	assert.Equal(t, "User role in system", schema.Properties["role"].Description)
-	assert.Equal(t, []string{"admin", "user", "guest"}, schema.Properties["role"].Enum)
+	assert.Equal(t, []any{"admin", "user", "guest"}, schema.Properties["role"].Enum)
 
 	// Email - description, format, and pattern
 	assert.Equal(t, "Contact email", schema.Properties["email"].Description)
@@ -377,7 +377,7 @@ func TestStructToSchema_ComplexExample(t *testing.T) {
 	assert.Equal(t, "email", schema.Properties["email"].Format)
 
 	// Verify Role with enum
-	assert.Equal(t, []string{"admin", "moderator", "user"}, schema.Properties["role"].Enum)
+	assert.Equal(t, []any{"admin", "moderator", "user"}, schema.Properties["role"].Enum)
 
 	// Verify Token with x-session and nullable
 	assert.NotNil(t, schema.Properties["token"].XSession)
