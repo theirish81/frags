@@ -11,12 +11,12 @@ require (
 	github.com/samber/lo v1.52.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.22.0
+	github.com/theirish81/frags v0.23.1
 	github.com/theirish81/frags/chatgpt v0.19.1
 	github.com/theirish81/frags/gemini v0.19.0
 	github.com/theirish81/frags/ollama v0.19.1
 	github.com/theirish81/fragsfunctions/fs v0.5.0
-	github.com/theirish81/fragsfunctions/http v0.5.0
+	github.com/theirish81/fragsfunctions/http v0.5.1
 	github.com/theirish81/fragsfunctions/postgres v0.5.0
 	google.golang.org/genai v1.43.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -36,6 +36,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect

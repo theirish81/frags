@@ -51,7 +51,7 @@ func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[stri
 	if err != nil {
 		return nil, err
 	}
-	mcpTools, _, definitions, functions, err := connectMcpAndCollections(ctx, toolConfig)
+	mcpTools, _, definitions, functions, err := connectMcpAndCollections(ctx, toolConfig, logger)
 	if err != nil {
 		return nil, err
 	}

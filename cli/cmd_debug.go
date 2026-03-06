@@ -44,7 +44,7 @@ func initDebugEnv(ctx context.Context) (*frags.Runner[util.ProgMap], error) {
 	if err != nil {
 		return nil, err
 	}
-	_, _, _, functions, err := connectMcpAndCollections(ctx, toolsConfig)
+	_, _, _, functions, err := connectMcpAndCollections(ctx, toolsConfig, log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
 	if err != nil {
 		return nil, err
 	}

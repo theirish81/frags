@@ -173,7 +173,7 @@ safe environments.`,
 				if err != nil {
 					return streamer.Finish(log.NewEvent(log.ErrorEventType, log.AppComponent).WithErr(err).WithLevel("err"))
 				}
-				output, _, err := dataOrRenderTemplate(c, req, result)
+				output, _, err := dataOrRenderTemplate(c, req, sm, result)
 				if err != nil {
 					return err
 				}
@@ -185,7 +185,7 @@ safe environments.`,
 				if err != nil {
 					return err
 				}
-				output, isTemplate, err := dataOrRenderTemplate(c, req, result)
+				output, isTemplate, err := dataOrRenderTemplate(c, req, sm, result)
 				if err != nil {
 					return err
 				}
@@ -379,10 +379,16 @@ func apiKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func dataOrRenderTemplate(c echo.Context, req executeRequest, data *util.ProgMap) (any, bool, error) {
+func dataOrRenderTemplate(c echo.Context, req executeRequest, sm frags.SessionManager, data *util.ProgMap) (any, bool, error) {
 	if c.Request().Header.Get("Accept") == "text/markdown" && req.Template != "" {
 		res, err := renderTemplate(req.Template, data)
 		return string(res), true, err
+	}
+	if c.QueryParam("schema") == "true" {
+		data = &util.ProgMap{
+			"result": data,
+			"schema": sm.Schema,
+		}
 	}
 	return data, false, nil
 }

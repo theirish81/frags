@@ -24,6 +24,8 @@ import (
 	"os"
 
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/log"
+	"github.com/theirish81/frags/mcpauth"
 	"github.com/theirish81/fragsfunctions/fs"
 	"github.com/theirish81/fragsfunctions/http"
 	"github.com/theirish81/fragsfunctions/postgres"
@@ -48,14 +50,15 @@ func parseToolsConfig(data []byte) (frags.ToolsConfig, error) {
 }
 
 // connectMcpAndCollections connects to the MCP servers and returns the tools
-func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig) (frags.McpTools, []frags.ToolsCollection, frags.ToolDefinitions, frags.ExternalFunctions, error) {
+func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig, logger *log.StreamerLogger) (frags.McpTools, []frags.ToolsCollection, frags.ToolDefinitions, frags.ExternalFunctions, error) {
 	mcpTools := make(frags.McpTools, 0)
 	toolCollections := make([]frags.ToolsCollection, 0)
 	toolDefinitions := make(frags.ToolDefinitions, 0)
 	functions := make(frags.ExternalFunctions, 0)
 	toolDefinitions = toolsConfig.AsToolDefinitions()
 	mcpTools = toolsConfig.McpServers.McpTools()
-	if err := mcpTools.Connect(ctx); err != nil {
+	mcpTools.WithOAuthProvider(&mcpauth.OAuthProvider{})
+	if err := mcpTools.Connect(ctx, logger); err != nil {
 		return mcpTools, toolCollections, toolDefinitions, functions, err
 	}
 	functions, err := mcpTools.AsFunctions(ctx)
