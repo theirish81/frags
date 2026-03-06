@@ -48,7 +48,7 @@ type AuthProvider interface {
 	Authenticate(ctx context.Context) (*http.Client, error)
 
 	// Token returns the current TokenResult
-	Token() TokenResult
+	Token() (TokenResult, error)
 }
 
 type GenericOauthProvider interface {

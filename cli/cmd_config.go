@@ -19,8 +19,10 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/spf13/cobra"
+	"github.com/theirish81/frags/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -40,7 +42,7 @@ setup.`,
 			cmd.PrintErrln(err)
 			return
 		}
-		mcpTools, _, toolDefinitions, functions, err := connectMcpAndCollections(cmd.Context(), toolsConfig)
+		mcpTools, _, toolDefinitions, functions, err := connectMcpAndCollections(cmd.Context(), toolsConfig, log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

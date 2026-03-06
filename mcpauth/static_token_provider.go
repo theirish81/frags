@@ -66,13 +66,13 @@ func (p *StaticTokenProvider) Authenticate(_ context.Context) (*http.Client, err
 }
 
 // Token implements AuthProvider.
-func (p *StaticTokenProvider) Token() TokenResult {
+func (p *StaticTokenProvider) Token() (TokenResult, error) {
 	return TokenResult{
 		AccessToken:  p.accessToken,
 		RefreshToken: p.refreshToken,
 		TokenType:    p.tokenType,
 		Expiry:       p.expiry,
-	}
+	}, nil
 }
 
 // staticBearerTransport injects a fixed Authorization: Bearer header.

@@ -192,6 +192,17 @@ func (p *OAuthProvider) Discover(ctx context.Context) (*DiscoveryResources, bool
 	}, true, nil
 }
 
+func (p *OAuthProvider) SetToken(ctx context.Context, tok *oauth2.Token, resources *DiscoveryResources) {
+	p.tok = TokenResult{
+		AccessToken:  tok.AccessToken,
+		RefreshToken: tok.RefreshToken,
+		TokenType:    tok.TokenType,
+		Expiry:       tok.Expiry,
+	}
+	conf := p.OauthConfig(resources.AuthServerMetadata, p.cfg.clientID(), p.cfg.clientSecret(), nil)
+	p.ts = conf.TokenSource(ctx, tok)
+}
+
 // Authenticate runs the full local OAuth flow (browser redirect + local callback server).
 func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) {
 	resources, requiresAuth, err := p.Discover(ctx)
@@ -256,15 +267,17 @@ func (p *OAuthProvider) RefreshToken(ctx context.Context) (*oauth2.Token, error)
 }
 
 // Token returns the most recent token, refreshing from the token source if available.
-func (p *OAuthProvider) Token() TokenResult {
+func (p *OAuthProvider) Token() (TokenResult, error) {
 	if p.ts != nil {
 		if t, err := p.ts.Token(); err == nil {
 			p.tok.AccessToken = t.AccessToken
 			p.tok.RefreshToken = t.RefreshToken
 			p.tok.Expiry = t.Expiry
+		} else {
+			return p.tok, err
 		}
 	}
-	return p.tok
+	return p.tok, nil
 }
 
 // OauthConfig builds an oauth2.Config for the given authorization server.
@@ -534,7 +547,7 @@ func (NopOauthAuthProvider) Authenticate(_ context.Context) (*http.Client, error
 	return http.DefaultClient, nil
 }
 
-func (NopOauthAuthProvider) Token() TokenResult { return TokenResult{} }
+func (NopOauthAuthProvider) Token() (TokenResult, error) { return TokenResult{}, nil }
 
 func (NopOauthAuthProvider) New(_ OAuthProviderConfig, _ *log.StreamerLogger) GenericOauthProvider {
 	return NopOauthAuthProvider{}
