@@ -11,7 +11,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.24.0
+	github.com/theirish81/frags v0.24.1
 	github.com/theirish81/frags/chatgpt v0.19.1
 	github.com/theirish81/frags/gemini v0.19.0
 	github.com/theirish81/frags/ollama v0.19.1
@@ -80,5 +80,3 @@ require (
 	google.golang.org/grpc v1.66.2 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
-
-replace github.com/theirish81/frags v0.24.0 => ../
