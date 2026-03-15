@@ -23,19 +23,39 @@ import (
 	"time"
 
 	"github.com/theirish81/frags/log"
+	"golang.org/x/oauth2"
 )
 
 // TokenResult holds the tokens obtained after a successful authentication.
 // Store these to avoid re-running the auth sequence if reused
 type TokenResult struct {
-	AccessToken  string
-	RefreshToken string
-	TokenType    string
-	Expiry       time.Time
+	Host         string    `json:"host" yaml:"host"`
+	ClientID     string    `json:"client_id"`
+	AccessToken  string    `json:"access_token" yaml:"access_token"`
+	RefreshToken string    `json:"refresh_token" yaml:"refresh_token"`
+	TokenType    string    `json:"token_type" yaml:"token_type"`
+	Expiry       time.Time `json:"expiry" yaml:"expiry"`
+}
+
+func (t *TokenResult) ToOauth2Token() *oauth2.Token {
+	return &oauth2.Token{
+		AccessToken:  t.AccessToken,
+		RefreshToken: t.RefreshToken,
+		TokenType:    t.TokenType,
+		Expiry:       t.Expiry,
+	}
+}
+
+func (t *TokenResult) FromOauth2Token(tok *oauth2.Token) *TokenResult {
+	t.AccessToken = tok.AccessToken
+	t.RefreshToken = tok.RefreshToken
+	t.TokenType = tok.TokenType
+	t.Expiry = tok.Expiry
+	return t
 }
 
 // IsExpired reports whether the access token has expired (or will within grace).
-func (t TokenResult) IsExpired(grace time.Duration) bool {
+func (t *TokenResult) IsExpired(grace time.Duration) bool {
 	if t.Expiry.IsZero() {
 		return false
 	}
@@ -54,4 +74,5 @@ type AuthProvider interface {
 type GenericOauthProvider interface {
 	AuthProvider
 	New(config OAuthProviderConfig, logger *log.StreamerLogger) GenericOauthProvider
+	WithCache(tokenCache OauthCache) GenericOauthProvider
 }
