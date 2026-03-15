@@ -56,7 +56,7 @@ type Session struct {
 	Resources       []Resource      `json:"resources,omitempty" yaml:"resources,omitempty" validate:"dive"`
 	Timeout         *string         `json:"timeout,omitempty" yaml:"timeout,omitempty"`
 	DependsOn       Dependencies    `json:"dependsOn,omitempty" yaml:"dependsOn,omitempty"`
-	Context         bool            `json:"context" yaml:"context"`
+	Context         *ContextConfig  `json:"context" yaml:"context"`
 	Attempts        int             `json:"attempts,omitempty" yaml:"attempts,omitempty"`
 	Tools           ToolDefinitions `json:"tools,omitempty" yaml:"tools,omitempty"`
 	IterateOn       *string         `json:"iterateOn,omitempty" yaml:"iterateOn,omitempty"`
