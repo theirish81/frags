@@ -19,6 +19,7 @@ package mcpauth
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,6 +68,22 @@ type OAuthProviderConfig struct {
 	Verifier *string
 
 	HTTPClient *http.Client
+}
+
+func (c *OAuthProviderConfig) McpHost() (string, error) {
+	ux, err := url.Parse(c.MCPEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("invalid MCP endpoint: %w", err)
+	}
+	return ux.Host, nil
+}
+
+func (c *OAuthProviderConfig) McpFingerprint() (string, error) {
+	host, err := c.McpHost()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(host+"|"+c.clientID()))), nil
 }
 
 func (c *OAuthProviderConfig) redirectHost() string {
@@ -145,19 +162,32 @@ func (c *OAuthProviderConfig) resolveScopes(prm *ProtectedResourceMetadata) []st
 //  5. Authorization Code + PKCE — opens browser, listens for local callback (local flow only).
 //  6. Token exchange — code + PKCE verifier → access_token + refresh_token.
 type OAuthProvider struct {
-	cfg    OAuthProviderConfig
-	tok    TokenResult
-	ts     oauth2.TokenSource
-	logger log.StreamerLogger
+	cfg        OAuthProviderConfig
+	tok        TokenResult
+	ts         oauth2.TokenSource
+	logger     log.StreamerLogger
+	oauthCache OauthCache
 }
 
 // NewOAuthProvider returns an OAuthProvider ready to authenticate.
 func NewOAuthProvider(cfg OAuthProviderConfig, logger *log.StreamerLogger) *OAuthProvider {
-	return &OAuthProvider{cfg: cfg, logger: *logger}
+	px := &OAuthProvider{cfg: cfg, logger: *logger}
+	return px
+}
+
+func NewEmptyOauthProvider() *OAuthProvider {
+	px := &OAuthProvider{}
+	px.WithCache(&NopCache{})
+	return px
 }
 
 func (p *OAuthProvider) New(config OAuthProviderConfig, logger *log.StreamerLogger) GenericOauthProvider {
-	return NewOAuthProvider(config, logger)
+	return NewOAuthProvider(config, logger).WithCache(p.oauthCache)
+}
+
+func (p *OAuthProvider) WithCache(tokenCache OauthCache) GenericOauthProvider {
+	p.oauthCache = tokenCache
+	return p
 }
 
 func (*OAuthProvider) Name() string { return "" }
@@ -212,21 +242,56 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 	if !requiresAuth {
 		return p.cfg.httpClient(), nil
 	}
-
-	oauthTok, err := p.runFlow(ctx, resources)
+	refreshed := false
+	p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("checking cache"))
+	fingerprint, err := p.cfg.McpFingerprint()
 	if err != nil {
-		return nil, fmt.Errorf("oauth flow: %w", err)
+		return nil, fmt.Errorf("fingerprint: %w", err)
 	}
+	if cache, ok := p.oauthCache.Get(fingerprint); ok {
+		p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("cache hit"))
+		p.SetToken(ctx, &oauth2.Token{AccessToken: cache.AccessToken, RefreshToken: cache.RefreshToken}, resources)
+		token, err := p.Token()
+		if err == nil {
+			refreshed = true
+			cache.AccessToken = token.AccessToken
+			cache.RefreshToken = token.RefreshToken
 
-	p.tok = TokenResult{
-		AccessToken:  oauthTok.AccessToken,
-		RefreshToken: oauthTok.RefreshToken,
-		TokenType:    oauthTok.TokenType,
-		Expiry:       oauthTok.Expiry,
+			// if the access token is still valid and not refreshed, then token has zeroed expiry
+			if !token.Expiry.IsZero() {
+				cache.Expiry = token.Expiry
+			}
+
+			cache.Host, _ = p.cfg.McpHost()
+			cache.ClientID = p.cfg.clientID()
+			p.tok = *cache
+			if err := p.oauthCache.Save(ctx); err != nil {
+				return nil, fmt.Errorf("cache save: %w", err)
+			}
+		}
+	}
+	if !refreshed {
+		oauthTok, err := p.runFlow(ctx, resources)
+		if err != nil {
+			return nil, fmt.Errorf("oauth flow: %w", err)
+		}
+
+		p.tok = *(&TokenResult{}).FromOauth2Token(oauthTok)
+
+		fingerprint, err := p.cfg.McpFingerprint()
+		if err != nil {
+			return nil, fmt.Errorf("fingerprint: %w", err)
+		}
+		p.tok.Host, _ = p.cfg.McpHost()
+		p.tok.ClientID = p.cfg.clientID()
+		p.oauthCache.Store(fingerprint, p.tok)
+		if err := p.oauthCache.Save(ctx); err != nil {
+			return nil, fmt.Errorf("cache save: %w", err)
+		}
 	}
 
 	conf := p.OauthConfig(resources.AuthServerMetadata, p.cfg.clientID(), p.cfg.clientSecret(), nil)
-	p.ts = conf.TokenSource(ctx, oauthTok)
+	p.ts = conf.TokenSource(ctx, p.tok.ToOauth2Token())
 	return oauth2.NewClient(ctx, p.ts), nil
 }
 
@@ -256,14 +321,6 @@ func (p *OAuthProvider) Exchange(ctx context.Context, code string, resources *Di
 		oauth2.SetAuthURLParam("code_verifier", p.cfg.verifier()),
 		oauth2.SetAuthURLParam("resource", p.cfg.MCPEndpoint),
 	)
-}
-
-// RefreshToken forces a token refresh via the cached token source.
-func (p *OAuthProvider) RefreshToken(ctx context.Context) (*oauth2.Token, error) {
-	if p.ts == nil {
-		return nil, errors.New("no token source")
-	}
-	return p.ts.Token()
 }
 
 // Token returns the most recent token, refreshing from the token source if available.
@@ -553,6 +610,9 @@ func (NopOauthAuthProvider) New(_ OAuthProviderConfig, _ *log.StreamerLogger) Ge
 	return NopOauthAuthProvider{}
 }
 
+func (p NopOauthAuthProvider) WithCache(tokenCache OauthCache) GenericOauthProvider {
+	return &p
+}
 func derefOr(p *string, fallback string) string {
 	if p != nil {
 		return *p
