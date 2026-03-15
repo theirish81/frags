@@ -34,14 +34,25 @@ func (r *Runner[T]) contextualizePrompt(ctx *util.FragsContext, prompt string, s
 		return prompt, err
 	}
 	prompt = preCallsContext + prompt
-	// if the session has context enabled, we add the current context to the prompt
-	if session.Context {
-		llmContext, err := r.safeMarshalDataStructure(true)
-		if err != nil {
-			return prompt, err
+
+	if session.Context != nil {
+		if session.Context.IsTrue() {
+			// if the session has context enabled, we add the current context to the prompt
+			llmContext, err := r.safeMarshalDataStructure(true)
+			if err != nil {
+				return prompt, err
+			}
+			prompt = "=== CURRENT CONTEXT ===\n" + string(llmContext) + "\n===\n\n" + prompt
+		} else if session.Context.HasTemplate() {
+			// if the session has a template as context, we render it and add it to the prompt
+			llmContext, err := session.Context.RenderTemplate(scope)
+			if err != nil {
+				return prompt, err
+			}
+			prompt = "=== CURRENT CONTEXT ===\n" + string(llmContext) + "\n===\n\n" + prompt
 		}
-		prompt = "=== CURRENT CONTEXT ===\n" + string(llmContext) + "\n===\n\n" + prompt
 	}
+
 	return prompt, nil
 }
 
