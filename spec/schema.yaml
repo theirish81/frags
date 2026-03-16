@@ -1,0 +1,279 @@
+$schema: 'http://json-schema.org/draft-07/schema#'
+title: SessionManager
+type: object
+properties:
+  parameters:
+    type: array
+    items:
+      $ref: '#/definitions/Parameter'
+  requiredTools:
+    type: array
+    items:
+      $ref: '#/definitions/RequiredTool'
+  transformers:
+    type: array
+    items:
+      $ref: '#/definitions/Transformer'
+  systemPrompt:
+    type: string
+  components:
+    $ref: '#/definitions/Components'
+  sessions:
+    type: object
+    additionalProperties:
+      $ref: '#/definitions/Session'
+    minProperties: 1
+  schema:
+    $ref: '#/definitions/Schema'
+  vars:
+    type: object
+    additionalProperties: true
+  preCalls:
+    $ref: '#/definitions/FunctionCallers'
+required:
+  - sessions
+definitions:
+  Parameter:
+    type: object
+    properties:
+      name:
+        type: string
+      schema:
+        $ref: '#/definitions/Schema'
+    required:
+      - name
+      - schema
+  RequiredTool:
+    type: object
+    properties:
+      name:
+        type: string
+        minLength: 1
+      type:
+        enum:
+          - internet_search
+          - function
+          - mcp
+          - collection
+    required:
+      - name
+      - type
+  Transformer:
+    type: object
+    properties:
+      name:
+        type: string
+      onFunctionInput:
+        type: string
+      onFunctionOutput:
+        type: string
+      onResource:
+        type: string
+      jsonata:
+        type: string
+      jmesPath:
+        type: string
+      expr:
+        type: string
+      parser:
+        enum:
+          - json
+          - csv
+      code:
+        type: string
+    required:
+      - name
+  Components:
+    type: object
+    properties:
+      prompts:
+        type: object
+        additionalProperties:
+          type: string
+      schemas:
+        type: object
+        additionalProperties:
+          $ref: '#/definitions/Schema'
+  Session:
+    type: object
+    properties:
+      preCalls:
+        $ref: '#/definitions/FunctionCallers'
+      prePrompt:
+        oneOf:
+          - type: array
+            items:
+              type: string
+          - type: string
+      prompt:
+        type: string
+        minLength: 3
+      nextPhasePrompt:
+        type: string
+      resources:
+        type: array
+        items:
+          $ref: '#/definitions/Resource'
+      timeout:
+        type: string
+      dependsOn:
+        $ref: '#/definitions/Dependencies'
+      context:
+        oneOf:
+          - type: boolean
+          - type: string
+      attempts:
+        type: integer
+      tools:
+        $ref: '#/definitions/ToolDefinitions'
+      iterateOn:
+        type: string
+      vars:
+        type: object
+        additionalProperties: true
+  FunctionCallers:
+    type: array
+    items:
+      $ref: '#/definitions/FunctionCaller'
+  FunctionCaller:
+    type: object
+    properties:
+      name:
+        type: string
+      code:
+        type: string
+      args:
+        type: object
+        additionalProperties: true
+      description:
+        type: string
+      in:
+        enum:
+          - ai
+          - vars
+          - context
+      var:
+        type: string
+    required:
+      - name
+  Resource:
+    type: object
+    properties:
+      identifier:
+        type: string
+        minLength: 1
+      params:
+        type: object
+        additionalProperties:
+          type: string
+      in:
+        enum:
+          - ai
+          - vars
+          - prePrompt
+          - prompt
+      var:
+        type: string
+    required:
+      - identifier
+  Dependencies:
+    type: array
+    items:
+      $ref: '#/definitions/Dependency'
+  Dependency:
+    type: object
+    properties:
+      session:
+        type: string
+      expression:
+        type: string
+  ToolDefinitions:
+    type: array
+    items:
+      $ref: '#/definitions/ToolDefinition'
+  ToolDefinition:
+    type: object
+    properties:
+      name:
+        type: string
+      description:
+        type: string
+      type:
+        enum:
+          - internet_search
+          - function
+          - mcp
+          - collection
+      inputSchema:
+        $ref: '#/definitions/Schema'
+      allowlist:
+        type: array
+        items:
+          type: string
+    required:
+      - type
+  Schema:
+    type: object
+    properties:
+      oneOf:
+        type: array
+        items:
+          $ref: '#/definitions/Schema'
+      anyOf:
+        type: array
+        items:
+          $ref: '#/definitions/Schema'
+      default:
+        description: Any JSON type
+      description:
+        type: string
+      enum:
+        type: array
+      example:
+        description: Any JSON type
+      format:
+        type: string
+      items:
+        $ref: '#/definitions/Schema'
+      maxItems:
+        type: integer
+      maxLength:
+        type: integer
+      maxProperties:
+        type: integer
+      maximum:
+        type: number
+      minItems:
+        type: integer
+      minLength:
+        type: integer
+      minProperties:
+        type: integer
+      minimum:
+        type: number
+      nullable:
+        type: boolean
+      pattern:
+        type: string
+      properties:
+        type: object
+        additionalProperties:
+          $ref: '#/definitions/Schema'
+      propertyOrdering:
+        type: array
+        items:
+          type: string
+      required:
+        type: array
+        items:
+          type: string
+      title:
+        type: string
+      type:
+        type: string
+      x-phase:
+        type: integer
+      x-session:
+        type: string
+      $ref:
+        type: string
