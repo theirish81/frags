@@ -70,20 +70,8 @@ type OAuthProviderConfig struct {
 	HTTPClient *http.Client
 }
 
-func (c *OAuthProviderConfig) McpHost() (string, error) {
-	ux, err := url.Parse(c.MCPEndpoint)
-	if err != nil {
-		return "", fmt.Errorf("invalid MCP endpoint: %w", err)
-	}
-	return ux.Host, nil
-}
-
 func (c *OAuthProviderConfig) McpFingerprint() (string, error) {
-	host, err := c.McpHost()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(host+"|"+c.clientID()))), nil
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(c.MCPEndpoint+"|"+c.clientID()))), nil
 }
 
 func (c *OAuthProviderConfig) redirectHost() string {
@@ -250,7 +238,7 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 	}
 	if cache, ok := p.oauthCache.Get(fingerprint); ok {
 		p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("cache hit"))
-		p.SetToken(ctx, &oauth2.Token{AccessToken: cache.AccessToken, RefreshToken: cache.RefreshToken}, resources)
+		p.SetToken(ctx, &oauth2.Token{AccessToken: cache.AccessToken, RefreshToken: cache.RefreshToken, Expiry: cache.Expiry}, resources)
 		token, err := p.Token()
 		if err == nil {
 			refreshed = true
@@ -262,7 +250,7 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 				cache.Expiry = token.Expiry
 			}
 
-			cache.Host, _ = p.cfg.McpHost()
+			cache.Host = p.cfg.MCPEndpoint
 			cache.ClientID = p.cfg.clientID()
 			p.tok = *cache
 			if err := p.oauthCache.Save(ctx); err != nil {
@@ -282,7 +270,7 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 		if err != nil {
 			return nil, fmt.Errorf("fingerprint: %w", err)
 		}
-		p.tok.Host, _ = p.cfg.McpHost()
+		p.tok.Host = p.cfg.MCPEndpoint
 		p.tok.ClientID = p.cfg.clientID()
 		p.oauthCache.Store(fingerprint, p.tok)
 		if err := p.oauthCache.Save(ctx); err != nil {
