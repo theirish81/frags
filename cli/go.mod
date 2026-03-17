@@ -11,7 +11,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.24.1
+	github.com/theirish81/frags v0.24.2
 	github.com/theirish81/frags/chatgpt v0.19.1
 	github.com/theirish81/frags/gemini v0.19.0
 	github.com/theirish81/frags/ollama v0.19.1
