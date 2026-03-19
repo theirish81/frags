@@ -1,15 +1,21 @@
 package gemini
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"slices"
+	"time"
 
+	"github.com/avast/retry-go/v5"
 	"github.com/jinzhu/copier"
 	"github.com/theirish81/frags"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/schema"
 	"github.com/theirish81/frags/util"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/genai"
 )
 
@@ -38,6 +44,7 @@ type Config struct {
 	Temperature float32 `yaml:"temperature" json:"temperature"`
 	TopK        float32 `yaml:"topK" json:"topK"`
 	TopP        float32 `yaml:"topP" json:"topP"`
+	Attempts    int     `yaml:"attempts" json:"attempts"`
 }
 
 func DefaultConfig() Config {
@@ -120,8 +127,29 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 	d.content = append(d.content, newMsg)
 	for keepGoing {
 		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(joinParts(d.content[len(d.content)-1].Parts)).WithEngine(engine))
-		res, err := d.client.Models.GenerateContent(ctx, d.config.Model, d.content, &cfg)
-		if err != nil {
+		var res *genai.GenerateContentResponse
+		if d.config.Attempts <= 0 {
+			d.config.Attempts = 1
+		}
+		if err = retry.New(retry.Attempts(uint(d.config.Attempts)), retry.Delay(time.Second*2), retry.Context(ctx),
+			retry.DelayType(retry.BackOffDelay), retry.RetryIf(func(err error) bool {
+				// 1. Handle HTTP 429 and 5xx
+				var gerr *googleapi.Error
+				if errors.As(err, &gerr) {
+					return gerr.Code == http.StatusTooManyRequests || gerr.Code >= 500
+				}
+				// 2. Handle Network/Connectivity issues
+				var netErr net.Error
+				if errors.As(err, &netErr) {
+					return true
+				}
+				return false
+			}), retry.OnRetry(func(attempt uint, err error) {
+				runner.Logger().Info(log.NewEvent(log.GenericEventType, log.AiComponent).WithMessage("LLM returned an error, retrying").WithEngine(engine).WithErr(err).WithIteration(int(attempt)))
+			})).Do(func() error {
+			res, err = d.client.Models.GenerateContent(ctx, d.config.Model, d.content, &cfg)
+			return err
+		}); err != nil {
 			return nil, err
 		}
 		d.content = append(d.content, res.Candidates[0].Content)
