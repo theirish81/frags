@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/avast/retry-go/v5"
@@ -133,6 +134,9 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		}
 		if err = retry.New(retry.Attempts(uint(d.config.Attempts)), retry.Delay(time.Second*2), retry.Context(ctx),
 			retry.DelayType(retry.BackOffDelay), retry.RetryIf(func(err error) bool {
+				if strings.Contains(err.Error(), "RESOURCE_EXHAUSTED") {
+					return true
+				}
 				// 1. Handle HTTP 429 and 5xx
 				var gerr *googleapi.Error
 				if errors.As(err, &gerr) {
