@@ -101,7 +101,7 @@ func (c *OAuthProviderConfig) httpClient() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
 	}
-	return http.DefaultClient
+	return &http.Client{}
 }
 
 func (c *OAuthProviderConfig) clientID() string {
