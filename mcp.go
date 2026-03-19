@@ -166,10 +166,6 @@ func (c *McpTool) ConnectStreamableHttp(ctx context.Context, logger *log.Streame
 		Endpoint:   c.serverConfig.Url,
 		HTTPClient: httpClient,
 	}, nil)
-	if err != nil {
-		c.log.Warn("Streamable HTTP transport failed, falling back to SSE transport", "error", err.Error())
-		return c.ConnectSSE(ctx, logger)
-	}
 	return err
 }
 
