@@ -41,11 +41,12 @@ type Ai struct {
 }
 
 type Config struct {
-	Model       string  `yaml:"model" json:"model"`
-	Temperature float32 `yaml:"temperature" json:"temperature"`
-	TopK        float32 `yaml:"topK" json:"topK"`
-	TopP        float32 `yaml:"topP" json:"topP"`
-	Attempts    int     `yaml:"attempts" json:"attempts"`
+	Model       string        `yaml:"model" json:"model"`
+	Temperature float32       `yaml:"temperature" json:"temperature"`
+	TopK        float32       `yaml:"topK" json:"topK"`
+	TopP        float32       `yaml:"topP" json:"topP"`
+	Attempts    int           `yaml:"attempts" json:"attempts"`
+	RetryDelay  time.Duration `yaml:"retryDelay" json:"retryDelay"`
 }
 
 func DefaultConfig() Config {
@@ -132,7 +133,7 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		if d.config.Attempts <= 0 {
 			d.config.Attempts = 1
 		}
-		if err = retry.New(retry.Attempts(uint(d.config.Attempts)), retry.Delay(time.Second*2), retry.Context(ctx),
+		if err = retry.New(retry.Attempts(uint(d.config.Attempts)), retry.Delay(d.config.RetryDelay), retry.Context(ctx),
 			retry.DelayType(retry.BackOffDelay), retry.RetryIf(func(err error) bool {
 				if strings.Contains(err.Error(), "RESOURCE_EXHAUSTED") {
 					return true
@@ -149,7 +150,7 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 				}
 				return false
 			}), retry.OnRetry(func(attempt uint, err error) {
-				runner.Logger().Info(log.NewEvent(log.GenericEventType, log.AiComponent).WithMessage("LLM returned an error, retrying").WithEngine(engine).WithErr(err).WithIteration(int(attempt)))
+				runner.Logger().Info(log.NewEvent(log.GenericEventType, log.AiComponent).WithMessage("LLM is overwhelmed, retrying").WithEngine(engine).WithErr(err).WithIteration(int(attempt)))
 			})).Do(func() error {
 			res, err = d.client.Models.GenerateContent(ctx, d.config.Model, d.content, &cfg)
 			return err
