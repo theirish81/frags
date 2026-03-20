@@ -54,6 +54,7 @@ func (i *DiscoveryResources) MarshalBinary() ([]byte, error) {
 // OAuthProviderConfig is the configuration for OAuthProvider.
 // Pointer fields are optional; their zero-value defaults are documented on each getter method.
 type OAuthProviderConfig struct {
+	Name                 string
 	MCPEndpoint          string
 	ClientID             *string
 	ClientSecret         *string
@@ -61,8 +62,7 @@ type OAuthProviderConfig struct {
 	RedirectHost         *string
 	RedirectCallbackPath *string
 	ClientName           *string
-	// When nil, scopes are taken from ProtectedResourceMetadata.ScopesSupported,
-	// falling back to ["repo", "read:user"].
+	// When nil, scopes are taken from ProtectedResourceMetadata.ScopesSupported, falling back to ["repo", "read:user"]
 	Scopes   []string
 	State    *string
 	Verifier *string
@@ -70,8 +70,8 @@ type OAuthProviderConfig struct {
 	HTTPClient *http.Client
 }
 
-func (c *OAuthProviderConfig) McpFingerprint() (string, error) {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(c.MCPEndpoint+"|"+c.clientID()))), nil
+func (c *OAuthProviderConfig) McpFingerprint() string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(c.MCPEndpoint+"|"+c.clientID())))
 }
 
 func (c *OAuthProviderConfig) redirectHost() string {
@@ -232,11 +232,7 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 	}
 	refreshed := false
 	p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("checking cache"))
-	fingerprint, err := p.cfg.McpFingerprint()
-	if err != nil {
-		return nil, fmt.Errorf("fingerprint: %w", err)
-	}
-	if cache, ok := p.oauthCache.Get(fingerprint); ok {
+	if cache, ok := p.oauthCache.Get(&p.cfg); ok {
 		p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("cache hit"))
 		p.SetToken(ctx, &oauth2.Token{AccessToken: cache.AccessToken, RefreshToken: cache.RefreshToken, Expiry: cache.Expiry}, resources)
 		token, err := p.Token()
@@ -266,13 +262,9 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 
 		p.tok = *(&TokenResult{}).FromOauth2Token(oauthTok)
 
-		fingerprint, err := p.cfg.McpFingerprint()
-		if err != nil {
-			return nil, fmt.Errorf("fingerprint: %w", err)
-		}
 		p.tok.Host = p.cfg.MCPEndpoint
 		p.tok.ClientID = p.cfg.clientID()
-		p.oauthCache.Store(fingerprint, p.tok)
+		p.oauthCache.Store(&p.cfg, p.tok)
 		if err := p.oauthCache.Save(ctx); err != nil {
 			return nil, fmt.Errorf("cache save: %w", err)
 		}

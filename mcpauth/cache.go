@@ -24,8 +24,8 @@ import (
 )
 
 type OauthCache interface {
-	Get(key string) (*TokenResult, bool)
-	Store(key string, item TokenResult)
+	Get(key *OAuthProviderConfig) (*TokenResult, bool)
+	Store(key *OAuthProviderConfig, item TokenResult)
 	Save(ctx context.Context) error
 }
 
@@ -47,15 +47,15 @@ func NewFsOauthCache(filepath string) (*FsOauthCache, error) {
 	return &cacheInstance, nil
 }
 
-func (c *FsOauthCache) Get(key string) (*TokenResult, bool) {
-	if item, ok := c.Items[key]; ok {
+func (c *FsOauthCache) Get(key *OAuthProviderConfig) (*TokenResult, bool) {
+	if item, ok := c.Items[key.McpFingerprint()]; ok {
 		return item, true
 	}
 	return nil, false
 }
 
-func (c *FsOauthCache) Store(key string, item TokenResult) {
-	c.Items[key] = &item
+func (c *FsOauthCache) Store(key *OAuthProviderConfig, item TokenResult) {
+	c.Items[key.McpFingerprint()] = &item
 }
 
 func (c *FsOauthCache) Save(_ context.Context) error {
@@ -66,14 +66,47 @@ func (c *FsOauthCache) Save(_ context.Context) error {
 	return os.WriteFile(c.filepath, data, 0600)
 }
 
-type NopCache struct {
+type InMemoryCache struct {
+	Items map[string]*TokenResult
 }
 
-func (c *NopCache) Get(key string) (*TokenResult, bool) {
+func NewInMemoryCache() *InMemoryCache {
+	return &InMemoryCache{
+		Items: make(map[string]*TokenResult),
+	}
+}
+
+func (c *InMemoryCache) RawGet(name string) (*TokenResult, bool) {
+	if item, ok := c.Items[name]; ok {
+		return item, true
+	}
 	return nil, false
 }
 
-func (c *NopCache) Store(key string, item TokenResult) {
+func (c *InMemoryCache) Get(key *OAuthProviderConfig) (*TokenResult, bool) {
+	return c.RawGet(key.Name)
+}
+
+func (c *InMemoryCache) RawStore(name string, item TokenResult) {
+	c.Items[name] = &item
+}
+
+func (c *InMemoryCache) Store(key *OAuthProviderConfig, item TokenResult) {
+	c.RawStore(key.Name, item)
+}
+
+func (c *InMemoryCache) Save(_ context.Context) error {
+	return nil
+}
+
+type NopCache struct {
+}
+
+func (c *NopCache) Get(_ *OAuthProviderConfig) (*TokenResult, bool) {
+	return nil, false
+}
+
+func (c *NopCache) Store(_ *OAuthProviderConfig, _ TokenResult) {
 }
 
 func (c *NopCache) Save(_ context.Context) error {

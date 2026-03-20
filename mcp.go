@@ -135,6 +135,7 @@ func (c *McpTool) selectAuthProvider(logger *log.StreamerLogger) mcpauth.AuthPro
 		return nil
 	}
 	return c.oauthProvider.New(mcpauth.OAuthProviderConfig{
+		Name:         c.Name,
 		MCPEndpoint:  c.serverConfig.Url,
 		ClientID:     c.serverConfig.ClientID,
 		ClientSecret: c.serverConfig.ClientSecret,
@@ -176,7 +177,7 @@ func (c *McpTool) ListTools(ctx context.Context) (ToolDefinitions, error) {
 	if err != nil {
 		return res, err
 	}
-	// Unfortunately the library seems to return InputSchema in multiple, bizzarre ways, so we need to make sure
+	// Unfortunately, the library seems to return InputSchema in multiple, bizarre ways, so we need to make sure
 	// we convert it into something predictable.
 	for _, t := range tools.Tools {
 		schema := schema2.Schema{}
