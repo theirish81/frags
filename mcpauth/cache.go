@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"sync"
 )
 
 type OauthCache interface {
@@ -32,12 +33,14 @@ type OauthCache interface {
 type FsOauthCache struct {
 	filepath string
 	Items    map[string]*TokenResult `json:"items,omitempty"`
+	mx       sync.Mutex
 }
 
 func NewFsOauthCache(filepath string) (*FsOauthCache, error) {
 	cacheInstance := FsOauthCache{
 		filepath: filepath,
 		Items:    make(map[string]*TokenResult),
+		mx:       sync.Mutex{},
 	}
 	if data, err := os.ReadFile(filepath); err == nil {
 		if err := json.Unmarshal(data, &cacheInstance); err != nil {
@@ -48,6 +51,8 @@ func NewFsOauthCache(filepath string) (*FsOauthCache, error) {
 }
 
 func (c *FsOauthCache) Get(key *OAuthProviderConfig) (*TokenResult, bool) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
 	if item, ok := c.Items[key.McpFingerprint()]; ok {
 		return item, true
 	}
@@ -55,10 +60,14 @@ func (c *FsOauthCache) Get(key *OAuthProviderConfig) (*TokenResult, bool) {
 }
 
 func (c *FsOauthCache) Store(key *OAuthProviderConfig, item TokenResult) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
 	c.Items[key.McpFingerprint()] = &item
 }
 
 func (c *FsOauthCache) Save(_ context.Context) error {
+	c.mx.Lock()
+	defer c.mx.Unlock()
 	data, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
 		return err
@@ -68,6 +77,7 @@ func (c *FsOauthCache) Save(_ context.Context) error {
 
 type InMemoryCache struct {
 	Items map[string]*TokenResult
+	mx    sync.Mutex
 }
 
 func NewInMemoryCache() *InMemoryCache {
@@ -77,6 +87,8 @@ func NewInMemoryCache() *InMemoryCache {
 }
 
 func (c *InMemoryCache) RawGet(name string) (*TokenResult, bool) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
 	if item, ok := c.Items[name]; ok {
 		return item, true
 	}
@@ -88,6 +100,8 @@ func (c *InMemoryCache) Get(key *OAuthProviderConfig) (*TokenResult, bool) {
 }
 
 func (c *InMemoryCache) RawStore(name string, item TokenResult) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
 	c.Items[name] = &item
 }
 
