@@ -163,13 +163,16 @@ func NewOAuthProvider(cfg OAuthProviderConfig, logger *log.StreamerLogger) *OAut
 	return px
 }
 
-func NewEmptyOauthProvider() *OAuthProvider {
-	px := &OAuthProvider{}
+func NewEmptyOauthProvider(nonInteractive bool) *OAuthProvider {
+	px := &OAuthProvider{
+		cfg: OAuthProviderConfig{NonInteractive: nonInteractive},
+	}
 	px.WithCache(&NopCache{})
 	return px
 }
 
 func (p *OAuthProvider) New(config OAuthProviderConfig, logger *log.StreamerLogger) GenericOauthProvider {
+	config.NonInteractive = p.cfg.NonInteractive
 	return NewOAuthProvider(config, logger).WithCache(p.oauthCache)
 }
 
