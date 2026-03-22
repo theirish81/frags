@@ -100,6 +100,8 @@ github.com/theirish81/frags v0.24.2 h1:p2l4MrdPnFO/MRyFnEAIhD7Zh3DZuIfgcg2USji7B
 github.com/theirish81/frags v0.24.2/go.mod h1:rJEeSv+T1+bTRRCNS8Wp4fSD8nzD94p6TdA7lWSjn6o=
 github.com/theirish81/frags v0.24.3 h1:WzXNlyZHAF1OIpROb8l+MNcitYzzcjFi5zAs2xLR54E=
 github.com/theirish81/frags v0.24.3/go.mod h1:rJEeSv+T1+bTRRCNS8Wp4fSD8nzD94p6TdA7lWSjn6o=
+github.com/theirish81/frags v0.25.0-rc0 h1:Zd3+X/+6+OIiuWKEmObPozmClPMTdHi04+B8ME7mO34=
+github.com/theirish81/frags v0.25.0-rc0/go.mod h1:rJEeSv+T1+bTRRCNS8Wp4fSD8nzD94p6TdA7lWSjn6o=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
 github.com/yosida95/uritemplate/v3 v3.0.2/go.mod h1:ILOh0sOhIJR3+L/8afwt/kE++YT040gmv5BQTMR2HP4=
 go.opencensus.io v0.24.0 h1:y73uSU6J157QMP2kn2r30vwW1A2W2WFwSCGnAVxeaD0=
@@ -146,6 +148,8 @@ golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135/go.mod h1:RgjU9mgBXZiqYHBn
 golang.org/x/tools v0.41.0 h1:a9b8iMweWG+S0OBnlU36rzLp20z1Rp10w+IY2czHTQc=
 golang.org/x/tools v0.41.0/go.mod h1:XSY6eDqxVNiYgezAVqqCeihT4j1U2CCsqvH3WhQpnlg=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+google.golang.org/api v0.197.0 h1:x6CwqQLsFiA5JKAiGyGBjc2bNtHtLddhJCE2IKuhhcQ=
+google.golang.org/api v0.197.0/go.mod h1:AuOuo20GoQ331nq7DquGHlU6d+2wN2fZ8O0ta60nRNw=
 google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
 google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
 google.golang.org/genai v1.51.0 h1:IZGuUqgfx40INv3hLFGCbOSGp0qFqm7LVmDghzNIYqg=
