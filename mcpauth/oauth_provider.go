@@ -181,6 +181,10 @@ func (p *OAuthProvider) WithCache(tokenCache OauthCache) GenericOauthProvider {
 	return p
 }
 
+func (p *OAuthProvider) Config() *OAuthProviderConfig {
+	return &p.cfg
+}
+
 func (*OAuthProvider) Name() string { return "" }
 
 // Discover runs steps 1–3 of the OAuth flow and returns the discovered resources.
@@ -213,9 +217,8 @@ func (p *OAuthProvider) Discover(ctx context.Context) (*DiscoveryResources, bool
 	}, true, nil
 }
 
-func (p *OAuthProvider) SetToken(ctx context.Context, tok *oauth2.Token, resources *DiscoveryResources) {
-	conf := p.OauthConfig(resources.AuthServerMetadata, p.cfg.clientID(), p.cfg.clientSecret(), nil)
-	p.ts = NewFragsTokenSource(conf.TokenSource(ctx, tok), &p.cfg, p.oauthCache, p.logger)
+func (p *OAuthProvider) SetToken(tok *oauth2.Token, resources *DiscoveryResources) {
+	p.ts = NewFragsTokenSource(tok, p, resources, p.oauthCache, p.logger)
 }
 
 // Authenticate runs the full local OAuth flow (browser redirect + local callback server).
@@ -231,7 +234,7 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 	p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("checking cache"))
 	if cache, ok := p.oauthCache.Get(&p.cfg); ok {
 		p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("cache hit"))
-		p.SetToken(ctx, &oauth2.Token{AccessToken: cache.AccessToken, RefreshToken: cache.RefreshToken, Expiry: cache.Expiry}, resources)
+		p.SetToken(&oauth2.Token{AccessToken: cache.AccessToken, RefreshToken: cache.RefreshToken, Expiry: cache.Expiry}, resources)
 		token, err := p.Token()
 		if err == nil {
 			// no error means that either:
@@ -267,7 +270,7 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 			return nil, fmt.Errorf("oauth flow: %w", err)
 		}
 
-		p.SetToken(ctx, oauthTok, resources)
+		p.SetToken(oauthTok, resources)
 		tr := *(&TokenResult{}).FromOauth2Token(oauthTok)
 		// adding some meta-information here
 		tr.Host = p.cfg.MCPEndpoint
