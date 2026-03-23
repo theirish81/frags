@@ -160,6 +160,7 @@ type OAuthProvider struct {
 // NewOAuthProvider returns an OAuthProvider ready to authenticate.
 func NewOAuthProvider(cfg OAuthProviderConfig, logger *log.StreamerLogger) *OAuthProvider {
 	px := &OAuthProvider{cfg: cfg, logger: *logger}
+	px.WithCache(&NopCache{})
 	return px
 }
 
