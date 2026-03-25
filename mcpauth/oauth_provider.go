@@ -54,6 +54,7 @@ func (i *DiscoveryResources) MarshalBinary() ([]byte, error) {
 // OAuthProviderConfig is the configuration for OAuthProvider.
 // Pointer fields are optional; their zero-value defaults are documented on each getter method.
 type OAuthProviderConfig struct {
+	Name                 string
 	MCPEndpoint          string
 	ClientID             *string
 	ClientSecret         *string
@@ -61,17 +62,16 @@ type OAuthProviderConfig struct {
 	RedirectHost         *string
 	RedirectCallbackPath *string
 	ClientName           *string
-	// When nil, scopes are taken from ProtectedResourceMetadata.ScopesSupported,
-	// falling back to ["repo", "read:user"].
-	Scopes   []string
-	State    *string
-	Verifier *string
-
-	HTTPClient *http.Client
+	// When nil, scopes are taken from ProtectedResourceMetadata.ScopesSupported, falling back to ["repo", "read:user"]
+	Scopes         []string
+	State          *string
+	Verifier       *string
+	NonInteractive bool
+	HTTPClient     *http.Client
 }
 
-func (c *OAuthProviderConfig) McpFingerprint() (string, error) {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(c.MCPEndpoint+"|"+c.clientID()))), nil
+func (c *OAuthProviderConfig) McpFingerprint() string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(c.MCPEndpoint+"|"+c.clientID())))
 }
 
 func (c *OAuthProviderConfig) redirectHost() string {
@@ -101,7 +101,8 @@ func (c *OAuthProviderConfig) httpClient() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
 	}
-	return http.DefaultClient
+	c.HTTPClient = NewDefaultHttpClient()
+	return c.HTTPClient
 }
 
 func (c *OAuthProviderConfig) clientID() string {
@@ -151,7 +152,6 @@ func (c *OAuthProviderConfig) resolveScopes(prm *ProtectedResourceMetadata) []st
 //  6. Token exchange — code + PKCE verifier → access_token + refresh_token.
 type OAuthProvider struct {
 	cfg        OAuthProviderConfig
-	tok        TokenResult
 	ts         oauth2.TokenSource
 	logger     log.StreamerLogger
 	oauthCache OauthCache
@@ -160,22 +160,30 @@ type OAuthProvider struct {
 // NewOAuthProvider returns an OAuthProvider ready to authenticate.
 func NewOAuthProvider(cfg OAuthProviderConfig, logger *log.StreamerLogger) *OAuthProvider {
 	px := &OAuthProvider{cfg: cfg, logger: *logger}
+	px.WithCache(&NopCache{})
 	return px
 }
 
-func NewEmptyOauthProvider() *OAuthProvider {
-	px := &OAuthProvider{}
+func NewEmptyOauthProvider(nonInteractive bool) *OAuthProvider {
+	px := &OAuthProvider{
+		cfg: OAuthProviderConfig{NonInteractive: nonInteractive},
+	}
 	px.WithCache(&NopCache{})
 	return px
 }
 
 func (p *OAuthProvider) New(config OAuthProviderConfig, logger *log.StreamerLogger) GenericOauthProvider {
+	config.NonInteractive = p.cfg.NonInteractive
 	return NewOAuthProvider(config, logger).WithCache(p.oauthCache)
 }
 
 func (p *OAuthProvider) WithCache(tokenCache OauthCache) GenericOauthProvider {
 	p.oauthCache = tokenCache
 	return p
+}
+
+func (p *OAuthProvider) Config() *OAuthProviderConfig {
+	return &p.cfg
 }
 
 func (*OAuthProvider) Name() string { return "" }
@@ -210,15 +218,8 @@ func (p *OAuthProvider) Discover(ctx context.Context) (*DiscoveryResources, bool
 	}, true, nil
 }
 
-func (p *OAuthProvider) SetToken(ctx context.Context, tok *oauth2.Token, resources *DiscoveryResources) {
-	p.tok = TokenResult{
-		AccessToken:  tok.AccessToken,
-		RefreshToken: tok.RefreshToken,
-		TokenType:    tok.TokenType,
-		Expiry:       tok.Expiry,
-	}
-	conf := p.OauthConfig(resources.AuthServerMetadata, p.cfg.clientID(), p.cfg.clientSecret(), nil)
-	p.ts = conf.TokenSource(ctx, tok)
+func (p *OAuthProvider) SetToken(tok *oauth2.Token, resources *DiscoveryResources) {
+	p.ts = NewFragsTokenSource(tok, p, resources, p.oauthCache, p.logger)
 }
 
 // Authenticate runs the full local OAuth flow (browser redirect + local callback server).
@@ -232,54 +233,63 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 	}
 	refreshed := false
 	p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("checking cache"))
-	fingerprint, err := p.cfg.McpFingerprint()
-	if err != nil {
-		return nil, fmt.Errorf("fingerprint: %w", err)
-	}
-	if cache, ok := p.oauthCache.Get(fingerprint); ok {
+	if cache, ok := p.oauthCache.Get(&p.cfg); ok {
 		p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithMessage("cache hit"))
-		p.SetToken(ctx, &oauth2.Token{AccessToken: cache.AccessToken, RefreshToken: cache.RefreshToken, Expiry: cache.Expiry}, resources)
+		p.SetToken(&oauth2.Token{AccessToken: cache.AccessToken, RefreshToken: cache.RefreshToken, Expiry: cache.Expiry}, resources)
 		token, err := p.Token()
 		if err == nil {
+			// no error means that either:
+			// a) the token was still valid
+			// b) the refresh token succeeded
 			refreshed = true
 			cache.AccessToken = token.AccessToken
 			cache.RefreshToken = token.RefreshToken
 
-			// if the access token is still valid and not refreshed, then token has zeroed expiry
+			// if the access token is still valid and not refreshed, then the token has zeroed expiry
 			if !token.Expiry.IsZero() {
 				cache.Expiry = token.Expiry
 			}
+			cache.TokenType = token.TokenType
 
 			cache.Host = p.cfg.MCPEndpoint
 			cache.ClientID = p.cfg.clientID()
-			p.tok = *cache
+			p.oauthCache.Store(&p.cfg, *cache)
 			if err := p.oauthCache.Save(ctx); err != nil {
 				return nil, fmt.Errorf("cache save: %w", err)
 			}
 		}
 	}
-	if !refreshed {
+	// if:
+	// a) the refresh token mechanism could not run (missing cached refresh token) or refresh failed
+	// AND
+	// b) provider can operate i n interactive mode (we're running on a client computer, such as a CLI utility)
+	// then we trigger open a browser for 3-legged oauth2
+	if !refreshed && !p.cfg.NonInteractive {
+		// runs the interactive flow
 		oauthTok, err := p.runFlow(ctx, resources)
 		if err != nil {
 			return nil, fmt.Errorf("oauth flow: %w", err)
 		}
 
-		p.tok = *(&TokenResult{}).FromOauth2Token(oauthTok)
-
-		fingerprint, err := p.cfg.McpFingerprint()
-		if err != nil {
-			return nil, fmt.Errorf("fingerprint: %w", err)
-		}
-		p.tok.Host = p.cfg.MCPEndpoint
-		p.tok.ClientID = p.cfg.clientID()
-		p.oauthCache.Store(fingerprint, p.tok)
+		p.SetToken(oauthTok, resources)
+		tr := *(&TokenResult{}).FromOauth2Token(oauthTok)
+		// adding some meta-information here
+		tr.Host = p.cfg.MCPEndpoint
+		tr.ClientID = p.cfg.clientID()
+		refreshed = true
+		p.oauthCache.Store(&p.cfg, tr)
 		if err := p.oauthCache.Save(ctx); err != nil {
 			return nil, fmt.Errorf("cache save: %w", err)
 		}
 	}
 
-	conf := p.OauthConfig(resources.AuthServerMetadata, p.cfg.clientID(), p.cfg.clientSecret(), nil)
-	p.ts = conf.TokenSource(ctx, p.tok.ToOauth2Token())
+	if !refreshed {
+		// if the token was not refreshed, it means that:
+		// a) the token was not refreshed, nor the interactive mechanism went anywhere
+		// b) the token was not refreshed, and the interactive mode was disabled
+		// this means we can't proceed any further
+		return nil, fmt.Errorf("no valid token found")
+	}
 	return oauth2.NewClient(ctx, p.ts), nil
 }
 
@@ -315,14 +325,13 @@ func (p *OAuthProvider) Exchange(ctx context.Context, code string, resources *Di
 func (p *OAuthProvider) Token() (TokenResult, error) {
 	if p.ts != nil {
 		if t, err := p.ts.Token(); err == nil {
-			p.tok.AccessToken = t.AccessToken
-			p.tok.RefreshToken = t.RefreshToken
-			p.tok.Expiry = t.Expiry
+			tr := TokenResult{}
+			return *tr.FromOauth2Token(t), nil
 		} else {
-			return p.tok, err
+			return TokenResult{}, err
 		}
 	}
-	return p.tok, nil
+	return TokenResult{}, errors.New("no token source")
 }
 
 // OauthConfig builds an oauth2.Config for the given authorization server.
@@ -375,6 +384,7 @@ func (p *OAuthProvider) probe(ctx context.Context) (string, error) {
 	return parsed.Scheme + "://" + parsed.Host + "/.well-known/oauth-protected-resource", nil
 }
 
+// discoverMetadata retrieves all the necessary information to perform the oauth procedures
 func (p *OAuthProvider) discoverMetadata(ctx context.Context, resourceMetaURL string) (*ProtectedResourceMetadata, *AuthServerMetadata, error) {
 	var prm ProtectedResourceMetadata
 	p.logger.Debug(log.NewEvent(log.AuthEventType, log.McpComponent).WithArg("resource_metadata", resourceMetaURL))
@@ -598,7 +608,7 @@ func (NopOauthAuthProvider) New(_ OAuthProviderConfig, _ *log.StreamerLogger) Ge
 	return NopOauthAuthProvider{}
 }
 
-func (p NopOauthAuthProvider) WithCache(tokenCache OauthCache) GenericOauthProvider {
+func (p NopOauthAuthProvider) WithCache(_ OauthCache) GenericOauthProvider {
 	return &p
 }
 func derefOr(p *string, fallback string) string {

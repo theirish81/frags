@@ -118,7 +118,7 @@ func (c *McpTool) ConnectSSE(ctx context.Context, logger *log.StreamerLogger) er
 	}
 
 	if len(c.serverConfig.Headers) > 0 {
-		httpClient.Transport = NewMcpTransport(c.serverConfig.Headers, httpClient.Transport)
+		httpClient.Transport = NewAdditionalHeadersTransport(c.serverConfig.Headers, httpClient.Transport)
 	}
 	c.session, err = c.client.Connect(ctx, &mcp.SSEClientTransport{
 		Endpoint:   c.serverConfig.Url,
@@ -135,6 +135,7 @@ func (c *McpTool) selectAuthProvider(logger *log.StreamerLogger) mcpauth.AuthPro
 		return nil
 	}
 	return c.oauthProvider.New(mcpauth.OAuthProviderConfig{
+		Name:         c.Name,
 		MCPEndpoint:  c.serverConfig.Url,
 		ClientID:     c.serverConfig.ClientID,
 		ClientSecret: c.serverConfig.ClientSecret,
@@ -153,13 +154,11 @@ func (c *McpTool) ConnectStreamableHttp(ctx context.Context, logger *log.Streame
 			return err
 		}
 	} else {
-		httpClient = &http.Client{
-			Timeout: 30 * time.Minute,
-		}
+		httpClient = mcpauth.NewDefaultHttpClient()
 	}
 
 	if len(c.serverConfig.Headers) > 0 {
-		httpClient.Transport = NewMcpTransport(c.serverConfig.Headers, httpClient.Transport)
+		httpClient.Transport = NewAdditionalHeadersTransport(c.serverConfig.Headers, httpClient.Transport)
 	}
 
 	c.session, err = c.client.Connect(ctx, &mcp.StreamableClientTransport{
@@ -176,7 +175,7 @@ func (c *McpTool) ListTools(ctx context.Context) (ToolDefinitions, error) {
 	if err != nil {
 		return res, err
 	}
-	// Unfortunately the library seems to return InputSchema in multiple, bizzarre ways, so we need to make sure
+	// Unfortunately, the library seems to return InputSchema in multiple, bizarre ways, so we need to make sure
 	// we convert it into something predictable.
 	for _, t := range tools.Tools {
 		schema := schema2.Schema{}
@@ -337,22 +336,22 @@ func convertTextContent(content *mcp.TextContent) any {
 	return content.Text
 }
 
-// McpTransport is a wrapper around the default http.RoundTripper that adds default headers to every request
-type McpTransport struct {
+// AdditionalHeadersTransport is a wrapper around the default http.RoundTripper that adds default headers to every request
+type AdditionalHeadersTransport struct {
 	inner   http.RoundTripper
 	headers map[string]string
 }
 
-// NewMcpTransport creates a new McpTransport instance
-func NewMcpTransport(headers map[string]string, inner http.RoundTripper) *McpTransport {
+// NewAdditionalHeadersTransport creates a new AdditionalHeadersTransport instance
+func NewAdditionalHeadersTransport(headers map[string]string, inner http.RoundTripper) *AdditionalHeadersTransport {
 	if inner == nil {
 		inner = http.DefaultTransport
 	}
-	return &McpTransport{headers: headers, inner: inner}
+	return &AdditionalHeadersTransport{headers: headers, inner: inner}
 }
 
 // RoundTrip adds default headers to the request
-func (t *McpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *AdditionalHeadersTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	cloned := req.Clone(req.Context())
 	for k, v := range t.headers {
 		cloned.Header.Set(k, v)

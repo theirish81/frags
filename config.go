@@ -17,6 +17,10 @@
 
 package frags
 
+import (
+	"github.com/theirish81/frags/mcpauth"
+)
+
 // ToolsConfig defines the configuration for the MCP clients and collections. This serves no specific purpose
 // within Frags itself, but it can be used by integrating applications to standardize the configuration format.
 type ToolsConfig struct {
@@ -63,6 +67,9 @@ type McpServerConfig struct {
 	ClientID     *string           `json:"client_id,omitempty"`
 	ClientSecret *string           `json:"client_secret,omitempty"`
 	Token        *string           `json:"token,omitempty"`
+	// Placeholders for future functionalities and integrations
+	PreAuthorizedOauth  *mcpauth.TokenResult `json:"pre_authorized_oauth,omitempty"`
+	AuthorizationMethod *string              `json:"authorization_method,omitempty"`
 }
 
 // McpServerConfigs is a map of MCP servers
