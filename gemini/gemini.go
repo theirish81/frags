@@ -150,7 +150,7 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 				}
 				return false
 			}), retry.OnRetry(func(attempt uint, err error) {
-				runner.Logger().Info(log.NewEvent(log.GenericEventType, log.AiComponent).WithMessage("LLM is overwhelmed, retrying").WithEngine(engine).WithErr(err).WithIteration(int(attempt)))
+				runner.Logger().Info(log.NewEvent(log.GenericEventType, log.AiComponent).WithMessage("Google Gemini infrastructure is overloaded, retrying...").WithEngine(engine).WithErr(err).WithIteration(int(attempt)))
 			})).Do(func() error {
 			res, err = d.client.Models.GenerateContent(ctx, d.config.Model, d.content, &cfg)
 			return err
