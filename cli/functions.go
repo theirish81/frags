@@ -61,7 +61,7 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig
 	if err != nil {
 		return mcpTools, toolCollections, toolDefinitions, functions, err
 	}
-	mcpTools.WithOAuthProvider(mcpauth.NewEmptyOauthProvider().WithCache(oauthCache))
+	mcpTools.WithOAuthProvider(mcpauth.NewEmptyOauthProvider(false).WithCache(oauthCache))
 	if err := mcpTools.Connect(ctx, logger); err != nil {
 		return mcpTools, toolCollections, toolDefinitions, functions, err
 	}
@@ -73,7 +73,7 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig
 		if v.Disabled {
 			continue
 		}
-		switch k {
+		switch v.ToolType {
 		case "fs":
 			t := fs.New()
 			for k, v := range t.AsFunctions() {
@@ -81,7 +81,7 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig
 			}
 			toolCollections = append(toolCollections, t)
 		case "postgres":
-			c, err := postgres.New(ctx, v.Params["postgres_url"])
+			c, err := postgres.New(ctx, k, v.Params["postgres_url"])
 			if err != nil {
 				return mcpTools, toolCollections, toolDefinitions, functions, err
 			}
@@ -90,7 +90,7 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig
 			}
 			toolCollections = append(toolCollections, c)
 		case "http":
-			c := http.New()
+			c := http.New(k, nil)
 			for k, v := range c.AsFunctions() {
 				functions[k] = v
 			}
