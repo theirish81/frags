@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/avast/retry-go/v5 v5.0.0
 	github.com/jinzhu/copier v0.4.0
-	github.com/theirish81/frags v0.25.0-rc0
+	github.com/theirish81/frags v0.25.0
 	google.golang.org/api v0.197.0
 	google.golang.org/genai v1.51.0
 )
