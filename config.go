@@ -18,6 +18,8 @@
 package frags
 
 import (
+	"encoding/json"
+
 	"github.com/theirish81/frags/mcpauth"
 )
 
@@ -35,12 +37,30 @@ func (t ToolsConfig) AsToolDefinitions() ToolDefinitions {
 
 // CollectionConfig defines the configuration for a collection
 type CollectionConfig struct {
+	ToolType string            `json:"tool_type,omitempty"`
 	Params   map[string]string `json:"params,omitempty"`
 	Disabled bool              `json:"disabled"`
 }
 
 // ToolsCollectionConfigs is a map of collection names to collection configurations
 type ToolsCollectionConfigs map[string]CollectionConfig
+
+func (t *ToolsCollectionConfigs) UnmarshalJSON(data []byte) error {
+	// Unmarshal into a raw map first
+	var raw map[string]CollectionConfig
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*t = make(ToolsCollectionConfigs, len(raw))
+	for key, config := range raw {
+		if len(config.ToolType) == 0 {
+			config.ToolType = key
+		}
+		(*t)[key] = config
+	}
+	return nil
+}
 
 // AsToolDefinitions returns the collection configs as tool definitions
 func (t ToolsCollectionConfigs) AsToolDefinitions() ToolDefinitions {
