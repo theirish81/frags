@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/theirish81/frags/util"
+	"gopkg.in/yaml.v3"
 )
 
 func TestSchema_GetPhase(t *testing.T) {
@@ -309,4 +310,67 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 	assert.Equal(t, phase, addressSchema.XPhase)
 	assert.Equal(t, session, *addressSchema.XSession)
 	assert.Equal(t, String, addressSchema.Properties["street"].Type)
+}
+
+func TestSchema_UnmarshalYAML(t *testing.T) {
+	data := `
+type: object
+properties:
+  foo:
+    x-ui-title: I love this
+    type: string
+`
+	schema := Schema{}
+	err := yaml.Unmarshal([]byte(data), &schema)
+	assert.NoError(t, err)
+	assert.Equal(t, schema.Properties["foo"].XUI["title"], "I love this")
+}
+
+func TestSchema_MarshalYAML(t *testing.T) {
+	schema := Schema{
+		Type: Object,
+		Properties: map[string]*Schema{
+			"foo": {
+				XUI: map[string]interface{}{
+					"title": "I love this",
+				},
+				Type: String,
+			},
+		},
+	}
+	data, _ := yaml.Marshal(schema)
+	assert.Contains(t, string(data), "x-ui-title: I love this")
+}
+
+func TestSchema_UnmarshalJSON(t *testing.T) {
+	data := `
+{
+	"type": "object",
+	"properties": {
+		"foo": {
+			"x-ui-title": "I love this",
+			"type": "string"
+		}
+	}
+}`
+	schema := Schema{}
+	err := schema.UnmarshalJSON([]byte(data))
+	assert.NoError(t, err)
+	assert.Equal(t, schema.Properties["foo"].XUI["title"], "I love this")
+}
+
+func TestSchema_MarshalJSON(t *testing.T) {
+	schema := Schema{
+		Type: Object,
+		Properties: map[string]*Schema{
+			"foo": {
+				XUI: map[string]interface{}{
+					"title": "I love this",
+				},
+				Type: String,
+			},
+		},
+	}
+	data, _ := schema.MarshalJSON()
+	assert.Contains(t, string(data), `"x-ui-title":"I love this"`)
 }

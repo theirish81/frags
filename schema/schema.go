@@ -18,6 +18,7 @@
 package schema
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -62,6 +63,195 @@ type Schema struct {
 	XPhase           int                `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
 	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
 	Ref              *string            `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	XUI              map[string]any     `json:"-" yaml:"-"`
+}
+
+type schemaAlias Schema
+
+func (s Schema) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(schemaAlias(s))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(s.XUI) == 0 {
+		return b, nil
+	}
+
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, err
+	}
+	for k, v := range s.XUI {
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("x-ui-%s: %w", k, err)
+		}
+		m["x-ui-"+k] = raw
+	}
+	return json.Marshal(m)
+}
+
+func (s *Schema) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, (*schemaAlias)(s)); err != nil {
+		return err
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for k, v := range raw {
+		if !strings.HasPrefix(k, "x-ui-") {
+			continue
+		}
+		suffix := strings.TrimPrefix(k, "x-ui-")
+		var val any
+		if err := json.Unmarshal(v, &val); err != nil {
+			return fmt.Errorf("%s: %w", k, err)
+		}
+		if s.XUI == nil {
+			s.XUI = make(map[string]any)
+		}
+		s.XUI[suffix] = val
+	}
+	return nil
+}
+
+func (s Schema) MarshalYAML() (any, error) {
+	type kv struct {
+		key string
+		val any
+	}
+
+	var pairs []kv
+
+	add := func(key string, val any) {
+		pairs = append(pairs, kv{key, val})
+	}
+
+	if len(s.OneOf) > 0 {
+		add("oneOf", s.OneOf)
+	}
+	if len(s.AnyOf) > 0 {
+		add("anyOf", s.AnyOf)
+	}
+	if s.Default != nil {
+		add("default", s.Default)
+	}
+	if s.Description != "" {
+		add("description", s.Description)
+	}
+	if len(s.Enum) > 0 {
+		add("enum", s.Enum)
+	}
+	if s.Example != nil {
+		add("example", s.Example)
+	}
+	if s.Format != "" {
+		add("format", s.Format)
+	}
+	if s.Items != nil {
+		add("items", s.Items)
+	}
+	if s.MaxItems != nil {
+		add("maxItems", s.MaxItems)
+	}
+	if s.MaxLength != nil {
+		add("maxLength", s.MaxLength)
+	}
+	if s.MaxProperties != nil {
+		add("maxProperties", s.MaxProperties)
+	}
+	if s.Maximum != nil {
+		add("maximum", s.Maximum)
+	}
+	if s.MinItems != nil {
+		add("minItems", s.MinItems)
+	}
+	if s.MinLength != nil {
+		add("minLength", s.MinLength)
+	}
+	if s.MinProperties != nil {
+		add("minProperties", s.MinProperties)
+	}
+	if s.Minimum != nil {
+		add("minimum", s.Minimum)
+	}
+	if s.Nullable != nil {
+		add("nullable", s.Nullable)
+	}
+	if s.Pattern != "" {
+		add("pattern", s.Pattern)
+	}
+	if len(s.Properties) > 0 {
+		add("properties", s.Properties)
+	}
+	if len(s.PropertyOrdering) > 0 {
+		add("propertyOrdering", s.PropertyOrdering)
+	}
+	if len(s.Required) > 0 {
+		add("required", s.Required)
+	}
+	if s.Title != "" {
+		add("title", s.Title)
+	}
+	if s.Type != "" {
+		add("type", s.Type)
+	}
+	if s.XPhase != 0 {
+		add("x-phase", s.XPhase)
+	}
+	if s.XSession != nil {
+		add("x-session", s.XSession)
+	}
+	if s.Ref != nil {
+		add("$ref", s.Ref)
+	}
+
+	for k, v := range s.XUI {
+		add("x-ui-"+k, v)
+	}
+
+	node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	for _, p := range pairs {
+		keyNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: p.key}
+		valNode := &yaml.Node{}
+		if err := valNode.Encode(p.val); err != nil {
+			return nil, fmt.Errorf("yaml marshal key %q: %w", p.key, err)
+		}
+		if valNode.Kind == yaml.DocumentNode && len(valNode.Content) > 0 {
+			valNode = valNode.Content[0]
+		}
+		node.Content = append(node.Content, keyNode, valNode)
+	}
+	return node, nil
+}
+
+func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
+	if err := value.Decode((*schemaAlias)(s)); err != nil {
+		return err
+	}
+
+	if value.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(value.Content); i += 2 {
+		key := value.Content[i].Value
+		if !strings.HasPrefix(key, "x-ui-") {
+			continue
+		}
+		suffix := strings.TrimPrefix(key, "x-ui-")
+		var val any
+		if err := value.Content[i+1].Decode(&val); err != nil {
+			return fmt.Errorf("%s: %w", key, err)
+		}
+		if s.XUI == nil {
+			s.XUI = make(map[string]any)
+		}
+		s.XUI[suffix] = val
+	}
+	return nil
 }
 
 // FromYAML unmarshals a YAML document into the Schema.
