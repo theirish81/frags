@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	cloud.google.com/go/auth v0.9.3
+	github.com/anthropics/anthropic-sdk-go v1.27.1
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/jsonschema-go v0.4.2
 	github.com/labstack/echo/v4 v4.15.1
@@ -12,6 +13,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/theirish81/frags v0.25.0
+	github.com/theirish81/frags/anthropic v0.25.0-rc0
 	github.com/theirish81/frags/chatgpt v0.25.0
 	github.com/theirish81/frags/gemini v0.25.0
 	github.com/theirish81/frags/ollama v0.25.0
@@ -64,6 +66,10 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/theirish81/fragsfunctions v0.6.0 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
@@ -81,3 +87,5 @@ require (
 	google.golang.org/grpc v1.66.2 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
+
+replace github.com/theirish81/frags/anthropic v0.25.0-rc0 => ../anthropic

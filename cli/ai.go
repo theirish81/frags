@@ -23,7 +23,10 @@ import (
 	"os"
 
 	"cloud.google.com/go/auth/credentials"
+	anthropicSdk "github.com/anthropics/anthropic-sdk-go"
+	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/anthropic"
 	"github.com/theirish81/frags/chatgpt"
 	"github.com/theirish81/frags/gemini"
 	"github.com/theirish81/frags/ollama"
@@ -56,6 +59,14 @@ func initAi() (frags.Ai, error) {
 		return chatgpt.NewAI(cfg.ChatGptBaseURL, cfg.ChatGptApiKey, chatgpt.Config{
 			Model: cfg.Model,
 		}), nil
+	case engineAnthropic:
+		return anthropic.NewAI(newAnthropicClient(), anthropic.Config{
+			Temperature: cfg.Temperature,
+			TopK:        cfg.TopK,
+			TopP:        cfg.TopP,
+			Model:       cfg.Model,
+			MaxTokens:   cfg.NumPredict,
+		}), nil
 	default:
 		return nil, errors.New("no AI is fully configured. Check your .env file")
 	}
@@ -80,4 +91,9 @@ func newGeminiClient() (*genai.Client, error) {
 		Credentials: creds,
 		Backend:     genai.BackendVertexAI,
 	})
+}
+
+func newAnthropicClient() *anthropicSdk.Client {
+	client := anthropicSdk.NewClient(option.WithAPIKey(cfg.AnthropicApiKey))
+	return &client
 }
