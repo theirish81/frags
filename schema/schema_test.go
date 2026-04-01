@@ -374,3 +374,25 @@ func TestSchema_MarshalJSON(t *testing.T) {
 	data, _ := schema.MarshalJSON()
 	assert.Contains(t, string(data), `"x-ui-title":"I love this"`)
 }
+
+func TestSchema_Resolve2(t *testing.T) {
+	schema := Schema{
+		Type: "object",
+		Properties: map[string]*Schema{
+			"t1": {
+				Ref: util.Ptr("#/components/schemas/foo"),
+			},
+		},
+	}
+	schemas := map[string]Schema{
+		"foo": {
+			Type: "string",
+			XUI: map[string]interface{}{
+				"title": "I love this",
+			},
+		},
+	}
+	err := schema.Resolve(schemas)
+	assert.NoError(t, err)
+	assert.Equal(t, "I love this", schema.Properties["t1"].XUI["title"], "I love this")
+}
