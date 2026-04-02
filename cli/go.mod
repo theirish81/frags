@@ -12,7 +12,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.25.0
+	github.com/theirish81/frags v0.25.1-rc0
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
 	github.com/theirish81/frags/gemini v0.25.0
