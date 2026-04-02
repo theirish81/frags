@@ -175,8 +175,6 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 				params.Tools = tx
 			}
 
-			pj, _ := json.MarshalIndent(params, "", " ")
-			fmt.Println(string(pj))
 			res, err = d.client.Messages.New(ctx, params)
 			return err
 		}); err != nil {
