@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/avast/retry-go/v5"
 	"github.com/jinzhu/copier"
 	"github.com/theirish81/frags"
@@ -174,6 +175,8 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 				params.Tools = tx
 			}
 
+			pj, _ := json.MarshalIndent(params, "", " ")
+			fmt.Println(string(pj))
 			res, err = d.client.Messages.New(ctx, params)
 			return err
 		}); err != nil {
@@ -185,10 +188,15 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 			continue
 		}
 
-		d.content = append(d.content, FlattenFromTo[anthropic.MessageParam](map[string]any{
-			"role":    "assistant",
-			"content": res.Content,
-		}))
+		// this ugly workaround is to allow internet search results to work. It seems that there's a problem in the SDK
+		// in which Base64 content (typical for search results) poorly converts into history items.
+		contentRaw := res.JSON.Content.Raw()
+		msgJSON := fmt.Sprintf(`{"role":"assistant","content":%s}`, contentRaw)
+		var msg anthropic.MessageParam
+		param.SetJSON([]byte(msgJSON), &msg)
+
+		// adding this mess to history
+		d.content = append(d.content, msg)
 
 		hasToolCalls := false
 		toolResultBlocks := make([]map[string]any, 0)
@@ -214,6 +222,7 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		}
 
 		if hasToolCalls {
+
 			d.content = append(d.content, FlattenFromTo[anthropic.MessageParam](map[string]any{
 				"role":    "user",
 				"content": toolResultBlocks,
@@ -275,8 +284,11 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]anthropic.ToolUnionP
 				}
 			}
 		case frags.ToolTypeInternetSearch:
-			// NOTE: No native 1:1 replacement is guaranteed without Beta models inside the standard Anthropic SDK.
-			// Left as a placeholder if WebSearchTool gets fully introduced to non-beta.
+			tx = append(tx, anthropic.ToolUnionParam{
+				OfWebSearchTool20260209: &anthropic.WebSearchTool20260209Param{
+					MaxUses: anthropic.Int(2),
+				},
+			})
 		}
 	}
 	return tx, nil
