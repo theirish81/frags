@@ -21,9 +21,10 @@ import "strings"
 
 // supported AI engines
 const (
-	engineGemini  = "gemini"
-	engineOllama  = "ollama"
-	engineChatgpt = "chatgpt"
+	engineGemini    = "gemini"
+	engineOllama    = "ollama"
+	engineChatgpt   = "chatgpt"
+	engineAnthropic = "anthropic"
 )
 
 // supported output formats
@@ -47,6 +48,7 @@ type Config struct {
 	NumPredict               int     `mapstructure:"NUM_PREDICT" yaml:"NUM_PREDICT"`
 	ChatGptApiKey            string  `mapstructure:"CHATGPT_API_KEY" yaml:"CHATGPT_API_KEY"`
 	ChatGptBaseURL           string  `mapstructure:"CHATGPT_BASE_URL" yaml:"CHATGPT_BASE_URL"`
+	AnthropicApiKey          string  `mapstructure:"ANTHROPIC_API_KEY" yaml:"ANTHROPIC_API_KEY"`
 }
 
 // guessAi tries to guess the AI engine based on the configuration.
@@ -58,6 +60,8 @@ func (c Config) guessAi() string {
 		return engineGemini
 	case engineChatgpt:
 		return engineChatgpt
+	case engineAnthropic:
+		return engineAnthropic
 	}
 	if c.OllamaBaseURL != "" && c.Model != "" {
 		return engineOllama
@@ -67,6 +71,9 @@ func (c Config) guessAi() string {
 	}
 	if c.ChatGptApiKey != "" && c.ChatGptBaseURL != "" {
 		return engineChatgpt
+	}
+	if c.AnthropicApiKey != "" {
+		return engineAnthropic
 	}
 	return ""
 }

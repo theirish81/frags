@@ -21,9 +21,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"time"
 
 	"cloud.google.com/go/auth/credentials"
+	anthropicSdk "github.com/anthropics/anthropic-sdk-go"
+	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/anthropic"
 	"github.com/theirish81/frags/chatgpt"
 	"github.com/theirish81/frags/gemini"
 	"github.com/theirish81/frags/ollama"
@@ -43,6 +47,8 @@ func initAi() (frags.Ai, error) {
 			TopK:        cfg.TopK,
 			TopP:        cfg.TopP,
 			Model:       cfg.Model,
+			Attempts:    3,
+			RetryDelay:  3 * time.Second,
 		}), nil
 	case engineOllama:
 		return ollama.NewAI(cfg.OllamaBaseURL, ollama.Config{
@@ -55,6 +61,16 @@ func initAi() (frags.Ai, error) {
 	case engineChatgpt:
 		return chatgpt.NewAI(cfg.ChatGptBaseURL, cfg.ChatGptApiKey, chatgpt.Config{
 			Model: cfg.Model,
+		}), nil
+	case engineAnthropic:
+		return anthropic.NewAI(newAnthropicClient(), anthropic.Config{
+			Temperature: cfg.Temperature,
+			TopK:        cfg.TopK,
+			TopP:        cfg.TopP,
+			Model:       cfg.Model,
+			MaxTokens:   cfg.NumPredict,
+			Attempts:    3,
+			RetryDelay:  3 * time.Second,
 		}), nil
 	default:
 		return nil, errors.New("no AI is fully configured. Check your .env file")
@@ -80,4 +96,9 @@ func newGeminiClient() (*genai.Client, error) {
 		Credentials: creds,
 		Backend:     genai.BackendVertexAI,
 	})
+}
+
+func newAnthropicClient() *anthropicSdk.Client {
+	client := anthropicSdk.NewClient(option.WithAPIKey(cfg.AnthropicApiKey))
+	return &client
 }
