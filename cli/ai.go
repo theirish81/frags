@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"time"
 
 	"cloud.google.com/go/auth/credentials"
 	anthropicSdk "github.com/anthropics/anthropic-sdk-go"
@@ -46,6 +47,8 @@ func initAi() (frags.Ai, error) {
 			TopK:        cfg.TopK,
 			TopP:        cfg.TopP,
 			Model:       cfg.Model,
+			Attempts:    3,
+			RetryDelay:  3 * time.Second,
 		}), nil
 	case engineOllama:
 		return ollama.NewAI(cfg.OllamaBaseURL, ollama.Config{
@@ -66,6 +69,8 @@ func initAi() (frags.Ai, error) {
 			TopP:        cfg.TopP,
 			Model:       cfg.Model,
 			MaxTokens:   cfg.NumPredict,
+			Attempts:    3,
+			RetryDelay:  3 * time.Second,
 		}), nil
 	default:
 		return nil, errors.New("no AI is fully configured. Check your .env file")
