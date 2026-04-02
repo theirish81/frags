@@ -13,7 +13,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/theirish81/frags v0.25.0
-	github.com/theirish81/frags/anthropic v0.25.0-rc0
+	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
 	github.com/theirish81/frags/gemini v0.25.0
 	github.com/theirish81/frags/ollama v0.25.0
@@ -87,5 +87,3 @@ require (
 	google.golang.org/grpc v1.66.2 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
-
-replace github.com/theirish81/frags/anthropic v0.25.0-rc0 => ../anthropic
