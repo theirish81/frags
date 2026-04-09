@@ -21,6 +21,8 @@ import (
 	"context"
 	"net/http"
 	"time"
+
+	"github.com/theirish81/frags/httpfactory"
 )
 
 // StaticTokenProvider is an AuthProvider for situations where you already have
@@ -35,34 +37,31 @@ type StaticTokenProvider struct {
 	accessToken  string
 	refreshToken string
 	tokenType    string
+	headers      http.Header
 	expiry       time.Time
-	inner        http.RoundTripper
 }
 
 // NewStaticTokenProvider returns an AuthProvider that injects the given access
 // token as a Bearer header. refreshToken and expiry are purely informational —
 // no automatic refresh is attempted (use OAuthProvider for that).
-func NewStaticTokenProvider(accessToken, refreshToken string) *StaticTokenProvider {
+func NewStaticTokenProvider(accessToken, refreshToken string, headers http.Header) *StaticTokenProvider {
+	hx := http.Header{}
+	if headers != nil {
+		hx = headers
+	}
 	return &StaticTokenProvider{
 		accessToken:  accessToken,
 		refreshToken: refreshToken,
 		tokenType:    "Bearer",
+		headers:      hx,
 	}
 }
 
-// Authenticate implements AuthProvider.
-// Wraps http.DefaultTransport with a RoundTripper that injects the token.
+// Authenticate implements AuthProvider for static token provider
 func (p *StaticTokenProvider) Authenticate(_ context.Context) (*http.Client, error) {
-	inner := p.inner
-	if inner == nil {
-		inner = http.DefaultTransport
-	}
-	return &http.Client{
-		Transport: &staticBearerTransport{
-			token: p.accessToken,
-			inner: inner,
-		},
-	}, nil
+	h := p.headers.Clone()
+	h.Set("Authorization", "Bearer "+p.accessToken)
+	return httpfactory.Instance.Builder().WithHeaders(h).Build()
 }
 
 // Token implements AuthProvider.
@@ -73,16 +72,4 @@ func (p *StaticTokenProvider) Token() (TokenResult, error) {
 		TokenType:    p.tokenType,
 		Expiry:       p.expiry,
 	}, nil
-}
-
-// staticBearerTransport injects a fixed Authorization: Bearer header.
-type staticBearerTransport struct {
-	token string
-	inner http.RoundTripper
-}
-
-func (t *staticBearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	cloned := req.Clone(req.Context())
-	cloned.Header.Set("Authorization", "Bearer "+t.token)
-	return t.inner.RoundTrip(cloned)
 }
