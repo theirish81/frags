@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/theirish81/frags/httpfactory"
 	"github.com/theirish81/frags/log"
 	"golang.org/x/oauth2"
 )
@@ -101,7 +102,7 @@ func (c *OAuthProviderConfig) httpClient() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
 	}
-	c.HTTPClient = NewDefaultHttpClient()
+	c.HTTPClient = httpfactory.Instance.HttpClient()
 	return c.HTTPClient
 }
 
@@ -290,6 +291,10 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 		// this means we can't proceed any further
 		return nil, fmt.Errorf("no valid token found")
 	}
+	// It kinda sucks, but the only way to allow our custom transport to play a role in the oauth2 client is to set it
+	// in the context. oauth2.NewClient will pick it up as use our Transport. Honestly I think this is evil, but what
+	// else could we do?
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, p.Config().httpClient())
 	return oauth2.NewClient(ctx, p.ts), nil
 }
 
@@ -357,10 +362,12 @@ func (p *OAuthProvider) probe(ctx context.Context) (string, error) {
 		rt.inner = http.DefaultTransport
 	}
 
+	client := httpfactory.Instance.HttpClient()
+	client.Transport = rt
 	probeClient := mcp.NewClient(&mcp.Implementation{Name: "probe", Version: "0"}, nil)
 	_, connErr := probeClient.Connect(ctx, &mcp.StreamableClientTransport{
 		Endpoint:   p.cfg.MCPEndpoint,
-		HTTPClient: &http.Client{Transport: rt},
+		HTTPClient: client,
 	}, nil)
 
 	if connErr == nil {
@@ -567,7 +574,8 @@ func (p *OAuthProvider) registerClient(_ context.Context, _ *AuthServerMetadata)
 			RedirectURIs:            []string{p.cfg.redirectURI()},
 			GrantTypes:              []string{"authorization_code"},
 			ResponseTypes:           []string{"code"},
-			TokenEndpointAuthMethod: "none", // public client — PKCE only, no secret
+
+				TokenEndpointAuthMethod: "none", // public client — PKCE only, no secret
 		}
 		var resp dcrResponse
 		if err := p.postJSON(ctx, asMeta.RegistrationEndpoint, reqBody, &resp); err != nil {
@@ -599,7 +607,7 @@ type dcrResponse struct {
 type NopOauthAuthProvider struct{}
 
 func (NopOauthAuthProvider) Authenticate(_ context.Context) (*http.Client, error) {
-	return http.DefaultClient, nil
+	return httpfactory.Instance.HttpClient(), nil
 }
 
 func (NopOauthAuthProvider) Token() (TokenResult, error) { return TokenResult{}, nil }

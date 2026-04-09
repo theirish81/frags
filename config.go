@@ -19,6 +19,7 @@ package frags
 
 import (
 	"encoding/json"
+	"net/http"
 
 	"github.com/theirish81/frags/mcpauth"
 )
@@ -90,6 +91,14 @@ type McpServerConfig struct {
 	// Placeholders for future functionalities and integrations
 	PreAuthorizedOauth  *mcpauth.TokenResult `json:"pre_authorized_oauth,omitempty"`
 	AuthorizationMethod *string              `json:"authorization_method,omitempty"`
+}
+
+func (m *McpServerConfig) HttpHeaders() http.Header {
+	h := http.Header{}
+	for k, v := range m.Headers {
+		h.Add(k, v)
+	}
+	return h
 }
 
 // McpServerConfigs is a map of MCP servers

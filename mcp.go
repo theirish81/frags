@@ -24,11 +24,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/jinzhu/copier"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/theirish81/frags/httpfactory"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/mcpauth"
 	schema2 "github.com/theirish81/frags/schema"
@@ -112,14 +112,9 @@ func (c *McpTool) ConnectSSE(ctx context.Context, logger *log.StreamerLogger) er
 			return err
 		}
 	} else {
-		httpClient = &http.Client{
-			Timeout: 30 * time.Minute,
-		}
+		httpClient, _ = httpfactory.Instance.Builder().WithHeaders(c.serverConfig.HttpHeaders()).Build()
 	}
 
-	if len(c.serverConfig.Headers) > 0 {
-		httpClient.Transport = NewAdditionalHeadersTransport(c.serverConfig.Headers, httpClient.Transport)
-	}
 	c.session, err = c.client.Connect(ctx, &mcp.SSEClientTransport{
 		Endpoint:   c.serverConfig.Url,
 		HTTPClient: httpClient,
@@ -129,16 +124,23 @@ func (c *McpTool) ConnectSSE(ctx context.Context, logger *log.StreamerLogger) er
 
 func (c *McpTool) selectAuthProvider(logger *log.StreamerLogger) mcpauth.AuthProvider {
 	if c.serverConfig.Token != nil {
-		return mcpauth.NewStaticTokenProvider(*c.serverConfig.Token, "")
+		// here we hand over the custom headers as well, as the StaticTokenProvider is in charge of creating
+		// its own HTTP client
+		return mcpauth.NewStaticTokenProvider(*c.serverConfig.Token, "", c.serverConfig.HttpHeaders())
 	}
 	if _, ok := c.serverConfig.Headers["Authorization"]; ok {
+		// If custom headers have an Authorization header, it probably means we want to bypass other authentication
+		// mechanisms, so we assume no auth provider
 		return nil
 	}
+	// pre-building the HTTP client so that custom headers are already in place
+	client, _ := httpfactory.Instance.Builder().WithHeaders(c.serverConfig.HttpHeaders()).Build()
 	return c.oauthProvider.New(mcpauth.OAuthProviderConfig{
 		Name:         c.Name,
 		MCPEndpoint:  c.serverConfig.Url,
 		ClientID:     c.serverConfig.ClientID,
 		ClientSecret: c.serverConfig.ClientSecret,
+		HTTPClient:   client,
 	}, logger)
 }
 
@@ -154,11 +156,7 @@ func (c *McpTool) ConnectStreamableHttp(ctx context.Context, logger *log.Streame
 			return err
 		}
 	} else {
-		httpClient = mcpauth.NewDefaultHttpClient()
-	}
-
-	if len(c.serverConfig.Headers) > 0 {
-		httpClient.Transport = NewAdditionalHeadersTransport(c.serverConfig.Headers, httpClient.Transport)
+		httpClient, _ = httpfactory.Instance.Builder().WithHeaders(c.serverConfig.HttpHeaders()).Build()
 	}
 
 	c.session, err = c.client.Connect(ctx, &mcp.StreamableClientTransport{
@@ -340,14 +338,6 @@ func convertTextContent(content *mcp.TextContent) any {
 type AdditionalHeadersTransport struct {
 	inner   http.RoundTripper
 	headers map[string]string
-}
-
-// NewAdditionalHeadersTransport creates a new AdditionalHeadersTransport instance
-func NewAdditionalHeadersTransport(headers map[string]string, inner http.RoundTripper) *AdditionalHeadersTransport {
-	if inner == nil {
-		inner = http.DefaultTransport
-	}
-	return &AdditionalHeadersTransport{headers: headers, inner: inner}
 }
 
 // RoundTrip adds default headers to the request
