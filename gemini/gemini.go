@@ -207,7 +207,8 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) 
 					Parameters:  genAiPSchema,
 				})
 			}
-		case frags.ToolTypeMCP, frags.ToolTypeCollection:
+		//case frags.ToolTypeMCP, frags.ToolTypeCollection:
+		default:
 			for k, v := range d.Functions.ListByCollection(tool.Name) {
 				var genAiPSchema *genai.Schema
 				if v.Schema != nil {
