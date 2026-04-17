@@ -1,25 +1,61 @@
 $schema: 'http://json-schema.org/draft-07/schema#'
 title: SessionManager
 type: object
+description: |-
+  # SessionManager: the definition of a plan.
+  ## Parts of a plan
+  A plan is primarily made of:
+  - sessions: each session contains instructions to achieve a specific sub-goal of a plan. Each session builds a
+    portion of the output object
+  - schema: a JSON schema that defines the output object of the plan. The output object must conform to the schema.
+  - parameters: input parameters for the plan. These are provided provided by the invoking entity
+  - requiredTools: tools that the plan requires to execute its task
+  
+  ## Purpose of a plan
+  The plan main purpose is to break down a complex task into smaller, more manageable steps (sessions). Each step
+  should have a very well defined purpose and can:
+  * rely on other tools to achieve its goal
+  * rely on results of other sessions
+  However, the context of each session is defined by the plan writer, and completely clean as a default. That is,
+  each session doesn't know anything about the other sessions, unless the plan writer presents a context for it.
+  
+  ## The variables scope
+  Wherever an evaluation is possible (either using Golang's template/text format or Golang Expr
+  (https://github.com/expr-lang/expr), evaluators have access to a scope of variables that is composed on:
+  * `params`: the input parameters of the plan
+  * `vars`: a merge between the global `vars` and the `vars` of the current session
+  * `components`: the shared components of the plan
+  * `context`: the partial output object
+
 properties:
   parameters:
     type: array
+    description: input parameters for the plan
     items:
       $ref: '#/definitions/Parameter'
   requiredTools:
     type: array
+    description: tools that the plan requires to run
     items:
       $ref: '#/definitions/RequiredTool'
   transformers:
     type: array
+    description: |-
+      transformers are procedures that are applied to the input/output of a tool, or a resource. They are typically
+      used to reduce the noise of unnecessary data coming from APIs or MCP servers.
     items:
       $ref: '#/definitions/Transformer'
   systemPrompt:
     type: string
+    description: a system prompt contains instructions that are applied to all sessions in the plan.
+    examples:
+      - "You are a helpful assistant, expert in chemistry, but will avoid using excessively technical jargon."
   components:
     $ref: '#/definitions/Components'
   sessions:
     type: object
+    description: |-
+      sessions are the main building blocks of a plan. Each session contains instructions to achieve a specific sub-goal
     additionalProperties:
       $ref: '#/definitions/Session'
     minProperties: 1
@@ -27,7 +63,10 @@ properties:
     $ref: '#/definitions/Schema'
   vars:
     type: object
+    description: variables that are available to all sessions in the plan.
     additionalProperties: true
+    examples:
+      - category: pharmaceuticals
   preCalls:
     $ref: '#/definitions/FunctionCallers'
 required:
@@ -35,6 +74,11 @@ required:
 definitions:
   Parameter:
     type: object
+    description: a key/value pair that is passed to the plan, it is available to all sessions in the plan.
+    examples:
+      - name: category
+        schema:
+          type: string
     properties:
       name:
         type: string
@@ -45,168 +89,333 @@ definitions:
       - schema
   RequiredTool:
     type: object
+    description: a tool that is required to run the plan.
+    examples:
+      - name: github
+        type: mcp
     properties:
       name:
         type: string
+        description: |-
+          the name of the tool. It doesn't need to be the name of the exact tool, depending on the type, it may
+          refer to a whole category or collection of tools. For example, for MCP servers, it's the name of the
+          MCP server, not the single command.
+          internet_search requires no name
         minLength: 1
       type:
+        description: |-
+          there are several types of tools.
+          * internet_search: a tool that searches the internet for information.
+          * function: a tool that calls a function.
+          * mcp: a Model Context Protocol server
+          * collection: a collection of internal tools, such as "http" or "postgres"
+          * apicp: (also known as API Context Protocol) a tool that calls an API
         enum:
           - internet_search
           - function
           - mcp
           - collection
+          - apicp
     required:
       - name
       - type
   Transformer:
     type: object
+    description: |-
+      a procedure that is applied to the input/output of a tool, or a resource.
+      you can use any of the supported transformation mechanisms.
+    examples:
+      - name: simplifyArray
+        jmesPath: "[*].{description: description, visibility: visibility, name: name}"
+        onFunctionOutput: listRegistries
     properties:
       name:
+        description: the name of the transformer, mostly for readability
         type: string
       onFunctionInput:
+        description: |-
+          if the transformer must be applied to a function input before the function is called, this field should
+          carry the name of that function. Don't use this field otherwise.
         type: string
       onFunctionOutput:
+        description: |-
+          if the transformer must be applied to a function output after the function is called, this field should
+          carry the name of that function. Don't use this field otherwise.'
         type: string
       onResource:
+        description: |-
+          if the transformer must be applied to a resource before it is used, this field should carry the name of
+          that resource. Don't use this field otherwise.'
         type: string
       jsonata:
+        description: |-
+          a JSONata expression that is applied to the input/output of the tool or resource. This mode is deprecated,
+          use jmesPath instead.
         type: string
       jmesPath:
+        description: |-
+          a JMESPath expression that is applied to the input/output of the tool or resource.
         type: string
       expr:
+        description: |-
+          An Golang Expr (https://github.com/expr-lang/expr) expression that is applied to the input/output of the
+          tool or resource.
         type: string
       parser:
+        description: |-
+          A parser that is applied to the input/output of the tool or resource. This may be necessary to handle
+          structured data if the tool or resource is plain text
         enum:
           - json
           - csv
       code:
+        description: |-
+          A JavaScript function that is applied to the input/output of the tool or resource. Use the
+          **Completion Value** notation. Input value is in an object named `args`
         type: string
     required:
       - name
   Components:
     type: object
+    description: components is a store of reusable items
     properties:
       prompts:
         type: object
+        description: a map of reusable prompts
         additionalProperties:
           type: string
       schemas:
         type: object
+        description: a map of reusable schemas (referenced in the "schema" section using the $ref notation)
         additionalProperties:
           $ref: '#/definitions/Schema'
   Session:
     type: object
+    description: |-
+      a session is a combination of prePrompts, prompts and tool calls that achieve a specific sub-goal of the plan.
+      Each session has its own scope and doesn't share context with the other sessions. When a session is executed
+      successfully, it will produce a portion of the output object, according to the part of the schema that it was
+      assigned to.
     properties:
       preCalls:
         $ref: '#/definitions/FunctionCallers'
       prePrompt:
+        description: |-
+          a prePrompt is a prompt that is applied before the main prompt. It is useful for preparing the session,
+          and is allowed to use tools. It can be expressed as one string (one prePrompt) or multiple to run in a
+          sequence. It supports the Golang's template/text format to refer to the available variables.
         oneOf:
           - type: array
+            minimum: 0
             items:
               type: string
           - type: string
       prompt:
         type: string
+        description: |-
+          the main prompt of the session. Prompts cannot use tools, but when used with the LLM, they will always
+          produce structured content, according to the linked schema. It supports the Golang's template/text format to
+          refer to the available scope.
         minLength: 3
       nextPhasePrompt:
+        description: |-
+          used in multi-phased session. This is a possibility, but not something we will necessarily support in
+          the future.
         type: string
       resources:
         type: array
+        description: |-
+          a list of user-provided resources
         items:
           $ref: '#/definitions/Resource'
       timeout:
+        description: |-
+          a timeout for the session, expressed in Golang's time.Duration format. Don't use if unsure.
+        examples:
+          - "30s"
         type: string
       dependsOn:
         $ref: '#/definitions/Dependencies'
       context:
+        description: |-
+          if true, will import the partial output object in the session scope to allow the LLM to know what
+          happened in the sessions executed before. If a string, it supports the Golang's template/text format
+          to compose a custom context.
+        examples:
+          - true
+          - "Retrieved categories : {{ .context.categories }}"
         oneOf:
           - type: boolean
           - type: string
       attempts:
+        description: |-
+          the number of attempts to run the session. If the session fails, it will be retried.
         type: integer
       tools:
         $ref: '#/definitions/ToolDefinitions'
       iterateOn:
+        description: |-
+          a Golang Expr (https://github.com/expr-lang/expr) expression that refers to an array in the scope. If set,
+          the session will run for each item in the array. Important: the linked schema must be an array.
+        examples:
+          - "context.reps"
         type: string
       vars:
+        description: |-
+          session-specific variables.
+        examples:
+          - category: pharmaceuticals
+            users: [ "Brandon", "Bruce" ]
         type: object
         additionalProperties: true
   FunctionCallers:
     type: array
+    description: |-
+      a collection of explicit function invocations. They can appear:
+      * at the plan level: this means the functions will run before any session
+      * at the session level: this means the functions will run before the prePrompt and prompt
     items:
       $ref: '#/definitions/FunctionCaller'
   FunctionCaller:
     type: object
+    description: a function invocation
+    examples:
+      - name: getProducts
+        args:
+          group: "A22"
+      - name: splitAndTrimStrings
+        args:
+          strings: "{{ .context.products }}"
+        code: |-
+          (args.strings.split(',').map(item => item.trim()))
     properties:
       name:
         type: string
+        description: |-
+          the name of the function. If `code` is not set, it will search the function name among the available tools.
+          If found, it will run the tool with the given `args`. If `code` is set, it will run the code with the given
+          `args`.
       code:
         type: string
+        description: |-
+          if set, it will run it as JavaScript code (using the Completion Value notation). Use only if a direct
+          function invocation is not sufficient.
       args:
         type: object
+        description: |-
+          arguments to the function. If the function is a tool, the arguments are the tool's input. If `code` is set,
+          the input will be available in the `args` variable. If the argument value is a string, it supports the
+          Golang's template/text format to refer to the available scope.
         additionalProperties: true
       description:
+        description: a description of the function, for documentation purposes
         type: string
       in:
+        description: |-
+          where the function output must go.
+          * `ai`: is the default, and means the function output will be dumped in the AI context.
+          * `vars`: the function output will be set as a variable
+          * `context`: the function output will be set as a field in the output object. This is rarely used
         enum:
           - ai
           - vars
           - context
       var:
+        description: |-
+          * if `in` is `vars`, this is the name of the variable that will hold the function output.
+          * if `in` is `context`, this is the name of the output object field that will hold the function output.
         type: string
     required:
       - name
   Resource:
     type: object
+    description: |-
+      a user-provided resource. A resource is a text file (can be plain text, CSV, JSON, markdown...) or a PDF
     properties:
       identifier:
         type: string
+        description: the identifier of the resource, often the file name
         minLength: 1
       params:
         type: object
         additionalProperties:
           type: string
       in:
+        description: |-
+          where the resource output must go.
+          * `ai`: is the default, and means the resource output will be dumped in the AI context.
+          * `vars`: the resource output will be set as a variable
+          * `prePrompt`: the resource output will be set as context in the prePrompt
+          * `prompt`: the resource output will be set as context in the prompt
         enum:
           - ai
           - vars
           - prePrompt
           - prompt
       var:
+        description: if `in` is `vars`, this is the name of the variable that will hold the resource output
         type: string
     required:
       - identifier
   Dependencies:
     type: array
+    description: list of rules that define what a session depends on in order to run
     items:
       $ref: '#/definitions/Dependency'
   Dependency:
     type: object
+    description: |-
+      a rule that defines what a session depends on in order to run
     properties:
       session:
+        description: |- 
+          if reference to a dependency session, then this influences the execution order. The dependant session will
+          wait for the dependency to be executed.
         type: string
       expression:
+        description: |-
+          a Golang Expr (https://github.com/expr-lang/expr) expression that is evaluated to a boolean to determine if a
+          certain condition is met. If the expression is true, the dependant session CAN be executed, otherwise the
+          session will be skipped.
         type: string
   ToolDefinitions:
     type: array
+    description: |-
+      a list of tools that are available to the LLM. Only tools that are listed here will appear in the LLM's context.
     items:
       $ref: '#/definitions/ToolDefinition'
   ToolDefinition:
     type: object
+    description: a tool that is available to the LLM
     properties:
       name:
         type: string
+        description: |-
+          the name of the tool. It doesn't need to be the name of the exact tool, depending on the type, it may be
+          the name of a whole category or collection of tools. For example, for MCP servers, it's the name of the server.
+          The tool must appear in the overall requiredTools list.
       description:
         type: string
       type:
+        description: |-
+          the type of tool.
+          * `internet_search`: a tool that searches the internet for information.
+          * `function`: a tool that calls a spare function (often not applicable)
+          * `mcp`: a Model Context Protocol server
+          * `collection`: a collection of internal tools, such as "http" or "postgres"
         enum:
           - internet_search
           - function
           - mcp
           - collection
       inputSchema:
+        description: an override of the input schema. Don't use it unless you know what you're doing.
         $ref: '#/definitions/Schema'
       allowlist:
+        description: |-
+          a list of allowed functions. This is to restrict the overall function availability to the LLM. For example,
+          if the tool lists 2 functions, A and B, and allowlist contains only A, then the LLM will know about A,
+          but not B.
         type: array
         items:
           type: string
@@ -214,6 +423,7 @@ definitions:
       - type
   Schema:
     type: object
+    description: a JSON schema
     properties:
       oneOf:
         type: array
