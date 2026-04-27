@@ -231,6 +231,10 @@ func (l *StreamerLogger) Channel() chan Event {
 	return l.progressChannel
 }
 
+func (l *StreamerLogger) Logger() *slog.Logger {
+	return l.logger
+}
+
 func (l *StreamerLogger) Debug(event Event) {
 	event.Level = "debug"
 	l.logger.Debug(event.Message, event.ToArray()...)

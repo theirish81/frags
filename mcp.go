@@ -28,6 +28,7 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/jinzhu/copier"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/theirish81/doauth"
 	"github.com/theirish81/frags/httpfactory"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/mcpauth"
@@ -122,25 +123,35 @@ func (c *McpTool) ConnectSSE(ctx context.Context, logger *log.StreamerLogger) er
 	return err
 }
 
+// selectAuthProvider determines the appropriate authentication provider based on the server configuration.
+// It supports static token authentication and OAuth2.
 func (c *McpTool) selectAuthProvider(logger *log.StreamerLogger) mcpauth.AuthProvider {
+	// 1. Check for a static token (e.g., Personal Access Token or API Key).
 	if c.serverConfig.Token != nil {
-		// here we hand over the custom headers as well, as the StaticTokenProvider is in charge of creating
-		// its own HTTP client
+		// NewStaticTokenProvider handles simple header injection without any complex flow.
 		return mcpauth.NewStaticTokenProvider(*c.serverConfig.Token, "", c.serverConfig.HttpHeaders())
 	}
+
+	// 2. If the user provided an "Authorization" header manually, we skip automatic auth.
 	if _, ok := c.serverConfig.Headers["Authorization"]; ok {
-		// If custom headers have an Authorization header, it probably means we want to bypass other authentication
-		// mechanisms, so we assume no auth provider
 		return nil
 	}
-	// pre-building the HTTP client so that custom headers are already in place
+
+	// 3. Fallback to OAuth2.
+	// We pre-build the HTTP client so that any custom headers are already included in the OAuth discovery/exchange.
 	client, _ := httpfactory.Instance.Builder().WithHeaders(c.serverConfig.HttpHeaders()).Build()
+
+	// Create a new OAuthProvider instance using the per-server configuration.
 	return c.oauthProvider.New(mcpauth.OAuthProviderConfig{
-		Name:         c.Name,
-		MCPEndpoint:  c.serverConfig.Url,
-		ClientID:     c.serverConfig.ClientID,
-		ClientSecret: c.serverConfig.ClientSecret,
-		HTTPClient:   client,
+		Config: doauth.Config{
+			Name:             c.Name,
+			BaseURL:          c.serverConfig.Url,
+			ClientID:         mcpauth.DerefOr(c.serverConfig.ClientID, ""),
+			ClientSecret:     mcpauth.DerefOr(c.serverConfig.ClientSecret, ""),
+			AuthorizationURL: mcpauth.DerefOr(c.serverConfig.AuthorizationURL, ""),
+			TokenURL:         mcpauth.DerefOr(c.serverConfig.TokenURL, ""),
+		},
+		HTTPClient: client,
 	}, logger)
 }
 
