@@ -20,6 +20,7 @@ package mcpauth
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -264,7 +265,7 @@ func (p *OAuthProvider) Authenticate(ctx context.Context) (*http.Client, error) 
 }
 
 // AuthLink generates the authorization URL for external or deferred authentication flows.
-func (p *OAuthProvider) AuthLink(resources *doauth.Metadata, state string) (authURL string, finalState string, verifier string, err error) {
+func (p *OAuthProvider) AuthLink(resources *doauth.Metadata, state string, verifier string) (string, string, string, error) {
 	p.updateEndpoints(resources)
 
 	auth, err := p.newAuthenticator()
@@ -279,6 +280,9 @@ func (p *OAuthProvider) AuthLink(resources *doauth.Metadata, state string) (auth
 		authOpts = append(authOpts, doauth.WithState(state))
 	} else if cfg.State != nil {
 		authOpts = append(authOpts, doauth.WithState(*cfg.State))
+	}
+	if verifier != "" {
+		authOpts = append(authOpts, doauth.WithVerifier(verifier))
 	}
 
 	return auth.GetAuthURL(authOpts...)
@@ -307,6 +311,8 @@ func (p *OAuthProvider) Token() (TokenResult, error) {
 			tr := TokenResult{}
 			return *tr.FromOauth2Token(t), nil
 		} else {
+			data, _ := io.ReadAll(err.(*oauth2.RetrieveError).Response.Body)
+			fmt.Println(string(data))
 			return TokenResult{}, err
 		}
 	}
