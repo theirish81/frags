@@ -158,22 +158,32 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 			return nil, err
 		}
 		d.content = append(d.content, res.Candidates[0].Content)
-		if res.FunctionCalls() != nil {
+		if res.FunctionCalls() != nil && len(res.FunctionCalls()) > 0 {
+			// It seems that if function calls are more than one, Gemini expects all the responses in one content,
+			// with multiple parts, one per function response.
+			userTurn := &genai.Content{
+				Role:  genai.RoleUser,
+				Parts: []*genai.Part{},
+			}
 			for _, fc := range res.FunctionCalls() {
-				d.content = append(d.content, genai.NewContentFromFunctionCall(fc.Name, fc.Args, genai.RoleModel))
-
 				fres, ferr := d.RunFunction(ctx, frags.FunctionCaller{Name: fc.Name, Args: fc.Args}, runner)
 				if ferr != nil {
 					return nil, ferr
-				} else {
-					d.content = append(d.content, genai.NewContentFromFunctionResponse(fc.Name, util.AnyToResultMap(fres), genai.RoleUser))
 				}
+				// adding a function response to the user turn object
+				userTurn.Parts = append(userTurn.Parts, &genai.Part{
+					FunctionResponse: &genai.FunctionResponse{
+						ID:       fc.ID,
+						Name:     fc.Name,
+						Response: util.AnyToResultMap(fres),
+					},
+				})
 			}
+			d.content = append(d.content, userTurn)
 			keepGoing = true
 		} else {
 			keepGoing = false
 			candidate := res.Candidates[0]
-			d.content = append(d.content, candidate.Content)
 			out = joinParts(candidate.Content.Parts)
 			internetSearch := candidate.GroundingMetadata != nil
 			runner.Logger().Debug(log.NewEvent(log.EndEventType, log.AiComponent).WithMessage("generated content").WithEngine(engine).WithContent(out).WithArg("internet_search", internetSearch))

@@ -7,7 +7,7 @@ require (
 	github.com/jinzhu/copier v0.4.0
 	github.com/theirish81/frags v0.25.0
 	google.golang.org/api v0.197.0
-	google.golang.org/genai v1.51.0
+	google.golang.org/genai v1.54.0
 )
 
 require (
