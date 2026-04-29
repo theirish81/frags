@@ -12,7 +12,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program.  See the LICENSE file for more details.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 // Package mcpauth provides authentication mechanisms for Model Context Protocol (MCP) servers.
