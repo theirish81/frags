@@ -7,7 +7,7 @@ require (
 	github.com/blues/jsonata-go v1.5.4
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/expr-lang/expr v1.17.8
-	github.com/go-playground/validator/v10 v10.30.1
+	github.com/go-playground/validator/v10 v10.30.2
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
 	github.com/jinzhu/copier v0.4.0
@@ -15,7 +15,8 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/samber/lo v1.53.0
 	github.com/stretchr/testify v1.11.1
-	github.com/theirish81/sesat2 v0.0.0-20260409090908-6631029d60fb
+	github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7
+	github.com/theirish81/sesat2 v0.0.0-20260429064941-d6239cdda3a0
 	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -23,7 +24,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
@@ -34,7 +35,7 @@ require (
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 )
