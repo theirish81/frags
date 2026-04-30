@@ -102,7 +102,9 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		ct = textContentType
 		genAiSchema = nil
 	} else {
-		if err := copier.Copy(genAiSchema, sx); err != nil {
+		if err := copier.CopyWithOption(genAiSchema, sx, copier.Option{
+			Converters: d.SchemaConverters(),
+		}); err != nil {
 			return nil, err
 		}
 	}
@@ -204,7 +206,9 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) 
 					pSchema = tool.InputSchema
 				}
 				genAiPSchema := &genai.Schema{}
-				if err := copier.Copy(genAiPSchema, pSchema); err != nil {
+				if err := copier.CopyWithOption(genAiPSchema, pSchema, copier.Option{
+					Converters: d.SchemaConverters(),
+				}); err != nil {
 					return nil, err
 				}
 				description := fx.Description
@@ -217,7 +221,6 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) 
 					Parameters:  genAiPSchema,
 				})
 			}
-		//case frags.ToolTypeMCP, frags.ToolTypeCollection:
 		default:
 			for k, v := range d.Functions.ListByCollection(tool.Name) {
 				var genAiPSchema *genai.Schema
@@ -264,4 +267,21 @@ func joinParts(parts []*genai.Part) string {
 
 func (d *Ai) RunFunction(ctx *util.FragsContext, functionCall frags.FunctionCaller, runner frags.ExportableRunner) (any, error) {
 	return runner.RunFunction(ctx, functionCall.Name, functionCall.Args)
+}
+
+func (d *Ai) SchemaConverters() []copier.TypeConverter {
+	return []copier.TypeConverter{
+		{
+			SrcType: []any{},
+			DstType: []string{},
+			Fn: func(src any) (any, error) {
+				s := src.([]any)
+				res := make([]string, len(s))
+				for i, v := range s {
+					res[i] = fmt.Sprint(v)
+				}
+				return res, nil
+			},
+		},
+	}
 }
