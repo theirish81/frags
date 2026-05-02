@@ -41,12 +41,13 @@ type Ai struct {
 }
 
 type Config struct {
-	Model       string        `yaml:"model" json:"model"`
-	Temperature float32       `yaml:"temperature" json:"temperature"`
-	TopK        float32       `yaml:"topK" json:"topK"`
-	TopP        float32       `yaml:"topP" json:"topP"`
-	Attempts    int           `yaml:"attempts" json:"attempts"`
-	RetryDelay  time.Duration `yaml:"retryDelay" json:"retryDelay"`
+	Model         string               `yaml:"model" json:"model"`
+	Temperature   float32              `yaml:"temperature" json:"temperature"`
+	TopK          float32              `yaml:"topK" json:"topK"`
+	TopP          float32              `yaml:"topP" json:"topP"`
+	Attempts      int                  `yaml:"attempts" json:"attempts"`
+	RetryDelay    time.Duration        `yaml:"retryDelay" json:"retryDelay"`
+	ThinkingLevel *genai.ThinkingLevel `yaml:"thinkingLevel" json:"thinkingLevel"`
 }
 
 func DefaultConfig() Config {
@@ -125,6 +126,12 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 	}
 	if len(d.systemPrompt) > 0 {
 		cfg.SystemInstruction = genai.NewContentFromText(d.systemPrompt, "system")
+	}
+	if d.config.ThinkingLevel != nil {
+		cfg.ThinkingConfig = &genai.ThinkingConfig{
+			ThinkingLevel:   *d.config.ThinkingLevel,
+			IncludeThoughts: false,
+		}
 	}
 	keepGoing := true
 	out := ""
