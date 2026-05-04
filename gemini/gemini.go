@@ -233,7 +233,9 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) 
 				var genAiPSchema *genai.Schema
 				if v.Schema != nil {
 					genAiPSchema = &genai.Schema{}
-					if err := copier.Copy(genAiPSchema, v.Schema); err != nil {
+					if err := copier.CopyWithOption(genAiPSchema, v.Schema, copier.Option{
+						Converters: d.SchemaConverters(),
+					}); err != nil {
 						return nil, err
 					}
 				}
