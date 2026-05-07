@@ -135,8 +135,13 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 	}
 	keepGoing := true
 	out := ""
+	counter := 0
 	d.content = append(d.content, newMsg)
 	for keepGoing {
+		counter++
+		if counter > 10 {
+			return nil, errors.New("loop detected. Too many iterations")
+		}
 		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(joinParts(d.content[len(d.content)-1].Parts)).WithEngine(engine))
 		var res *genai.GenerateContentResponse
 		if d.config.Attempts <= 0 {

@@ -256,7 +256,8 @@ definitions:
       iterateOn:
         description: |-
           a Golang Expr (https://github.com/expr-lang/expr) expression that refers to an array in the scope. If set,
-          the session will run for each item in the array. Important: the linked schema must be an array.
+          the session will run for each item in the array. Important: the linked schema must be an array. The iterator
+          object is accessible to prompts, prePrompts and preCalls as the `it` object (as in {{ .it }})
         examples:
           - "context.reps"
         type: string

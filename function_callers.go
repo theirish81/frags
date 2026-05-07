@@ -30,6 +30,7 @@ const (
 	AiFunctionCallDestination      FunctionCallDestination = "ai"
 	VarsFunctionCallDestination    FunctionCallDestination = "vars"
 	ContextFunctionCallDestination FunctionCallDestination = "context"
+	DbFunctionCallDestination      FunctionCallDestination = "db"
 )
 
 // FunctionCaller Represents a function invocation. NOTE: description is meant to explain to LLM what the output data is
@@ -70,6 +71,13 @@ func (f FunctionCallers) FilterAiFunctionCalls() FunctionCallers {
 func (f FunctionCallers) FilterContextFunctionCalls() FunctionCallers {
 	fc := lo.Filter(f, func(fc FunctionCaller, index int) bool {
 		return fc.In != nil && *fc.In == ContextFunctionCallDestination
+	})
+	return fc
+}
+
+func (f FunctionCallers) FilterDbFunctionCalls() FunctionCallers {
+	fc := lo.Filter(f, func(fc FunctionCaller, index int) bool {
+		return fc.In != nil && *fc.In == DbFunctionCallDestination
 	})
 	return fc
 }

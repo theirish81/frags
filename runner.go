@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v5"
+	"github.com/diaphora-ai/zealql"
 	"github.com/go-playground/validator/v10"
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/log"
@@ -61,6 +62,7 @@ type Runner[T any] struct {
 	vars              evaluators.Vars
 	ExternalFunctions ExternalFunctions
 	ToolsDefinitions  ToolDefinitions
+	db                *zealql.Database
 }
 
 // SessionStatus is the status of a session.
@@ -143,6 +145,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 	for k, _ := range sessionManager.Sessions {
 		status.Store(k, queuedSessionStatus)
 	}
+	db, _ := zealql.NewDatabase()
 	return Runner[T]{
 		sessionManager:    sessionManager,
 		status:            status,
@@ -157,6 +160,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 		ExternalFunctions: opts.externalFunctions,
 		ToolsDefinitions:  opts.toolsDefinitions,
 		vars:              make(evaluators.Vars),
+		db:                db,
 	}
 }
 
@@ -170,6 +174,10 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 	defer func() {
 		r.running = false
 	}()
+	for k, v := range NewInternalDbFunctions(r.db).AsFunctions() {
+		r.ExternalFunctions[k] = v
+	}
+	r.sessionManager.AppendToSystemPrompt(internalDbSystemPrompt)
 
 	if err := validator.New().Struct(r.sessionManager); err != nil {
 		return nil, err
@@ -233,6 +241,15 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 		return r.dataStructure, err
 	}
 	r.vars.Apply(callVarResults)
+
+	callDbResults, err := r.RunAllFunctionCallers(ctx, r.sessionManager.PreCalls.FilterDbFunctionCalls(), r.newEvalScope())
+	for k, v := range callDbResults {
+		items := v.([]any)
+		_, err := r.db.CreateTable(k, items)
+		if err != nil {
+			return r.dataStructure, err
+		}
+	}
 
 	// as long as all sessions have no reached a terminal state, keep scanning sessions
 	for !r.IsCompleted() {
@@ -355,7 +372,7 @@ func (r *Runner[T]) runSession(ctx *util.FragsContext, sessionID string, session
 		localResources := aiResources
 
 		// run all the pre-calls with CONTEXT as destination and set the results to the context
-		callContextResults, err := r.RunAllFunctionCallers(ctx, session.PreCalls.FilterContextFunctionCalls(), r.newEvalScope().WithVars(localVars).WithIterator(it))
+		callContextResults, err := r.RunAllFunctionCallers(ctx, session.PreCalls.FilterContextFunctionCalls(), r.newEvalScope().WithVars(localVars).WithIterator(it).WithDB(r.db))
 		if err != nil {
 			return err
 		}
@@ -426,7 +443,10 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 
 	// finally we ask the AI for the FIRST prePrompt's response. Notice that the prePrompt is getting the tools.
 	if err = util.Retry(ctx, session.Attempts, func() error {
-		_, err := ai.Ask(ctx, prePrompt, nil, session.Tools, r, resources...)
+		tools := ToolDefinitions{}
+		tools = append(tools, session.Tools...)
+		tools = append(tools, NewInternalDbFunctions(r.db).AsToolDefinitions()...)
+		_, err := ai.Ask(ctx, prePrompt, nil, tools, r, resources...)
 		if err != nil {
 			r.logger.Err(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).WithMessage("error asking pre-prompt").
 				WithSession(sessionID).WithErr(err).WithIteration(iteratorIdx))

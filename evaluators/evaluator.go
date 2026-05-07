@@ -25,6 +25,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/diaphora-ai/zealql"
 	"github.com/expr-lang/expr"
 	"github.com/theirish81/frags/util"
 )
@@ -35,6 +36,7 @@ const (
 	ComponentsAttr = "components"
 	IteratorAttr   = "it"
 	VarsAttr       = "vars"
+	DbAttr         = "db"
 )
 
 // EvalScope is the scope for evaluating expressions.
@@ -55,6 +57,11 @@ func (e EvalScope) WithVars(vars map[string]any) EvalScope {
 	for k, v := range vars {
 		e[VarsAttr].(map[string]any)[k] = v
 	}
+	return e
+}
+
+func (e EvalScope) WithDB(db *zealql.Database) EvalScope {
+	e[DbAttr] = db
 	return e
 }
 
