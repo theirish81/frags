@@ -153,7 +153,7 @@ func EvaluateArrayExpression(expression string, scope EvalScope) ([]any, error) 
 // EvaluateMapValues will evaluate all **first level** strings as templates in a given map of arguments.
 func EvaluateMapValues(args map[string]any, scope EvalScope) (map[string]any, error) {
 	if args == nil {
-		return nil, nil
+		return make(map[string]any), nil
 	}
 	out := make(map[string]any)
 	for k, v := range args {
