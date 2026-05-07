@@ -47,23 +47,24 @@ Internal database Notes:
 * Produce queries for the SQL-Lite dialect that will most definitely work 
 `
 
-type InternalDbCollection struct {
-	db *zealql.Database
+type InternalTools struct {
+	db              *zealql.Database
+	scriptingEngine ScriptEngine
 }
 
-func NewInternalDbFunctions(db *zealql.Database) *InternalDbCollection {
-	return &InternalDbCollection{db: db}
+func NewInternalTools(runner ExportableRunner) *InternalTools {
+	return &InternalTools{db: runner.DB(), scriptingEngine: runner.ScriptEngine()}
 }
 
-func (c InternalDbCollection) Name() string {
+func (c InternalTools) Name() string {
 	return "internal_db_functions"
 }
 
-func (c InternalDbCollection) Description() string {
+func (c InternalTools) Description() string {
 	return "functions to interact with the internal database"
 }
 
-func (c InternalDbCollection) AsToolDefinitions() ToolDefinitions {
+func (c InternalTools) AsToolDefinitions() ToolDefinitions {
 	def := ToolDefinitions{}
 	for _, f := range c.AsFunctions() {
 		def = append(def, ToolDefinition{
@@ -76,7 +77,7 @@ func (c InternalDbCollection) AsToolDefinitions() ToolDefinitions {
 	return def
 }
 
-func (c InternalDbCollection) AsFunctions() ExternalFunctions {
+func (c InternalTools) AsFunctions() ExternalFunctions {
 	return ExternalFunctions{
 		"list_internal_db_tables": {
 			Name:        "list_internal_db_tables",
@@ -158,6 +159,28 @@ func (c InternalDbCollection) AsFunctions() ExternalFunctions {
 						Items: &schema.Schema{
 							Type: schema.Object,
 						},
+					},
+				},
+			},
+		},
+		"execute_javascript": {
+			Name:        "execute_javascript",
+			Description: "execute JavaScript code (using completion-value notation) for the sole purpose of number crunching and data reshaping. No NodeJS objects are allowed (console.log... etc)",
+			Func: func(ctx *util.FragsContext, data map[string]any) (any, error) {
+				return c.scriptingEngine.RunCode(ctx, data["code"].(string), data["args"], nil)
+			},
+			Schema: &schema.Schema{
+				Type:     schema.Object,
+				Required: []string{"code", "args"},
+				Properties: map[string]*schema.Schema{
+					"code": {
+						Type:        schema.String,
+						Description: "the JavaScript code to execute",
+						Example:     "var t = args.raw.split(',').map(t => t.trim())\nt;",
+					},
+					"args": {
+						Type:        schema.Object,
+						Description: "the arguments to pass to the code. They will be exposed to the engine as the object `args`. Do not inline the arguments in the code",
 					},
 				},
 			},

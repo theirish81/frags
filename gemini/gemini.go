@@ -123,6 +123,12 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		TopK:             &d.config.TopK,
 		TopP:             &d.config.TopP,
 		Tools:            tx,
+		SafetySettings: []*genai.SafetySetting{
+			{
+				Category:  genai.HarmCategoryDangerousContent,
+				Threshold: genai.HarmBlockThresholdBlockNone,
+			},
+		},
 	}
 	if len(d.systemPrompt) > 0 {
 		cfg.SystemInstruction = genai.NewContentFromText(d.systemPrompt, "system")

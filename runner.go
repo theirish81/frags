@@ -40,6 +40,7 @@ type ExportableRunner interface {
 	RunFunction(ctx *util.FragsContext, name string, args map[string]any) (any, error)
 	ScriptEngine() ScriptEngine
 	Logger() *log.StreamerLogger
+	DB() *zealql.Database
 }
 
 // Runner is a struct that runs a session manager.
@@ -174,7 +175,7 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 	defer func() {
 		r.running = false
 	}()
-	for k, v := range NewInternalDbFunctions(r.db).AsFunctions() {
+	for k, v := range NewInternalTools(r).AsFunctions() {
 		r.ExternalFunctions[k] = v
 	}
 	r.sessionManager.AppendToSystemPrompt(internalDbSystemPrompt)
@@ -445,7 +446,7 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 	if err = util.Retry(ctx, session.Attempts, func() error {
 		tools := ToolDefinitions{}
 		tools = append(tools, session.Tools...)
-		tools = append(tools, NewInternalDbFunctions(r.db).AsToolDefinitions()...)
+		tools = append(tools, NewInternalTools(r).AsToolDefinitions()...)
 		_, err := ai.Ask(ctx, prePrompt, nil, tools, r, resources...)
 		if err != nil {
 			r.logger.Err(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).WithMessage("error asking pre-prompt").
@@ -748,4 +749,8 @@ func (r *Runner[T]) newEvalScope() evaluators.EvalScope {
 		evaluators.IteratorAttr:   nil,
 	}
 	return scope.WithVars(r.vars)
+}
+
+func (r *Runner[T]) DB() *zealql.Database {
+	return r.db
 }
