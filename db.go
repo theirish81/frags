@@ -82,7 +82,6 @@ func (c InternalTools) AsFunctions() ExternalFunctions {
 		"list_internal_db_tables": {
 			Name:        "list_internal_db_tables",
 			Description: "lists all the tables in the internal database.",
-			Collection:  "internal_db_functions",
 			Schema: &schema.Schema{
 				Type: schema.Object,
 			},
@@ -121,7 +120,6 @@ func (c InternalTools) AsFunctions() ExternalFunctions {
 		"query_internal_db_tables": {
 			Name:        "query_internal_db_tables",
 			Description: "queries the internal database",
-			Collection:  "internal_db_functions",
 			Func: func(ctx *util.FragsContext, data map[string]any) (any, error) {
 				return c.db.Query(data["query"].(string))
 			},
@@ -164,23 +162,29 @@ func (c InternalTools) AsFunctions() ExternalFunctions {
 			},
 		},
 		"execute_javascript": {
-			Name:        "execute_javascript",
-			Description: "execute JavaScript code (using completion-value notation) for the sole purpose of number crunching and data reshaping. No NodeJS objects are allowed (console.log... etc)",
+			Name: "execute_javascript",
+			Description: `execute JavaScript code (using completion-value notation) for the sole purpose of number crunching
+and data reshaping. No NodeJS objects are allowed (console.log... etc).`,
 			Func: func(ctx *util.FragsContext, data map[string]any) (any, error) {
 				return c.scriptingEngine.RunCode(ctx, data["code"].(string), data["args"], nil)
 			},
 			Schema: &schema.Schema{
 				Type:     schema.Object,
 				Required: []string{"code", "args"},
+				Example: map[string]any{
+					"code": "var t = args.raw.split(',').map(t => t.trim())\nt;",
+					"args": map[string]any{"raw": "a, b, c"},
+				},
 				Properties: map[string]*schema.Schema{
 					"code": {
 						Type:        schema.String,
-						Description: "the JavaScript code to execute",
+						Description: "the JavaScript code to execute, using completion-value notation",
 						Example:     "var t = args.raw.split(',').map(t => t.trim())\nt;",
 					},
 					"args": {
-						Type:        schema.Object,
-						Description: "the arguments to pass to the code. They will be exposed to the engine as the object `args`. Do not inline the arguments in the code",
+						Type: schema.Object,
+						Description: `the arguments to pass to the code. They will be exposed to the engine as the
+object "args". Do not inline the arguments in the code`,
 					},
 				},
 			},

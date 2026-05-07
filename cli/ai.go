@@ -31,6 +31,7 @@ import (
 	"github.com/theirish81/frags/chatgpt"
 	"github.com/theirish81/frags/gemini"
 	"github.com/theirish81/frags/ollama"
+	"github.com/theirish81/frags/util"
 	"google.golang.org/genai"
 )
 
@@ -42,14 +43,19 @@ func initAi() (frags.Ai, error) {
 		if err != nil {
 			return nil, err
 		}
-		return gemini.NewAI(client, gemini.Config{
+		config := gemini.Config{
 			Temperature: cfg.Temperature,
 			TopK:        cfg.TopK,
 			TopP:        cfg.TopP,
 			Model:       cfg.Model,
 			Attempts:    3,
 			RetryDelay:  3 * time.Second,
-		}), nil
+		}
+		if cfg.ThinkingLevel != "" {
+			config.ThinkingLevel = util.Ptr(genai.ThinkingLevel(cfg.ThinkingLevel))
+		}
+
+		return gemini.NewAI(client, config), nil
 	case engineOllama:
 		return ollama.NewAI(cfg.OllamaBaseURL, ollama.Config{
 			Temperature: cfg.Temperature,
