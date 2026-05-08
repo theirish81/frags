@@ -27,12 +27,12 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v5"
-	"github.com/diaphora-ai/zealql"
 	"github.com/go-playground/validator/v10"
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/util"
+	"github.com/theirish81/zealql"
 )
 
 type ExportableRunner interface {
@@ -40,7 +40,6 @@ type ExportableRunner interface {
 	RunFunction(ctx *util.FragsContext, name string, args map[string]any) (any, error)
 	ScriptEngine() ScriptEngine
 	Logger() *log.StreamerLogger
-	DB() *zealql.Database
 }
 
 // Runner is a struct that runs a session manager.
@@ -94,6 +93,7 @@ type RunnerOptions struct {
 	scriptEngine      ScriptEngine
 	externalFunctions ExternalFunctions
 	toolsDefinitions  ToolDefinitions
+	db                *zealql.Database
 }
 
 // RunnerOption is an option for the runner.
@@ -131,6 +131,12 @@ func WithToolsDefinitions(toolsDefinitions ToolDefinitions) RunnerOption {
 	}
 }
 
+func WithInternalDatabase(db *zealql.Database) RunnerOption {
+	return func(o *RunnerOptions) {
+		o.db = db
+	}
+}
+
 // NewRunner creates a new runner.
 func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.ResourceLoader, ai Ai, options ...RunnerOption) Runner[T] {
 	opts := RunnerOptions{
@@ -146,7 +152,6 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 	for k, _ := range sessionManager.Sessions {
 		status.Store(k, queuedSessionStatus)
 	}
-	db, _ := zealql.NewDatabase()
 	return Runner[T]{
 		sessionManager:    sessionManager,
 		status:            status,
@@ -161,7 +166,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 		ExternalFunctions: opts.externalFunctions,
 		ToolsDefinitions:  opts.toolsDefinitions,
 		vars:              make(evaluators.Vars),
-		db:                db,
+		db:                opts.db,
 	}
 }
 
@@ -175,10 +180,6 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 	defer func() {
 		r.running = false
 	}()
-	for k, v := range NewInternalTools(r).AsFunctions() {
-		r.ExternalFunctions[k] = v
-	}
-	r.sessionManager.AppendToSystemPrompt(internalDbSystemPrompt)
 
 	if err := validator.New().Struct(r.sessionManager); err != nil {
 		return nil, err
@@ -244,15 +245,16 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 	r.vars.Apply(callVarResults)
 
 	callDbResults, err := r.RunAllFunctionCallers(ctx, r.sessionManager.PreCalls.FilterDbFunctionCalls(), r.newEvalScope())
-	for k, v := range callDbResults {
-		items := v.([]any)
-		_, err := r.db.CreateTable(k, items)
-		if err != nil {
-			return r.dataStructure, err
+	if r.db != nil {
+		for k, v := range callDbResults {
+			items := v.([]any)
+			if _, err = r.db.CreateTable(k, items); err != nil {
+				return r.dataStructure, err
+			}
 		}
 	}
 
-	// as long as all sessions have no reached a terminal state, keep scanning sessions
+	// as long as all sessions have not reached a terminal state, keep scanning sessions
 	for !r.IsCompleted() {
 		// if the scan fails, we return the error and stop scanning. This will end the program
 		if err := r.scanSessions(ctx); err != nil {
@@ -446,7 +448,6 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 	if err = util.Retry(ctx, session.Attempts, func() error {
 		tools := ToolDefinitions{}
 		tools = append(tools, session.Tools...)
-		tools = append(tools, NewInternalTools(r).AsToolDefinitions()...)
 		_, err := ai.Ask(ctx, prePrompt, nil, tools, r, resources...)
 		if err != nil {
 			r.logger.Err(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).WithMessage("error asking pre-prompt").

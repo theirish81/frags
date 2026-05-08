@@ -18,6 +18,7 @@ require (
 	github.com/theirish81/frags/chatgpt v0.25.0
 	github.com/theirish81/frags/gemini v0.25.0
 	github.com/theirish81/frags/ollama v0.25.0
+	github.com/theirish81/fragsfunctions/data v0.6.0
 	github.com/theirish81/fragsfunctions/fs v0.6.0
 	github.com/theirish81/fragsfunctions/http v0.6.0
 	github.com/theirish81/fragsfunctions/postgres v0.6.0
@@ -26,12 +27,13 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require github.com/theirish81/zealql v0.0.0-20260508115023-11939b50ccce
+
 require (
 	cloud.google.com/go v0.116.0 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
 	github.com/blues/jsonata-go v1.5.4 // indirect
-	github.com/diaphora-ai/zealql v0.1.0 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -113,6 +115,4 @@ replace github.com/theirish81/frags v0.25.1-rc0 => ../
 
 replace github.com/theirish81/frags/gemini v0.25.0 => ../gemini
 
-replace github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7 => ../../diaphora/doauth
-
-replace github.com/diaphora-ai/zealql v0.1.0 => ../../diaphora/zealql
+replace github.com/theirish81/fragsfunctions/data v0.6.0 => ../../fragsfunctions/data

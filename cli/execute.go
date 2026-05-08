@@ -28,6 +28,8 @@ import (
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/scriptengines"
 	"github.com/theirish81/frags/util"
+	"github.com/theirish81/fragsfunctions/data"
+	"github.com/theirish81/zealql"
 )
 
 // execute executes the plan using the specified parameters
@@ -58,6 +60,10 @@ func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[stri
 	defer func() {
 		_ = mcpTools.Close()
 	}()
+	db, _ := zealql.NewDatabase()
+	zealCollection := data.New(db)
+	functions = functions.WithFunctions(zealCollection.AsFunctions())
+
 	ai.SetFunctions(functions)
 	logger.Info(log.NewEvent(log.GenericEventType, log.RunnerComponent).WithMessage("available functions").WithArg("functions", functions.String()))
 
@@ -75,6 +81,7 @@ func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[stri
 		frags.WithScriptEngine(scriptengines.NewJavascriptScriptingEngine()),
 		frags.WithExternalFunctions(functions),
 		frags.WithToolsDefinitions(definitions),
+		frags.WithInternalDatabase(db),
 	)
 	// execute
 	return runner.Run(ctx, paramsMap)

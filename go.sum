@@ -72,6 +72,8 @@ github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7 h1:JbaOgonMdFmcF
 github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7/go.mod h1:njnhj5eJQ+3Kxe4PDiJL5gTHJkWa3TfBOmtZ3X5a7/E=
 github.com/theirish81/sesat2 v0.0.0-20260429064941-d6239cdda3a0 h1:ys6a0/Rub0bl9jP49AUlNgfGb+Jo+ugsClG4rrS5LvM=
 github.com/theirish81/sesat2 v0.0.0-20260429064941-d6239cdda3a0/go.mod h1:R/UhIVwVe6v+F1Dg3hfVOdPijkxJfksy1GiBire4JiM=
+github.com/theirish81/zealql v0.0.0-20260508115023-11939b50ccce h1:Q0zxlbj+IlE414+WbVrAiS5GCzuz9xwUhmlABxe8MyI=
+github.com/theirish81/zealql v0.0.0-20260508115023-11939b50ccce/go.mod h1:lkKjskfEq7y1a5/rzyWY8gqfcWxnpcqujL3f9keZlec=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
 github.com/yosida95/uritemplate/v3 v3.0.2/go.mod h1:ILOh0sOhIJR3+L/8afwt/kE++YT040gmv5BQTMR2HP4=
 golang.org/x/crypto v0.49.0 h1:+Ng2ULVvLHnJ/ZFEq4KdcDd/cfjrrjjNSXNzxg0Y4U4=

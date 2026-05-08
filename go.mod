@@ -5,7 +5,6 @@ go 1.25.4
 require (
 	github.com/avast/retry-go/v5 v5.0.0
 	github.com/blues/jsonata-go v1.5.4
-	github.com/diaphora-ai/zealql v0.1.0
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/expr-lang/expr v1.17.8
 	github.com/go-playground/validator/v10 v10.30.2
@@ -18,6 +17,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7
 	github.com/theirish81/sesat2 v0.0.0-20260429064941-d6239cdda3a0
+	github.com/theirish81/zealql v0.0.0-20260508115023-11939b50ccce
 	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -48,5 +48,3 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.50.0 // indirect
 )
-
-replace github.com/diaphora-ai/zealql v0.1.0 => ../diaphora/zealql

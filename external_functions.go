@@ -92,3 +92,10 @@ func (f ExternalFunctions) ListByCollection(collection string) ExternalFunctions
 	}
 	return out
 }
+
+func (f ExternalFunctions) WithFunctions(functions ExternalFunctions) ExternalFunctions {
+	for k, v := range functions {
+		f[k] = v
+	}
+	return f
+}

@@ -25,9 +25,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/diaphora-ai/zealql"
 	"github.com/expr-lang/expr"
 	"github.com/theirish81/frags/util"
+	"github.com/theirish81/zealql"
 )
 
 const (

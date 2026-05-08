@@ -90,24 +90,18 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig ExtendedToolsConf
 		switch v.ToolType {
 		case "fs":
 			t := fs.New()
-			for k, v := range t.AsFunctions() {
-				functions[k] = v
-			}
+			functions = functions.WithFunctions(t.AsFunctions())
 			toolCollections = append(toolCollections, t)
 		case "postgres":
 			c, err := postgres.New(ctx, k, v.Params["postgres_url"])
 			if err != nil {
 				return mcpTools, toolCollections, toolDefinitions, functions, err
 			}
-			for k, v := range c.AsFunctions() {
-				functions[k] = v
-			}
+			functions = functions.WithFunctions(c.AsFunctions())
 			toolCollections = append(toolCollections, c)
 		case "http":
 			c := http.New(k, nil)
-			for k, v := range c.AsFunctions() {
-				functions[k] = v
-			}
+			functions = functions.WithFunctions(c.AsFunctions())
 			toolCollections = append(toolCollections, c)
 		}
 	}
@@ -118,9 +112,7 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig ExtendedToolsConf
 		if err != nil {
 			return mcpTools, toolCollections, toolDefinitions, functions, err
 		}
-		for k, v := range c.AsFunctions() {
-			functions[k] = v
-		}
+		functions = functions.WithFunctions(c.AsFunctions())
 		toolCollections = append(toolCollections, c)
 
 		toolDefinitions = append(toolDefinitions, frags.ToolDefinition{
