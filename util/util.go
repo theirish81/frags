@@ -60,15 +60,6 @@ func Retry(ctx context.Context, attempts int, callback func() error) error {
 	return retry.New(retry.Attempts(uint(attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(callback)
 }
 
-func SetAllInContext(context any, values map[string]any) error {
-	for k, v := range values {
-		if err := SetInContext(context, k, v); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func SetInContext(context any, varName string, value any) error {
 	v := reflect.ValueOf(context)
 	if v.Kind() != reflect.Ptr || v.IsNil() {
@@ -163,4 +154,28 @@ func (f *FragsContext) Err() error {
 		return f.Context.Err()
 	}
 	return &CtxError{Err1: f.Context.Err(), Err2: f.ProgramError}
+}
+
+// IndentMultilineString adds a specified number of tabs to each line of a string.
+func IndentMultilineString(text string, numTabs int) string {
+	if text == "" {
+		return ""
+	}
+
+	prefix := strings.Repeat("\t", numTabs)
+	lines := strings.Split(text, "\n")
+
+	var builder strings.Builder
+
+	for i, line := range lines {
+		if i == len(lines)-1 && line == "" {
+			break
+		}
+
+		builder.WriteString(prefix)
+		builder.WriteString(line)
+		builder.WriteString("\n")
+	}
+
+	return builder.String()
 }

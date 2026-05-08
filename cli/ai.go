@@ -38,6 +38,8 @@ import (
 // initAi initializes the AI engine based on the configuration.
 func initAi() (frags.Ai, error) {
 	switch cfg.guessAi() {
+	case engineDummy:
+		return frags.NewDummyAi(), nil
 	case engineGemini:
 		client, err := newGeminiClient()
 		if err != nil {

@@ -229,29 +229,9 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 		go r.runSessionWorker(ctx, i)
 	}
 
-	// run all functions with "context" as destination and set the results to the context
-	callContextResults, err := r.RunAllFunctionCallers(ctx, r.sessionManager.PreCalls.FilterContextFunctionCalls(), r.newEvalScope())
-	if err != nil {
+	// run all functions global preCall functions
+	if _, err := r.RunAllFunctionCallers(ctx, r.sessionManager.PreCalls, r.newEvalScope(), r.vars); err != nil {
 		return r.dataStructure, err
-	}
-	if err = util.SetAllInContext(r.dataStructure, callContextResults); err != nil {
-		return r.dataStructure, err
-	}
-	// run all functions with "vars" as destination and set the results to the runners vars
-	callVarResults, err := r.RunAllFunctionCallers(ctx, r.sessionManager.PreCalls.FilterVarsFunctionCalls(), r.newEvalScope())
-	if err != nil {
-		return r.dataStructure, err
-	}
-	r.vars.Apply(callVarResults)
-
-	callDbResults, err := r.RunAllFunctionCallers(ctx, r.sessionManager.PreCalls.FilterDbFunctionCalls(), r.newEvalScope())
-	if r.db != nil {
-		for k, v := range callDbResults {
-			items := v.([]any)
-			if _, err = r.db.CreateTable(k, items); err != nil {
-				return r.dataStructure, err
-			}
-		}
 	}
 
 	// as long as all sessions have not reached a terminal state, keep scanning sessions
@@ -263,11 +243,10 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 		}
 	}
 	r.running = false
-	err = nil
 	if failedSessions := r.ListFailedSessions(); len(failedSessions) > 0 {
-		err = util.SessionsFailedError{FailedSessions: failedSessions, Err: ctx.Err()}
+		return r.dataStructure, util.SessionsFailedError{FailedSessions: failedSessions, Err: ctx.Err()}
 	}
-	return r.dataStructure, err
+	return r.dataStructure, nil
 }
 func (r *Runner[T]) checkParametersRequirements() error {
 	if r.sessionManager.Parameters == nil || len(r.sessionManager.Parameters.Parameters) == 0 {
@@ -375,21 +354,10 @@ func (r *Runner[T]) runSession(ctx *util.FragsContext, sessionID string, session
 		localResources := aiResources
 
 		// run all the pre-calls with CONTEXT as destination and set the results to the context
-		callContextResults, err := r.RunAllFunctionCallers(ctx, session.PreCalls.FilterContextFunctionCalls(), r.newEvalScope().WithVars(localVars).WithIterator(it).WithDB(r.db))
+		aiContext, err := r.RunAllFunctionCallers(ctx, session.PreCalls, r.newEvalScope().WithVars(localVars).WithIterator(it).WithDB(r.db), localVars)
 		if err != nil {
 			return err
 		}
-		if err = util.SetAllInContext(r.dataStructure, callContextResults); err != nil {
-			return err
-		}
-
-		// run all the pre-calls with VARS as destination and set the results to the local vars
-		callVarResults, err := r.RunAllFunctionCallers(ctx, session.PreCalls.FilterVarsFunctionCalls(), r.newEvalScope().WithVars(localVars).WithIterator(it))
-		if err != nil {
-			return err
-		}
-		localVars.Apply(callVarResults)
-
 		scope := r.newEvalScope().WithVars(localVars).WithIterator(it)
 		if session.HasPrePrompt() {
 			// these are the resources that will be loaded into the AI context by the first prePrompt.
@@ -397,13 +365,13 @@ func (r *Runner[T]) runSession(ctx *util.FragsContext, sessionID string, session
 			// we reset localResources because they've already been introduced in the context by the first prePrompt.
 			// The prompt would need to include them only if the prePrompt was not present.
 			localResources = make(resources.ResourceDataItems, 0)
-			if err := r.runPrePrompts(ctx, ai, sessionID, session, itIdx, scope, ppResources); err != nil {
+			if err := r.runPrePrompts(ctx, ai, sessionID, session, itIdx, scope, aiContext, ppResources); err != nil {
 				return err
 			}
 		}
 		if session.HasPrompt() {
 			pResources := append(localResources, sessionResources.FilterPromptResources()...)
-			if err := r.runPrompt(ctx, ai, sessionID, session, itIdx, scope, pResources); err != nil {
+			if err := r.runPrompt(ctx, ai, sessionID, session, itIdx, scope, aiContext, pResources); err != nil {
 				return err
 			}
 		}
@@ -422,7 +390,8 @@ func (r *Runner[T]) ListQueued() Sessions {
 	return sessions
 }
 
-func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int, scope evaluators.EvalScope, resources resources.ResourceDataItems) error {
+func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
+	scope evaluators.EvalScope, preCallContext string, resources resources.ResourceDataItems) error {
 	if !session.HasPrompt() {
 		return errors.New("runPrePrompts called on a session without a prompt")
 	}
@@ -437,13 +406,12 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 		return err
 	}
 	// the FIRST prePrompt carries all the contextualization payload, so we add whatever needs to go here.
-	prePrompt, err := r.contextualizePrompt(ctx, prePrompts[0], session, scope)
+	prePrompt, err := r.contextualizePrompt(prePrompts[0], preCallContext, session, scope)
 	if err != nil {
 		r.logger.Err(log.NewEvent(log.ErrorEventType, log.PrePromptComponent).
 			WithMessage("failed to contextualize pre-prompt").WithErr(err).WithSession(sessionID).WithIteration(iteratorIdx))
 		return err
 	}
-
 	// finally we ask the AI for the FIRST prePrompt's response. Notice that the prePrompt is getting the tools.
 	if err = util.Retry(ctx, session.Attempts, func() error {
 		tools := ToolDefinitions{}
@@ -481,7 +449,7 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 }
 
 func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
-	scope evaluators.EvalScope, promptResources resources.ResourceDataItems) error {
+	scope evaluators.EvalScope, aiContext string, promptResources resources.ResourceDataItems) error {
 	if len(session.Prompt) == 0 {
 		return errors.New("runPrompt called on a session without a prompt")
 	}
@@ -520,7 +488,7 @@ func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, s
 				// as this is the first phase, and there was no prePrompt, we contextualize the prompt with Frags
 				// context or preCalls, if so configured.
 				if !session.HasPrePrompt() {
-					prompt, err = r.contextualizePrompt(ctx, prompt, session, scope)
+					prompt, err = r.contextualizePrompt(prompt, aiContext, session, scope)
 					if err != nil {
 						r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
 							WithMessage("failed to contextualize prompt").WithErr(err).WithSession(sessionID).
@@ -661,8 +629,12 @@ func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) 
 			// 3. the worker is removed from the wait group.
 			defer func() {
 				if err := recover(); err != nil {
+					var castErr error
+					if e, ok := err.(error); ok {
+						castErr = e
+					}
 					r.logger.Err(log.NewEvent(log.ErrorEventType, log.WorkerComponent).WithMessage("worker panicked").
-						WithIteration(index).WithSession(t.id))
+						WithIteration(index).WithSession(t.id).WithErr(castErr))
 					success = false
 				}
 				sessionContext.Cancel(nil)

@@ -25,6 +25,7 @@ const (
 	engineOllama    = "ollama"
 	engineChatgpt   = "chatgpt"
 	engineAnthropic = "anthropic"
+	engineDummy     = "dummy"
 )
 
 // supported output formats
@@ -63,6 +64,8 @@ func (c Config) guessAi() string {
 		return engineChatgpt
 	case engineAnthropic:
 		return engineAnthropic
+	case engineDummy:
+		return engineDummy
 	}
 	if c.OllamaBaseURL != "" && c.Model != "" {
 		return engineOllama

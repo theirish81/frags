@@ -65,7 +65,7 @@ func TestRunner_RunDependenciesAndContext(t *testing.T) {
 	runner := NewRunner[map[string]string](mgr, resources.NewDummyResourceLoader(), ai, WithSessionWorkers(3))
 	out, err := runner.Run(util.NewFragsContext(time.Minute), nil)
 	assert.Nil(t, err)
-	assert.Contains(t, (*out)["summary"], "CURRENT CONTEXT")
+	assert.Contains(t, (*out)["summary"], "<Scope>")
 	assert.Contains(t, (*out)["summary"], "animal1")
 	_, ok := (*out)["nop"]
 	assert.False(t, ok)
@@ -120,7 +120,8 @@ func TestRunner_RunAllFunctionCalls(t *testing.T) {
 			Var:  util.StrPtr("f2"),
 		},
 	}
-	out, err := runner.RunAllFunctionCallers(util.NewFragsContext(time.Minute), fcs, runner.newEvalScope())
+	outVars := make(map[string]any, 0)
+	_, err = runner.RunAllFunctionCallers(util.NewFragsContext(time.Minute), fcs, runner.newEvalScope(), outVars)
 	assert.NoError(t, err)
-	assert.Equal(t, map[string]any{"f1": "val1", "f2": "val2 + val1"}, out)
+	assert.Equal(t, map[string]any{"f1": "val1", "f2": "val2 + val1"}, outVars)
 }
