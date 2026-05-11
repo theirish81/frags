@@ -241,20 +241,28 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) 
 			}
 		default:
 			for k, v := range d.Functions.ListByCollection(tool.Name) {
-				var genAiPSchema *genai.Schema
+				var genAiInputSchema *genai.Schema
 				if v.Schema != nil {
-					genAiPSchema = &genai.Schema{}
-					if err := copier.CopyWithOption(genAiPSchema, v.Schema, copier.Option{
+					genAiInputSchema = &genai.Schema{}
+					if err := copier.CopyWithOption(genAiInputSchema, v.Schema, copier.Option{
 						Converters: d.SchemaConverters(),
 					}); err != nil {
 						return nil, err
 					}
 				}
+				var genAiOutputSchema *genai.Schema
+				if v.OutputSchema != nil {
+					genAiOutputSchema = &genai.Schema{}
+					_ = copier.CopyWithOption(genAiOutputSchema, v.OutputSchema, copier.Option{
+						Converters: d.SchemaConverters(),
+					})
+				}
 				if tool.Allowlist == nil || slices.Contains(*tool.Allowlist, k) {
 					fd = append(fd, &genai.FunctionDeclaration{
 						Name:        k,
 						Description: v.Description,
-						Parameters:  genAiPSchema,
+						Parameters:  genAiInputSchema,
+						Response:    genAiOutputSchema,
 					})
 				}
 
