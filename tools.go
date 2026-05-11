@@ -41,12 +41,13 @@ const (
 // InputSchema defines the input schema for the tool. mcp and collection tools don't have an input schema.
 // Allowlist is a list of allowed functions when the tool is MCP or collection. If nil, all functions are allowed.
 type ToolDefinition struct {
-	Name        string         `json:"name" yaml:"name"`
-	Collection  string         `json:"-" yaml:"-"`
-	Description string         `json:"description,omitempty" yaml:"description,omitempty"`
-	Type        ToolType       `json:"type" yaml:"type" validate:"required"`
-	InputSchema *schema.Schema `json:"inputSchema,omitempty" yaml:"inputSchema,omitempty"`
-	Allowlist   *[]string      `json:"allowlist,omitempty" yaml:"allowlist,omitempty"`
+	Name         string         `json:"name" yaml:"name"`
+	Collection   string         `json:"-" yaml:"-"`
+	Description  string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Type         ToolType       `json:"type" yaml:"type" validate:"required"`
+	InputSchema  *schema.Schema `json:"inputSchema,omitempty" yaml:"inputSchema,omitempty"`
+	OutputSchema *schema.Schema `json:"outputSchema,omitempty" yaml:"outputSchema,omitempty"`
+	Allowlist    *[]string      `json:"allowlist,omitempty" yaml:"allowlist,omitempty"`
 }
 
 func (t ToolDefinition) String() string {
