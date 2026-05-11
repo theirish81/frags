@@ -133,7 +133,9 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		if err != nil {
 			return nil, err
 		}
-		d.content = append(d.content, response.Output.Last())
+		for _, item := range response.Output {
+			d.content = append(d.content, item)
+		}
 		if response.HasFunctionCalls() {
 			if err := d.handleFunctionCalls(ctx, response, runner); err != nil {
 				return nil, err
