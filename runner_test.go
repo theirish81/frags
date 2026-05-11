@@ -51,7 +51,7 @@ func TestRunner_Run(t *testing.T) {
 	assert.NotEmpty(t, out.P3)
 	assert.NotEmpty(t, out.P4)
 
-	assert.Equal(t, "extract these images data. Make sure they contain dog", out.P3)
+	assert.Equal(t, "<Prompt description=\"The task to execute\">\n\textract these images data. Make sure they contain dog\n</Prompt>", out.P3)
 	assert.Equal(t, "also these giraffes", out.P4)
 
 }
