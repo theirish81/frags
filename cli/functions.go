@@ -41,8 +41,8 @@ type ExtendedToolsConfig struct {
 }
 
 type ApiCPConfig struct {
-	Config   aicp.ApiCP `json:"config"`
-	Disabled bool       `json:"disabled"`
+	Config   apicp.ApiCP `json:"config"`
+	Disabled bool        `json:"disabled"`
 }
 
 // readToolsFile reads the tools configuration file and returns the parsed configuration
@@ -100,7 +100,8 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig ExtendedToolsConf
 			functions = functions.WithFunctions(c.AsFunctions())
 			toolCollections = append(toolCollections, c)
 		case "http":
-			c := http.New(k, nil)
+			client, _ := sesat2.New().Build()
+			c := http.New(k, nil, client)
 			functions = functions.WithFunctions(c.AsFunctions())
 			toolCollections = append(toolCollections, c)
 		}
@@ -108,7 +109,7 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig ExtendedToolsConf
 	for k, v := range toolsConfig.ApiCPs {
 		v.Config.Logger(slog.Default())
 		client, _ := sesat2.New().Build()
-		c, err := apiCpCollection.New(k, v.Config, client)
+		c, err := apiCpCollection.New(k, &v.Config, client)
 		if err != nil {
 			return mcpTools, toolCollections, toolDefinitions, functions, err
 		}

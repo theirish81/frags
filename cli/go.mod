@@ -13,16 +13,16 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/frags v0.26.0-rc0
+	github.com/theirish81/frags v0.28.0
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
-	github.com/theirish81/frags/gemini v0.25.0
+	github.com/theirish81/frags/gemini v0.28.0
 	github.com/theirish81/frags/ollama v0.25.0
 	github.com/theirish81/fragsfunctions/data v0.6.1
 	github.com/theirish81/fragsfunctions/fs v0.6.0
 	github.com/theirish81/fragsfunctions/http v0.7.0
-	github.com/theirish81/fragsfunctions/postgres v0.6.0
-	github.com/theirish81/sesat2 v0.0.0-20260429064941-d6239cdda3a0
+	github.com/theirish81/fragsfunctions/postgres v0.6.1
+	github.com/theirish81/sesat2 v0.0.0-20260511100810-8e377902d6c0
 	google.golang.org/genai v1.56.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -57,7 +57,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.9.1 // indirect
+	github.com/jackc/pgx/v5 v5.9.2 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
@@ -82,6 +82,7 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7 // indirect
 	github.com/theirish81/fragsfunctions v0.6.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
@@ -109,7 +110,3 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.50.0 // indirect
 )
-
-replace github.com/theirish81/frags v0.25.1-rc0 => ../
-
-replace github.com/theirish81/frags/gemini v0.25.0 => ../gemini
