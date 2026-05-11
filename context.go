@@ -27,33 +27,30 @@ import (
 
 // contextualizePrompt adds the current context to the prompt. This includes the already extracted context, if enabled,
 // and optional pre-calls which will be called in this function.
-func (r *Runner[T]) contextualizePrompt(ctx *util.FragsContext, prompt string, session Session, scope evaluators.EvalScope) (string, error) {
-	// we run the pre-calls first, so that they can be used in the prompt
-	preCallsContext, err := r.RunSessionAiPreCallsToTextContext(ctx, session, scope)
-	if err != nil {
-		return prompt, err
-	}
-	prompt = preCallsContext + prompt
-
-	if session.Context != nil {
+func (r *Runner[T]) contextualizePrompt(prompt string, preCallContext string, session Session, scope evaluators.EvalScope) (string, error) {
+	contextData := ""
+	var err error
+	if session.Context != nil && (session.Context.IsTrue() || session.Context.HasTemplate()) {
 		if session.Context.IsTrue() {
-			// if the session has context enabled, we add the current context to the prompt
-			llmContext, err := r.safeMarshalDataStructure(true)
+			contextDataBytes, err := r.safeMarshalDataStructure(true)
 			if err != nil {
 				return prompt, err
 			}
-			prompt = "=== CURRENT CONTEXT ===\n" + string(llmContext) + "\n===\n\n" + prompt
-		} else if session.Context.HasTemplate() {
-			// if the session has a template as context, we render it and add it to the prompt
-			llmContext, err := session.Context.RenderTemplate(scope)
-			if err != nil {
+			contextData = "<Context contentType=\"application/json\">\n<![CDATA[\n" + string(contextDataBytes) + "\n]]>\n</Context>"
+		}
+		if session.Context.HasTemplate() {
+			if contextData, err = session.Context.RenderTemplate(scope); err != nil {
 				return prompt, err
 			}
-			prompt = "=== CURRENT CONTEXT ===\n" + string(llmContext) + "\n===\n\n" + prompt
+			contextData = "<Context>\n<![CDATA[\n" + contextData + "\n]]>\n</Context>"
 		}
 	}
-
-	return prompt, nil
+	outPrompt := ""
+	if contextData != "" || preCallContext != "" {
+		outPrompt = fmt.Sprintf("<Scope>\n%s\n%s\n</Scope>\n", util.IndentMultilineString(contextData, 1), util.IndentMultilineString(preCallContext, 1))
+	}
+	outPrompt += fmt.Sprintf("<Prompt description=\"The task to execute\">\n\t%s\n</Prompt>", prompt)
+	return outPrompt, nil
 }
 
 // preCallCtx returns a string representation of a function call and its result, formatting it in a way that it can be
@@ -62,7 +59,7 @@ func preCallCtx(call FunctionCaller, res any) string {
 	data, _ := json.Marshal(res)
 	descr := ""
 	if call.Description != nil {
-		descr = " - " + *call.Description
+		descr = *call.Description
 	}
-	return fmt.Sprintf("\n=== CALL: %s %s ===\n %s \n===\n", call.Name, descr, string(data))
+	return fmt.Sprintf("<CallResult name=\"%s\" description=\"%s\">\n<![CDATA[\n %s\n]]>\n</CallResult>", call.Name, descr, string(data))
 }

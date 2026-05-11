@@ -32,11 +32,12 @@ import (
 // Description is the function description
 // Schema is the input schema for the function.
 type ExternalFunction struct {
-	Func        func(ctx *util.FragsContext, data map[string]any) (any, error) `yaml:"-"`
-	Name        string                                                         `yaml:"name"`
-	Collection  string                                                         `yaml:"collection"`
-	Description string                                                         `yaml:"description"`
-	Schema      *schema.Schema                                                 `yaml:"schema"`
+	Func         func(ctx *util.FragsContext, data map[string]any) (any, error) `yaml:"-"`
+	Name         string                                                         `yaml:"name"`
+	Collection   string                                                         `yaml:"collection"`
+	Description  string                                                         `yaml:"description"`
+	Schema       *schema.Schema                                                 `yaml:"schema"`
+	OutputSchema *schema.Schema                                                 `yaml:"outputSchema"`
 }
 
 func (f ExternalFunction) String() string {
@@ -91,4 +92,11 @@ func (f ExternalFunctions) ListByCollection(collection string) ExternalFunctions
 		}
 	}
 	return out
+}
+
+func (f ExternalFunctions) WithFunctions(functions ExternalFunctions) ExternalFunctions {
+	for k, v := range functions {
+		f[k] = v
+	}
+	return f
 }

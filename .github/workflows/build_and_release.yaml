@@ -8,13 +8,22 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v3
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25.0'
+          go-version: '1.25.4'
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${{ secrets.TOKEN }}@github.com/".insteadOf "git@github.com:"
+      - name: Configure GOPRIVATE
+        run: |
+          echo "GOPRIVATE=github.com/diaphora-ai/*" >> $GITHUB_ENV
       - name: Write version file
         working-directory: cli
         run: |

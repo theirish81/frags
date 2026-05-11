@@ -123,6 +123,12 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		TopK:             &d.config.TopK,
 		TopP:             &d.config.TopP,
 		Tools:            tx,
+		SafetySettings: []*genai.SafetySetting{
+			{
+				Category:  genai.HarmCategoryDangerousContent,
+				Threshold: genai.HarmBlockThresholdBlockNone,
+			},
+		},
 	}
 	if len(d.systemPrompt) > 0 {
 		cfg.SystemInstruction = genai.NewContentFromText(d.systemPrompt, "system")
@@ -135,8 +141,13 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 	}
 	keepGoing := true
 	out := ""
+	counter := 0
 	d.content = append(d.content, newMsg)
 	for keepGoing {
+		counter++
+		if counter > 10 {
+			return nil, errors.New("loop detected. Too many iterations")
+		}
 		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(joinParts(d.content[len(d.content)-1].Parts)).WithEngine(engine))
 		var res *genai.GenerateContentResponse
 		if d.config.Attempts <= 0 {
@@ -230,20 +241,28 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) 
 			}
 		default:
 			for k, v := range d.Functions.ListByCollection(tool.Name) {
-				var genAiPSchema *genai.Schema
+				var genAiInputSchema *genai.Schema
 				if v.Schema != nil {
-					genAiPSchema = &genai.Schema{}
-					if err := copier.CopyWithOption(genAiPSchema, v.Schema, copier.Option{
+					genAiInputSchema = &genai.Schema{}
+					if err := copier.CopyWithOption(genAiInputSchema, v.Schema, copier.Option{
 						Converters: d.SchemaConverters(),
 					}); err != nil {
 						return nil, err
 					}
 				}
+				var genAiOutputSchema *genai.Schema
+				if v.OutputSchema != nil {
+					genAiOutputSchema = &genai.Schema{}
+					_ = copier.CopyWithOption(genAiOutputSchema, v.OutputSchema, copier.Option{
+						Converters: d.SchemaConverters(),
+					})
+				}
 				if tool.Allowlist == nil || slices.Contains(*tool.Allowlist, k) {
 					fd = append(fd, &genai.FunctionDeclaration{
 						Name:        k,
 						Description: v.Description,
-						Parameters:  genAiPSchema,
+						Parameters:  genAiInputSchema,
+						Response:    genAiOutputSchema,
 					})
 				}
 

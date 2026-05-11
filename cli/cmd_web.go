@@ -41,14 +41,14 @@ import (
 )
 
 type executeRequest struct {
-	Tools      *frags.ToolsConfig `json:"tools"`
-	Plan       Plan               `json:"plan"`
-	Parameters map[string]any     `json:"parameters"`
-	Resources  map[string]string  `json:"resources"`
-	Template   string             `json:"template"`
+	Tools      *ExtendedToolsConfig `json:"tools"`
+	Plan       Plan                 `json:"plan"`
+	Parameters map[string]any       `json:"parameters"`
+	Resources  map[string]string    `json:"resources"`
+	Template   string               `json:"template"`
 }
 
-func (r *executeRequest) ToolsOrDefault(def frags.ToolsConfig) frags.ToolsConfig {
+func (r *executeRequest) ToolsOrDefault(def ExtendedToolsConfig) ExtendedToolsConfig {
 	if r.Tools == nil {
 		return def
 	}

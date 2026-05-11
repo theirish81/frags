@@ -42,7 +42,7 @@ so it's subject to the limitations imposed by generating structured output.`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		toolDefinitions := frags.ToolDefinitions{}
-		toolsConfig := frags.ToolsConfig{}
+		toolsConfig := ExtendedToolsConfig{}
 		if toolsEnabled {
 			var err error
 			toolsConfig, err = readToolsFile()

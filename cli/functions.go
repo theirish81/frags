@@ -21,36 +21,50 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
 
+	"github.com/diaphora-ai/apicp"
+	apiCpCollection "github.com/diaphora-ai/apicp/collection"
 	"github.com/theirish81/frags"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/mcpauth"
 	"github.com/theirish81/fragsfunctions/fs"
 	"github.com/theirish81/fragsfunctions/http"
 	"github.com/theirish81/fragsfunctions/postgres"
+	"github.com/theirish81/sesat2"
 )
 
+type ExtendedToolsConfig struct {
+	frags.ToolsConfig `json:",inline"`
+	ApiCPs            map[string]ApiCPConfig `json:"apicps"`
+}
+
+type ApiCPConfig struct {
+	Config   aicp.ApiCP `json:"config"`
+	Disabled bool       `json:"disabled"`
+}
+
 // readToolsFile reads the tools configuration file and returns the parsed configuration
-func readToolsFile() (frags.ToolsConfig, error) {
+func readToolsFile() (ExtendedToolsConfig, error) {
 	data, err := os.ReadFile("tools.json")
 	if errors.Is(err, os.ErrNotExist) {
 		data = []byte("{}")
 	} else if err != nil {
-		return frags.ToolsConfig{}, err
+		return ExtendedToolsConfig{}, err
 	}
 	return parseToolsConfig(data)
 }
 
 // parseToolsConfig parses the tools configuration file and returns the parsed configuration
-func parseToolsConfig(data []byte) (frags.ToolsConfig, error) {
-	config := frags.ToolsConfig{}
+func parseToolsConfig(data []byte) (ExtendedToolsConfig, error) {
+	config := ExtendedToolsConfig{}
 	err := json.Unmarshal(data, &config)
 	return config, err
 }
 
 // connectMcpAndCollections connects to the MCP servers and returns the tools
-func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig, logger *log.StreamerLogger) (frags.McpTools, []frags.ToolsCollection, frags.ToolDefinitions, frags.ExternalFunctions, error) {
+func connectMcpAndCollections(ctx context.Context, toolsConfig ExtendedToolsConfig, logger *log.StreamerLogger) (frags.McpTools, []frags.ToolsCollection, frags.ToolDefinitions, frags.ExternalFunctions, error) {
 	mcpTools := make(frags.McpTools, 0)
 	toolCollections := make([]frags.ToolsCollection, 0)
 	toolDefinitions := make(frags.ToolDefinitions, 0)
@@ -76,26 +90,35 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig frags.ToolsConfig
 		switch v.ToolType {
 		case "fs":
 			t := fs.New()
-			for k, v := range t.AsFunctions() {
-				functions[k] = v
-			}
+			functions = functions.WithFunctions(t.AsFunctions())
 			toolCollections = append(toolCollections, t)
 		case "postgres":
 			c, err := postgres.New(ctx, k, v.Params["postgres_url"])
 			if err != nil {
 				return mcpTools, toolCollections, toolDefinitions, functions, err
 			}
-			for k, v := range c.AsFunctions() {
-				functions[k] = v
-			}
+			functions = functions.WithFunctions(c.AsFunctions())
 			toolCollections = append(toolCollections, c)
 		case "http":
 			c := http.New(k, nil)
-			for k, v := range c.AsFunctions() {
-				functions[k] = v
-			}
+			functions = functions.WithFunctions(c.AsFunctions())
 			toolCollections = append(toolCollections, c)
 		}
+	}
+	for k, v := range toolsConfig.ApiCPs {
+		v.Config.Logger(slog.Default())
+		client, _ := sesat2.New().Build()
+		c, err := apiCpCollection.New(k, v.Config, client)
+		if err != nil {
+			return mcpTools, toolCollections, toolDefinitions, functions, err
+		}
+		functions = functions.WithFunctions(c.AsFunctions())
+		toolCollections = append(toolCollections, c)
+
+		toolDefinitions = append(toolDefinitions, frags.ToolDefinition{
+			Name: c.Name(),
+			Type: "aicp",
+		})
 	}
 	return mcpTools, toolCollections, toolDefinitions, functions, nil
 }

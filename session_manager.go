@@ -169,6 +169,14 @@ type SessionManager struct {
 	PreCalls      FunctionCallers   `yaml:"preCalls,omitempty" json:"preCalls,omitempty"`
 }
 
+func (s *SessionManager) AppendToSystemPrompt(prompt string) {
+	if s.SystemPrompt == nil {
+		s.SystemPrompt = &prompt
+	} else {
+		*s.SystemPrompt += "\n" + prompt
+	}
+}
+
 type Parameter struct {
 	Name   string         `yaml:"name" json:"name"`
 	Schema *schema.Schema `yaml:"schema" json:"schema"`

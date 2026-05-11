@@ -51,8 +51,10 @@ type DummyAi struct {
 func (d *DummyAi) Ask(_ *util.FragsContext, text string, schema *schema.Schema, _ ToolDefinitions, _ ExportableRunner, resources ...resources.ResourceData) ([]byte, error) {
 	d.History = append(d.History, dummyHistoryItem{Text: text, Schema: schema, Resources: resources})
 	out := map[string]string{}
-	for k, _ := range schema.Properties {
-		out[k] = text
+	if schema != nil {
+		for k, _ := range schema.Properties {
+			out[k] = text
+		}
 	}
 	time.Sleep(1 * time.Second)
 	return json.Marshal(out)

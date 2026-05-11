@@ -29,5 +29,5 @@ func TestPreCallCtx(t *testing.T) {
 		Name:        "foo",
 		Description: util.StrPtr("description of foo"),
 	}, "data")
-	assert.Equal(t, "\n=== CALL: foo  - description of foo ===\n \"data\" \n===\n", ctx)
+	assert.Equal(t, "<CallResult name=\"foo\" description=\"description of foo\">\n<![CDATA[\n \"data\"\n]]>\n</CallResult>", ctx)
 }

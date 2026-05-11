@@ -25,14 +25,12 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/go-viper/mapstructure/v2"
-	"github.com/jinzhu/copier"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/theirish81/doauth"
 	"github.com/theirish81/frags/httpfactory"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/mcpauth"
-	schema2 "github.com/theirish81/frags/schema"
+	"github.com/theirish81/frags/schema"
 	"github.com/theirish81/frags/util"
 )
 
@@ -180,44 +178,29 @@ func (c *McpTool) ConnectStreamableHttp(ctx context.Context, logger *log.Streame
 // ListTools lists the tools available on the server
 func (c *McpTool) ListTools(ctx context.Context) (ToolDefinitions, error) {
 	res := ToolDefinitions{}
-	tools, err := c.session.ListTools(ctx, nil)
+	tools, err := c.session.ListTools(ctx, &mcp.ListToolsParams{})
 	if err != nil {
 		return res, err
 	}
 	// Unfortunately, the library seems to return InputSchema in multiple, bizarre ways, so we need to make sure
 	// we convert it into something predictable.
 	for _, t := range tools.Tools {
-		schema := schema2.Schema{}
-		switch typed := t.InputSchema.(type) {
-		case string:
-			if err := json.Unmarshal([]byte(typed), &schema); err != nil {
-				return res, err
-			}
-		case map[string]any:
-			if err := mapstructure.Decode(typed, &schema); err != nil {
-				return res, err
-			}
-		case []byte:
-			if err := json.Unmarshal(typed, &schema); err != nil {
-				return res, err
-			}
-		case json.RawMessage:
-			if err := json.Unmarshal(typed, &schema); err != nil {
-				return res, err
-			}
-		default:
-			if err := copier.Copy(&schema, typed); err != nil {
-				return res, err
-			}
+		inputSchema, err := schema.FromAny(t.InputSchema)
+		if err != nil {
+			return res, err
 		}
-		sPointer := &schema
-		if schema.Properties == nil {
-			sPointer = nil
+		if inputSchema.Properties == nil {
+			inputSchema = nil
+		}
+		var outputSchema *schema.Schema
+		if t.OutputSchema != nil {
+			outputSchema, _ = schema.FromAny(t.OutputSchema)
 		}
 		res = append(res, ToolDefinition{
-			Name:        t.Name,
-			Description: t.Description,
-			InputSchema: sPointer,
+			Name:         t.Name,
+			Description:  t.Description,
+			InputSchema:  inputSchema,
+			OutputSchema: outputSchema,
 		})
 	}
 	return res, nil

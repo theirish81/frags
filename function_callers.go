@@ -19,7 +19,6 @@ package frags
 
 import (
 	"github.com/google/uuid"
-	"github.com/samber/lo"
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/util"
 )
@@ -30,6 +29,7 @@ const (
 	AiFunctionCallDestination      FunctionCallDestination = "ai"
 	VarsFunctionCallDestination    FunctionCallDestination = "vars"
 	ContextFunctionCallDestination FunctionCallDestination = "context"
+	DbFunctionCallDestination      FunctionCallDestination = "db"
 )
 
 // FunctionCaller Represents a function invocation. NOTE: description is meant to explain to LLM what the output data is
@@ -50,49 +50,49 @@ type FunctionCallerCallbackFunc func(ctx *util.FragsContext, data map[string]any
 
 type FunctionCallers []FunctionCaller
 
-func (f FunctionCallers) FilterVarsFunctionCalls() FunctionCallers {
-	if f == nil {
-		return FunctionCallers{}
-	}
-	fc := lo.Filter(f, func(fc FunctionCaller, index int) bool {
-		return fc.In != nil && *fc.In == VarsFunctionCallDestination
-	})
-	return fc
-}
-
-func (f FunctionCallers) FilterAiFunctionCalls() FunctionCallers {
-	fc := lo.Filter(f, func(fc FunctionCaller, index int) bool {
-		return fc.In == nil || *fc.In == AiFunctionCallDestination
-	})
-	return fc
-}
-
-func (f FunctionCallers) FilterContextFunctionCalls() FunctionCallers {
-	fc := lo.Filter(f, func(fc FunctionCaller, index int) bool {
-		return fc.In != nil && *fc.In == ContextFunctionCallDestination
-	})
-	return fc
-}
-
 // RunAllFunctionCallers runs all the function calls in the given collection.
-func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCallers, scope evaluators.EvalScope) (map[string]any, error) {
+func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCallers, inputScope evaluators.EvalScope, outputVars evaluators.Vars) (string, error) {
 	vx := make(map[string]any)
+	aiContext := ""
 	for _, c := range fc {
 		if ctx.Err() != nil {
-			return vx, ctx.Err()
+			return "", ctx.Err()
 		}
 		varName := c.Name + "_" + uuid.NewString()
 		if c.Var != nil {
 			varName = *c.Var
 		}
 		var err error
-		vx[varName], err = r.runFunctionCaller(ctx, c, scope)
-		scope.WithVars(vx)
+		value, err := r.runFunctionCaller(ctx, c, inputScope)
 		if err != nil {
-			return vx, err
+			return "", err
+		}
+		vx[varName] = value
+		inputScope.WithVars(vx)
+
+		if c.In == nil {
+			c.In = util.Ptr(AiFunctionCallDestination)
+		}
+		switch *c.In {
+		case VarsFunctionCallDestination:
+			outputVars[varName] = value
+		case ContextFunctionCallDestination:
+			if err := util.SetInContext(r.dataStructure, varName, value); err != nil {
+				return "", err
+			}
+		case DbFunctionCallDestination:
+			if r.db != nil {
+				if items, ok := value.([]any); ok {
+					if _, err = r.db.CreateTable(varName, items); err != nil {
+						return "", err
+					}
+				}
+			}
+		default:
+			aiContext += preCallCtx(c, vx[varName])
 		}
 	}
-	return vx, nil
+	return aiContext, nil
 }
 
 // runFunctionCaller runs a FunctionCaller object, evaluating the arguments if needed.
@@ -113,20 +113,4 @@ func (r *Runner[T]) runFunctionCaller(ctx *util.FragsContext, fc FunctionCaller,
 	} else {
 		return r.RunFunction(ctx, clonedFc.Name, clonedFc.Args)
 	}
-}
-
-// RunSessionAiPreCallsToTextContext runs the pre-call functions and composes a textual context to be prepended to the
-// actual prompt.
-func (r *Runner[T]) RunSessionAiPreCallsToTextContext(ctx *util.FragsContext, session Session, scope evaluators.EvalScope) (string, error) {
-	preCallsText := ""
-	if session.PreCalls != nil {
-		for _, c := range session.PreCalls.FilterAiFunctionCalls() {
-			res, err := r.runFunctionCaller(ctx, c, scope)
-			if err != nil {
-				return preCallsText, err
-			}
-			preCallsText += preCallCtx(c, res)
-		}
-	}
-	return preCallsText, nil
 }
