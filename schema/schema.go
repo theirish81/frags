@@ -25,6 +25,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
+	"github.com/jinzhu/copier"
 	"gopkg.in/yaml.v3"
 )
 
@@ -116,6 +118,32 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		s.XUI[suffix] = val
 	}
 	return nil
+}
+
+func FromAny(data any) (*Schema, error) {
+	schema := Schema{}
+	if data == nil {
+		return nil, nil
+	}
+	switch typed := data.(type) {
+	case string:
+		err := json.Unmarshal([]byte(typed), &schema)
+		return &schema, err
+	case map[string]any:
+		err := mapstructure.Decode(typed, &schema)
+		return &schema, err
+	case []byte:
+		err := json.Unmarshal(typed, &schema)
+		return &schema, err
+	case json.RawMessage:
+		if err := json.Unmarshal(typed, &schema); err != nil {
+			return &schema, err
+		}
+	default:
+		err := copier.Copy(&schema, typed)
+		return &schema, err
+	}
+	return &schema, errors.New("cannot convert schema")
 }
 
 func (s Schema) MarshalYAML() (any, error) {
