@@ -20,6 +20,7 @@ package frags
 import (
 	"github.com/google/uuid"
 	"github.com/theirish81/frags/evaluators"
+	"github.com/theirish81/frags/scoper"
 	"github.com/theirish81/frags/util"
 )
 
@@ -51,12 +52,15 @@ type FunctionCallerCallbackFunc func(ctx *util.FragsContext, data map[string]any
 type FunctionCallers []FunctionCaller
 
 // RunAllFunctionCallers runs all the function calls in the given collection.
-func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCallers, inputScope evaluators.EvalScope, outputVars evaluators.Vars) (string, error) {
+func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCallers, inputScope evaluators.EvalScope, outputVars evaluators.Vars) (*scoper.KnowledgeNode, error) {
 	vx := make(map[string]any)
-	aiContext := ""
+	if len(fc) == 0 {
+		return nil, nil
+	}
+	callsNode := scoper.Node("Calls", "")
 	for _, c := range fc {
 		if ctx.Err() != nil {
-			return "", ctx.Err()
+			return nil, ctx.Err()
 		}
 		varName := c.Name + "_" + uuid.NewString()
 		if c.Var != nil {
@@ -65,7 +69,7 @@ func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCal
 		var err error
 		value, err := r.runFunctionCaller(ctx, c, inputScope)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		vx[varName] = value
 		inputScope.WithVars(vx)
@@ -78,21 +82,19 @@ func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCal
 			outputVars[varName] = value
 		case ContextFunctionCallDestination:
 			if err := util.SetInContext(r.dataStructure, varName, value); err != nil {
-				return "", err
+				return nil, err
 			}
 		case DbFunctionCallDestination:
 			if r.db != nil {
-				if items, ok := value.([]any); ok {
-					if _, err = r.db.CreateTable(varName, items); err != nil {
-						return "", err
-					}
+				if _, err := r.db.Insert(varName, value); err != nil {
+					return nil, err
 				}
 			}
 		default:
-			aiContext += preCallCtx(c, vx[varName])
+			callsNode.AppendChild(preCallCtx(c, vx[varName]))
 		}
 	}
-	return aiContext, nil
+	return callsNode, nil
 }
 
 // runFunctionCaller runs a FunctionCaller object, evaluating the arguments if needed.

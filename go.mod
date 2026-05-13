@@ -16,8 +16,8 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/stretchr/testify v1.11.1
 	github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7
-	github.com/theirish81/sesat2 v0.0.0-20260429064941-d6239cdda3a0
-	github.com/theirish81/zealql v0.0.0-20260508115023-11939b50ccce
+	github.com/theirish81/sesat2 v0.0.0-20260511100810-8e377902d6c0
+	github.com/theirish81/zealql v0.0.0-20260513085909-eb2e76a09b48
 	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -43,8 +43,8 @@ require (
 	golang.org/x/crypto v0.49.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
-	modernc.org/libc v1.72.0 // indirect
+	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.50.0 // indirect
+	modernc.org/sqlite v1.50.1 // indirect
 )

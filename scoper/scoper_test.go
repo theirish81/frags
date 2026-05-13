@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Simone Pezzano
+ * Copyright (C) 2025 Simone Pezzano
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -15,19 +15,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package frags
+package scoper
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/theirish81/frags/util"
 )
 
-func TestPreCallCtx(t *testing.T) {
-	ctx := preCallCtx(FunctionCaller{
-		Name:        "foo",
-		Description: util.StrPtr("description of foo"),
-	}, "data")
-	assert.Equal(t, "<CallResult name=\"foo\" description=\"description of foo\" contentType=\"application/json\"><![CDATA[ \"data\" ]]></CallResult>", ctx.String())
+func TestNode(t *testing.T) {
+	node := Node("gino", "").Name("some content").ContentType("application/json").Description("some description")
+	node.AppendChild(Node("child1", "some other content"))
+	data := node.String()
+	assert.Equal(t, "<gino name=\"some content\" description=\"some description\" contentType=\"application/json\">\n <child1><![CDATA[ some other content ]]></child1>\n</gino>", data)
 }

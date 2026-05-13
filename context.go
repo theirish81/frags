@@ -19,47 +19,54 @@ package frags
 
 import (
 	"encoding/json"
-	"fmt"
+	"strings"
 
 	"github.com/theirish81/frags/evaluators"
-	"github.com/theirish81/frags/util"
+	"github.com/theirish81/frags/scoper"
 )
 
 // contextualizePrompt adds the current context to the prompt. This includes the already extracted context, if enabled,
 // and optional pre-calls which will be called in this function.
-func (r *Runner[T]) contextualizePrompt(prompt string, preCallContext string, session Session, scope evaluators.EvalScope) (string, error) {
-	contextData := ""
-	var err error
+func (r *Runner[T]) contextualizePrompt(prompt string, preCallContext *scoper.KnowledgeNode, session Session, scope evaluators.EvalScope) (string, error) {
+	var contextData *scoper.KnowledgeNode
 	if session.Context != nil && (session.Context.IsTrue() || session.Context.HasTemplate()) {
 		if session.Context.IsTrue() {
 			contextDataBytes, err := r.safeMarshalDataStructure(true)
 			if err != nil {
 				return prompt, err
 			}
-			contextData = "<Context contentType=\"application/json\">\n<![CDATA[\n" + string(contextDataBytes) + "\n]]>\n</Context>"
+			contextData = scoper.Node("Context", string(contextDataBytes)).ContentType("application/json")
 		}
 		if session.Context.HasTemplate() {
-			if contextData, err = session.Context.RenderTemplate(scope); err != nil {
+			renderedData, err := session.Context.RenderTemplate(scope)
+			if err != nil {
 				return prompt, err
 			}
-			contextData = "<Context>\n<![CDATA[\n" + contextData + "\n]]>\n</Context>"
+			contextData = scoper.Node("Context", renderedData)
 		}
 	}
 	outPrompt := ""
-	if contextData != "" || preCallContext != "" {
-		outPrompt = fmt.Sprintf("<Scope>\n%s\n%s\n</Scope>\n", util.IndentMultilineString(contextData, 1), util.IndentMultilineString(preCallContext, 1))
+	if contextData != nil || preCallContext != nil {
+		scopeKnowledge := scoper.Node("Scope", "")
+		if contextData != nil {
+			scopeKnowledge.AppendChild(contextData)
+		}
+		if preCallContext != nil {
+			scopeKnowledge.AppendChild(preCallContext)
+		}
+		outPrompt = scopeKnowledge.String()
 	}
-	outPrompt += fmt.Sprintf("<Prompt description=\"The task to execute\">\n\t%s\n</Prompt>", prompt)
-	return outPrompt, nil
+	outPrompt += "\n" + scoper.Node("Prompt", prompt).Description("The task to execute").String()
+	return strings.TrimSpace(outPrompt), nil
 }
 
 // preCallCtx returns a string representation of a function call and its result, formatting it in a way that it can be
 // correctly read by the LLM. Its main purpose is to be inserted in the prompt as part of the context.
-func preCallCtx(call FunctionCaller, res any) string {
+func preCallCtx(call FunctionCaller, res any) *scoper.KnowledgeNode {
 	data, _ := json.Marshal(res)
 	descr := ""
 	if call.Description != nil {
 		descr = *call.Description
 	}
-	return fmt.Sprintf("<CallResult name=\"%s\" description=\"%s\">\n<![CDATA[\n %s\n]]>\n</CallResult>", call.Name, descr, string(data))
+	return scoper.Node("CallResult", string(data)).Name(call.Name).Description(descr).ContentType("application/json")
 }

@@ -18,7 +18,7 @@ require (
 	github.com/theirish81/frags/chatgpt v0.25.0
 	github.com/theirish81/frags/gemini v0.28.0
 	github.com/theirish81/frags/ollama v0.25.0
-	github.com/theirish81/fragsfunctions/data v0.6.1
+	github.com/theirish81/fragsfunctions/data v0.6.2
 	github.com/theirish81/fragsfunctions/fs v0.6.0
 	github.com/theirish81/fragsfunctions/http v0.7.0
 	github.com/theirish81/fragsfunctions/postgres v0.6.1
@@ -27,7 +27,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require github.com/theirish81/zealql v0.0.0-20260508115023-11939b50ccce
+require github.com/theirish81/zealql v0.0.0-20260513085909-eb2e76a09b48
 
 require (
 	cloud.google.com/go v0.116.0 // indirect
@@ -105,8 +105,12 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/grpc v1.66.2 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
-	modernc.org/libc v1.72.0 // indirect
+	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.50.0 // indirect
+	modernc.org/sqlite v1.50.1 // indirect
 )
+
+replace github.com/theirish81/frags v0.28.0 => ../
+
+replace github.com/theirish81/frags/gemini v0.28.0 => ../gemini
