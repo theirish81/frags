@@ -18,7 +18,7 @@ require (
 	github.com/theirish81/frags/chatgpt v0.25.0
 	github.com/theirish81/frags/gemini v0.28.0
 	github.com/theirish81/frags/ollama v0.25.0
-	github.com/theirish81/fragsfunctions/data v0.6.1
+	github.com/theirish81/fragsfunctions/data v0.6.2
 	github.com/theirish81/fragsfunctions/fs v0.6.0
 	github.com/theirish81/fragsfunctions/http v0.7.0
 	github.com/theirish81/fragsfunctions/postgres v0.6.1
@@ -111,6 +111,6 @@ require (
 	modernc.org/sqlite v1.50.1 // indirect
 )
 
-replace github.com/theirish81/fragsfunctions/data v0.6.1 => ../../fragsfunctions/data
 replace github.com/theirish81/frags v0.28.0 => ../
+
 replace github.com/theirish81/frags/gemini v0.28.0 => ../gemini
