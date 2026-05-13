@@ -92,7 +92,7 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		runner.Logger().Debug(log.NewEvent(log.LoadEventType, log.AiComponent).WithResource(resource.Identifier).WithEngine(engine))
 		content := resource.ByteContent
 		if resource.MediaType == util.MediaText {
-			content = []byte(fmt.Sprintf("=== %s ===\n%s\n===\n", resource.Identifier, string(resource.ByteContent)))
+			content = []byte(fmt.Sprintf("<Document name=\"%s\"><![CDATA[ %s ]]></Document>\n", resource.Identifier, string(resource.ByteContent)))
 		}
 		parts = append(parts, genai.NewPartFromBytes(content, resource.MediaType))
 	}
@@ -145,7 +145,7 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 	d.content = append(d.content, newMsg)
 	for keepGoing {
 		counter++
-		if counter > 10 {
+		if counter >= 10 {
 			return nil, errors.New("loop detected. Too many iterations")
 		}
 		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(joinParts(d.content[len(d.content)-1].Parts)).WithEngine(engine))
@@ -187,15 +187,12 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 			}
 			for _, fc := range res.FunctionCalls() {
 				fres, ferr := d.RunFunction(ctx, frags.FunctionCaller{Name: fc.Name, Args: fc.Args}, runner)
-				if ferr != nil {
-					return nil, ferr
-				}
 				// adding a function response to the user turn object
 				userTurn.Parts = append(userTurn.Parts, &genai.Part{
 					FunctionResponse: &genai.FunctionResponse{
 						ID:       fc.ID,
 						Name:     fc.Name,
-						Response: util.AnyToResultMap(fres),
+						Response: NewFunctionResponseMap(fres, ferr),
 					},
 				})
 			}
@@ -207,9 +204,12 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 			out = joinParts(candidate.Content.Parts)
 			internetSearch := candidate.GroundingMetadata != nil
 			runner.Logger().Debug(log.NewEvent(log.EndEventType, log.AiComponent).WithMessage("generated content").WithEngine(engine).WithContent(out).WithArg("internet_search", internetSearch))
+			if strings.Contains(out, "[FATAL]") {
+				err = errors.New(out)
+			}
 		}
 	}
-	return []byte(out), nil
+	return []byte(out), err
 }
 
 func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) {

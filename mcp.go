@@ -178,7 +178,7 @@ func (c *McpTool) ConnectStreamableHttp(ctx context.Context, logger *log.Streame
 // ListTools lists the tools available on the server
 func (c *McpTool) ListTools(ctx context.Context) (ToolDefinitions, error) {
 	res := ToolDefinitions{}
-	tools, err := c.session.ListTools(ctx, &mcp.ListToolsParams{})
+	tools, err := c.session.ListTools(ctx, nil)
 	if err != nil {
 		return res, err
 	}

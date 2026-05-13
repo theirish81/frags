@@ -31,6 +31,7 @@ import (
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/scoper"
 	"github.com/theirish81/frags/util"
 	"github.com/theirish81/zealql"
 )
@@ -391,10 +392,7 @@ func (r *Runner[T]) ListQueued() Sessions {
 }
 
 func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
-	scope evaluators.EvalScope, preCallContext string, resources resources.ResourceDataItems) error {
-	if !session.HasPrompt() {
-		return errors.New("runPrePrompts called on a session without a prompt")
-	}
+	scope evaluators.EvalScope, preCallContext *scoper.KnowledgeNode, resources resources.ResourceDataItems) error {
 	r.logger.Info(log.NewEvent(log.StartEventType, log.PrePromptComponent).WithSession(sessionID).WithIteration(iteratorIdx))
 	// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
 	// of prompt does not convert to structured data (doesn't have a schema), and its sole purpose is to enrich
@@ -449,7 +447,7 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 }
 
 func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
-	scope evaluators.EvalScope, aiContext string, promptResources resources.ResourceDataItems) error {
+	scope evaluators.EvalScope, aiContext *scoper.KnowledgeNode, promptResources resources.ResourceDataItems) error {
 	if len(session.Prompt) == 0 {
 		return errors.New("runPrompt called on a session without a prompt")
 	}
@@ -720,6 +718,7 @@ func (r *Runner[T]) newEvalScope() evaluators.EvalScope {
 		evaluators.ComponentsAttr: r.sessionManager.Components,
 		evaluators.VarsAttr:       make(map[string]any),
 		evaluators.IteratorAttr:   nil,
+		evaluators.DbAttr:         r.db,
 	}
 	return scope.WithVars(r.vars)
 }
