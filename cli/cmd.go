@@ -39,6 +39,9 @@ var (
 	inputPath    string
 	parseInput   bool
 	versionParam bool
+	stdio        bool
+	ws           bool
+	tcp          bool
 )
 
 var rootCmd = cobra.Command{
@@ -65,4 +68,5 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(webCmd)
 	rootCmd.AddCommand(debugCmd)
+	rootCmd.AddCommand(lspCmd)
 }

@@ -13,6 +13,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
+	github.com/theirish81/fml v0.0.0-20260514122832-fd367d398719
 	github.com/theirish81/frags v0.29.0
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
@@ -31,6 +32,7 @@ require (
 require (
 	cloud.google.com/go v0.116.0 // indirect
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
+	github.com/alecthomas/participle/v2 v2.1.4 // indirect
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
 	github.com/blues/jsonata-go v1.5.4 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
@@ -70,6 +72,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/oasdiff/yaml v0.0.9 // indirect
 	github.com/oasdiff/yaml3 v0.0.9 // indirect
+	github.com/owenrumney/go-lsp v0.2.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
@@ -82,6 +85,7 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7 // indirect
+	github.com/theirish81/fml/lsp v0.0.0-20260514122832-fd367d398719 // indirect
 	github.com/theirish81/fragsfunctions v0.6.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
