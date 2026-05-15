@@ -73,14 +73,14 @@ so it's subject to the limitations imposed by generating structured output.`,
 				Identifier: up,
 			})
 		}
-		mgr.Sessions = frags.Sessions{
-			"default": {
-				PrePrompt: util.StrPtrToArray(pp),
-				Prompt:    args[0],
-				Tools:     toolDefinitions,
-				Resources: rx,
-			},
-		}
+		mgr.Sessions = frags.NewSessions()
+		mgr.Sessions.Set("default", frags.Session{
+			PrePrompt: util.StrPtrToArray(pp),
+			Prompt:    args[0],
+			Tools:     toolDefinitions,
+			Resources: rx,
+		})
+
 		mgr.Schema = &schema.Schema{
 			Type:     schema.Object,
 			Required: []string{"answer"},
