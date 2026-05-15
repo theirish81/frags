@@ -207,6 +207,8 @@ github.com/theirish81/fml v0.0.0-20260514091957-b603ea0aefa4 h1:iiHWK01tDX9bcE6M
 github.com/theirish81/fml v0.0.0-20260514091957-b603ea0aefa4/go.mod h1:B6alq7L2ZA7vgI07r4HNtUUhVox8yL7OXsibt3n3QQ4=
 github.com/theirish81/fml v0.0.0-20260514122832-fd367d398719 h1:cCMES11+sUr+5YFKBYaXV35Ol3MMYwDWoOfHxgyVvpI=
 github.com/theirish81/fml v0.0.0-20260514122832-fd367d398719/go.mod h1:B6alq7L2ZA7vgI07r4HNtUUhVox8yL7OXsibt3n3QQ4=
+github.com/theirish81/fml v0.0.0-20260515160252-1397e2b9d2b3 h1:dRscUfw6l/eqtmmvLEIjfUehWYHhgqA410151wUn6rw=
+github.com/theirish81/fml v0.0.0-20260515160252-1397e2b9d2b3/go.mod h1:B6alq7L2ZA7vgI07r4HNtUUhVox8yL7OXsibt3n3QQ4=
 github.com/theirish81/fml/lsp v0.0.0-20260514122832-fd367d398719 h1:j8pRW0+Xt+D/+ZptuV1sMcyWmmdvMHH8LY+8aXoGWaw=
 github.com/theirish81/fml/lsp v0.0.0-20260514122832-fd367d398719/go.mod h1:g9kXi9neH18g+hwA5ux4OnesK18dCr/BQKivV2xxulM=
 github.com/theirish81/frags v0.29.0 h1:8w7hN8xYr0y6XiTNEiYwFUet7NLJ5733+KigvZhKyM0=

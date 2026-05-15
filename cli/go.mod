@@ -13,7 +13,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/fml v0.0.0-20260514122832-fd367d398719
+	github.com/theirish81/fml v0.0.0-20260515160252-1397e2b9d2b3
 	github.com/theirish81/frags v0.29.0
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
