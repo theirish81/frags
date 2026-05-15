@@ -51,6 +51,7 @@ type Config struct {
 	ChatGptBaseURL           string  `mapstructure:"CHATGPT_BASE_URL" yaml:"CHATGPT_BASE_URL"`
 	AnthropicApiKey          string  `mapstructure:"ANTHROPIC_API_KEY" yaml:"ANTHROPIC_API_KEY"`
 	ThinkingLevel            string  `mapstructure:"THINKING_LEVEL" yaml:"THINKING_LEVEL"`
+	OauthDisabled            bool    `mapstructure:"OAUTH_DISABLED" yaml:"OAUTH_DISABLED"`
 }
 
 // guessAi tries to guess the AI engine based on the configuration.

@@ -71,15 +71,19 @@ func connectMcpAndCollections(ctx context.Context, toolsConfig ExtendedToolsConf
 	functions := make(frags.ExternalFunctions, 0)
 	toolDefinitions = toolsConfig.AsToolDefinitions()
 	mcpTools = toolsConfig.McpServers.McpTools()
-	oauthCache, err := mcpauth.NewFsOauthCache("./tokens.json")
-	if err != nil {
-		return mcpTools, toolCollections, toolDefinitions, functions, err
+	if cfg.OauthDisabled {
+		mcpTools.WithOAuthProvider(mcpauth.NewEmptyOauthProvider(true).WithCache(mcpauth.NewInMemoryCache()))
+	} else {
+		oauthCache, err := mcpauth.NewFsOauthCache("./tokens.json")
+		if err != nil {
+			return mcpTools, toolCollections, toolDefinitions, functions, err
+		}
+		mcpTools.WithOAuthProvider(mcpauth.NewEmptyOauthProvider(false).WithCache(oauthCache))
 	}
-	mcpTools.WithOAuthProvider(mcpauth.NewEmptyOauthProvider(false).WithCache(oauthCache))
 	if err := mcpTools.Connect(ctx, logger); err != nil {
 		return mcpTools, toolCollections, toolDefinitions, functions, err
 	}
-	functions, err = mcpTools.AsFunctions(ctx)
+	functions, err := mcpTools.AsFunctions(ctx)
 	if err != nil {
 		return mcpTools, toolCollections, toolDefinitions, functions, err
 	}
