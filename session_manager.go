@@ -153,9 +153,6 @@ func (r RequiredTools) Check(toolDefinitions ToolDefinitions) error {
 	return nil
 }
 
-// Sessions is a map of session IDs to sessions.
-type Sessions map[string]Session
-
 // SessionManager manages the LLM sessions and the schema. Sessions split the contribution on the schema
 type SessionManager struct {
 	Parameters    *ParametersConfig `yaml:"parameters,omitempty" json:"parameters,omitempty"`
@@ -163,7 +160,7 @@ type SessionManager struct {
 	Transformers  *Transformers     `yaml:"transformers,omitempty" json:"transformers,omitempty"`
 	SystemPrompt  *string           `yaml:"systemPrompt,omitempty" json:"systemPrompt,omitempty"`
 	Components    Components        `yaml:"components,omitempty" json:"components,omitempty"`
-	Sessions      Sessions          `yaml:"sessions" json:"sessions" validate:"required,min=1,dive"`
+	Sessions      Sessions          `yaml:"sessions" json:"sessions" validate:"required"`
 	Schema        *schema.Schema    `yaml:"schema,omitempty" json:"schema,omitempty"`
 	Vars          map[string]any    `yaml:"vars,omitempty" json:"vars,omitempty"`
 	PreCalls      FunctionCallers   `yaml:"preCalls,omitempty" json:"preCalls,omitempty"`
@@ -249,12 +246,12 @@ type Components struct {
 
 // NewSessionManager creates a new SessionManager.
 func NewSessionManager() SessionManager {
-	return SessionManager{Sessions: make(Sessions)}
+	return SessionManager{Sessions: NewSessions()}
 }
 
 // SetSession sets a session in the SessionManager.
 func (s *SessionManager) SetSession(sessionID string, session Session) {
-	s.Sessions[sessionID] = session
+	s.Sessions.Set(sessionID, session)
 }
 
 // SetSchema sets the schema in the SessionManager.
@@ -275,7 +272,7 @@ func (s *SessionManager) initNullSchema() {
 			Properties: map[string]*schema.Schema{},
 			Required:   make([]string, 0),
 		}
-		for k, _ := range s.Sessions {
+		for k, _ := range s.Sessions.Data {
 			sx.Properties[k] = &schema.Schema{
 				Type:     schema.String,
 				XSession: util.StrPtr(k),

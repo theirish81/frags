@@ -33,26 +33,24 @@ func TestNewSessionManagerValidate(t *testing.T) {
 		err := validator.New().Struct(mgr)
 		assert.Error(t, err)
 
-		mgr.Sessions = map[string]Session{}
+		mgr.Sessions = NewSessions()
 		assert.Error(t, err)
 	})
 	t.Run("has sessions. No prompt", func(t *testing.T) {
 		mgr := SessionManager{
-			Sessions: map[string]Session{
-				"foo": {},
-			},
+			Sessions: NewSessions(),
 		}
+		mgr.Sessions.Set("foo", Session{})
 		err := validator.New().Struct(mgr)
 		assert.NoError(t, err)
 	})
 	t.Run("has sessions. Has prompt", func(t *testing.T) {
 		mgr := SessionManager{
-			Sessions: map[string]Session{
-				"foo": {
-					Prompt: "foo",
-				},
-			},
+			Sessions: NewSessions(),
 		}
+		mgr.Sessions.Set("foo", Session{
+			Prompt: "foo",
+		})
 		err := validator.New().Struct(mgr)
 		assert.NoError(t, err)
 	})

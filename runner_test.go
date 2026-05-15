@@ -79,7 +79,7 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 	ai := NewDummyAi()
 	runner := NewRunner[map[string]string](mgr, resources.NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
 	runner.dataStructure = &map[string]string{}
-	res, err := runner.loadSessionResources(util.NewFragsContext(time.Minute), "s1", mgr.Sessions["s1"])
+	res, err := runner.loadSessionResources(util.NewFragsContext(time.Minute), "s1", mgr.Sessions.Get("s1"))
 	assert.NoError(t, err)
 	assert.Equal(t, "stuff.csv", res[0].Identifier)
 	assert.Equal(t, util.MediaJson, res[0].MediaType)
