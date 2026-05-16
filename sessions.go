@@ -10,8 +10,6 @@ import (
 )
 
 // Sessions is an ordered map of session IDs to sessions.
-// Note: Struct tags on Data and Order are ignored now because
-// the custom Marshal/Unmarshal methods control the entire serialization.
 type Sessions struct {
 	Data  map[string]Session `validate:"required,min=1"`
 	Order []string
@@ -53,8 +51,6 @@ func (s Sessions) Iter() iter.Seq2[string, Session] {
 func (s Sessions) Get(key string) Session {
 	return s.Data[key]
 }
-
-// --- JSON Handling ---
 
 // MarshalJSON serializes the map as a flat JSON object, keeping s.Order sequence.
 func (s Sessions) MarshalJSON() ([]byte, error) {
@@ -127,7 +123,6 @@ func (s *Sessions) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-// --- YAML Handling ---
 // MarshalYAML converts the ordered map into a yaml.Node mapping sequence.
 func (s Sessions) MarshalYAML() (any, error) {
 	node := yaml.Node{
