@@ -95,8 +95,12 @@ func (f ExternalFunctions) ListByCollection(collection string) ExternalFunctions
 }
 
 func (f ExternalFunctions) WithFunctions(functions ExternalFunctions) ExternalFunctions {
-	for k, v := range functions {
-		f[k] = v
+	dst := make(ExternalFunctions, len(f)+len(functions))
+	for k, v := range f {
+		dst[k] = v
 	}
-	return f
+	for k, v := range functions {
+		dst[k] = v
+	}
+	return dst
 }

@@ -19,6 +19,7 @@ package frags
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/theirish81/frags/schema"
 )
@@ -84,6 +85,10 @@ func (t *ToolDefinitions) Contains(name string, toolType ToolType) bool {
 		}
 	}
 	return false
+}
+
+func (t *ToolDefinitions) WithDefinitions(definitions ToolDefinitions) ToolDefinitions {
+	return append(slices.Clone(*t), definitions...)
 }
 
 // ToolsCollection is a collection of functions. This is an integration commodity that standardizes how collections
