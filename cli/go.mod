@@ -13,7 +13,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/fml v0.0.0-20260515160252-1397e2b9d2b3
+	github.com/theirish81/fml v0.0.0-20260516045902-8511487fdbd1
 	github.com/theirish81/frags v0.29.0
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
@@ -85,7 +85,6 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7 // indirect
-	github.com/theirish81/fml/lsp v0.0.0-20260514122832-fd367d398719 // indirect
 	github.com/theirish81/fragsfunctions v0.6.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
