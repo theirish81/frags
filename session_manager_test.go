@@ -123,3 +123,22 @@ func TestSession_RenderPrePrompts(t *testing.T) {
 	assert.Len(t, sx, 1)
 	assert.Equal(t, "foobar baz", sx[0])
 }
+
+func TestSessionManager_ComputeRequiredResources(t *testing.T) {
+	s := NewSessionManager()
+	s.Sessions.Set("foo", Session{
+		Resources: []Resource{
+			{
+				Identifier: "bar.txt",
+			},
+		},
+	})
+	s.Sessions.Set("pluto", Session{
+		Resources: []Resource{
+			{
+				Identifier: "duck.txt",
+			},
+		},
+	})
+	assert.Equal(t, []string{"bar.txt", "duck.txt"}, s.ComputeRequiredResources())
+}

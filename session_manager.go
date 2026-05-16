@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/samber/lo"
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/schema"
@@ -282,4 +283,14 @@ func (s *SessionManager) initNullSchema() {
 		}
 		s.Schema = &sx
 	}
+}
+
+func (s *SessionManager) ComputeRequiredResources() []string {
+	res := make([]string, 0)
+	for _, session := range s.Sessions.Iter() {
+		res = append(res, lo.Map[Resource, string](session.Resources, func(item Resource, index int) string {
+			return item.Identifier
+		})...)
+	}
+	return res
 }
