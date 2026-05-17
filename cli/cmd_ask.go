@@ -88,7 +88,7 @@ so it's subject to the limitations imposed by generating structured output.`,
 				"answer": {
 					Type:        schema.String,
 					Description: "the answer to the prompt",
-					XSession:    strPtr("default"),
+					XSession:    util.Ptr("default"),
 					XPhase:      0,
 				},
 			},

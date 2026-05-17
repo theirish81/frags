@@ -276,7 +276,7 @@ func (s *SessionManager) initNullSchema() {
 		for k, _ := range s.Sessions.Data {
 			sx.Properties[k] = &schema.Schema{
 				Type:     schema.String,
-				XSession: util.StrPtr(k),
+				XSession: util.Ptr(k),
 				XPhase:   0,
 			}
 			sx.Required = append(sx.Required, k)

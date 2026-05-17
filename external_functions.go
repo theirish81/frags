@@ -54,16 +54,17 @@ func (f ExternalFunction) Run(ctx *util.FragsContext, args map[string]any, runne
 		return nil, fmt.Errorf("expected map[string]any, got %T", ax)
 	}
 	runner.Logger().Debug(log.NewEvent(log.StartEventType, log.FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)))
-	ax, err = f.Func(ctx, ax.(map[string]any))
+	out, err := f.Func(ctx, ax.(map[string]any))
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(ctx, ax, runner)
+	out, err = runner.Transformers().FilterOnFunctionOutput(f.Name).Transform(ctx, out, runner)
 	if err != nil {
 		return nil, err
 	}
-	runner.Logger().Debug(log.NewEvent(log.EndEventType, log.FunctionComponent).WithFunction(fmt.Sprintf("%s(%v)", f.Name, ax)).WithContent(out))
+	runner.Logger().Debug(log.NewEvent(log.EndEventType, log.FunctionComponent).
+		WithFunction(fmt.Sprintf("%s(%v)", f.Name, util.MustJsonString(ax))).WithContent(out))
 	return out, nil
 }
 

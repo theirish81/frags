@@ -18,12 +18,13 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/theirish81/frags/util"
 )
 
 // sliceToMap converts a slice of strings with the key=value format into a map of strings. If ignoreErrors is true,
@@ -42,19 +43,10 @@ func sliceToMap(s []string, ignoreErrors bool) (map[string]any, error) {
 	return m, nil
 }
 
-func strPtr(str string) *string {
-	return &str
-}
-
-func intPtr(i int) *int {
-	return &i
-}
-
 func printDebugAny(res any) {
 	switch reflect.ValueOf(res).Kind() {
 	case reflect.Map, reflect.Slice:
-		out, _ := json.MarshalIndent(res, "", " ")
-		fmt.Println(string(out))
+		fmt.Println(util.MustJsonIndentString(res))
 	default:
 		fmt.Printf("%v", res)
 	}

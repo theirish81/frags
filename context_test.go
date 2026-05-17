@@ -27,7 +27,7 @@ import (
 func TestPreCallCtx(t *testing.T) {
 	ctx := preCallCtx(FunctionCaller{
 		Name:        "foo",
-		Description: util.StrPtr("description of foo"),
+		Description: util.Ptr("description of foo"),
 	}, "data")
 	assert.Equal(t, "<CallResult name=\"foo\" description=\"description of foo\" contentType=\"application/json\"><![CDATA[ \"data\" ]]></CallResult>", ctx.String())
 }

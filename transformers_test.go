@@ -33,7 +33,7 @@ func TestTransformer_Transform(t *testing.T) {
 	t.Run("JSONATA transform a result map", func(t *testing.T) {
 		tx := Transformer{
 			Name:    "foo",
-			Jsonata: util.StrPtr(`result.{"first_name":first_name,"last_name":last_name}`),
+			Jsonata: util.Ptr(`result.{"first_name":first_name,"last_name":last_name}`),
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), map[string]any{
 			"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
@@ -44,7 +44,7 @@ func TestTransformer_Transform(t *testing.T) {
 	t.Run("JSONATA transform a map, alternative syntax", func(t *testing.T) {
 		tx := Transformer{
 			Name:    "foo",
-			Jsonata: util.StrPtr(`{ "result": {"first_name":result.first_name, "last_name":result.last_name }}`),
+			Jsonata: util.Ptr(`{ "result": {"first_name":result.first_name, "last_name":result.last_name }}`),
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), map[string]any{
 			"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
@@ -55,7 +55,7 @@ func TestTransformer_Transform(t *testing.T) {
 	t.Run("JSONATA transform a result map containing an array", func(t *testing.T) {
 		tx := Transformer{
 			Name:    "foo",
-			Jsonata: util.StrPtr(`{ "result": [result.{"first_name":first_name, "last_name":last_name }]}`),
+			Jsonata: util.Ptr(`{ "result": [result.{"first_name":first_name, "last_name":last_name }]}`),
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), map[string]any{
 			"result": []map[string]any{
@@ -68,7 +68,7 @@ func TestTransformer_Transform(t *testing.T) {
 	t.Run("JSONATA transform a regular map", func(t *testing.T) {
 		tx := Transformer{
 			Name:    "foo",
-			Jsonata: util.StrPtr(`{"first_name":first_name,"last_name":last_name}`),
+			Jsonata: util.Ptr(`{"first_name":first_name,"last_name":last_name}`),
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
 			&Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
@@ -78,7 +78,7 @@ func TestTransformer_Transform(t *testing.T) {
 	t.Run("JSONATA transform a regular array", func(t *testing.T) {
 		tx := Transformer{
 			Name:    "foo",
-			Jsonata: util.StrPtr(`[{"first_name":first_name, "last_name":last_name }]`),
+			Jsonata: util.Ptr(`[{"first_name":first_name, "last_name":last_name }]`),
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), []map[string]any{
 			{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
@@ -90,7 +90,7 @@ func TestTransformer_Transform(t *testing.T) {
 		px := JsonParser
 		tx := Transformer{
 			Name:    "foo",
-			Jsonata: util.StrPtr(`{"first_name":first_name,"last_name":last_name}`),
+			Jsonata: util.Ptr(`{"first_name":first_name,"last_name":last_name}`),
 			Parser:  &px,
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), `{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}`,
@@ -102,7 +102,7 @@ func TestTransformer_Transform(t *testing.T) {
 		px := JsonParser
 		tx := Transformer{
 			Name:    "foo",
-			Jsonata: util.StrPtr(`[{"first_name":first_name, "last_name":last_name }]`),
+			Jsonata: util.Ptr(`[{"first_name":first_name, "last_name":last_name }]`),
 			Parser:  &px,
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), `[{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}]`,
@@ -114,7 +114,7 @@ func TestTransformer_Transform(t *testing.T) {
 		px := CsvParser
 		tx := Transformer{
 			Name:    "foo",
-			Jsonata: util.StrPtr(`$[].{"first_name":$[0], "last_name":$[1] }`),
+			Jsonata: util.Ptr(`$[].{"first_name":$[0], "last_name":$[1] }`),
 			Parser:  &px,
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), `John,Doe`, &Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
