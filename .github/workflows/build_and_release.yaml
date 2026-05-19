@@ -23,7 +23,7 @@ jobs:
           git config --global url."https://x-access-token:${{ secrets.TOKEN }}@github.com/".insteadOf "git@github.com:"
       - name: Configure GOPRIVATE
         run: |
-          echo "GOPRIVATE=github.com/diaphora-ai/*" >> $GITHUB_ENV
+          echo "GOPRIVATE=github.com/diaphora-ai/*,github.com/theirish81/*" >> $GITHUB_ENV
       - name: Write version file
         working-directory: cli
         run: |
