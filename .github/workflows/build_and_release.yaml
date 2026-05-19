@@ -19,13 +19,13 @@ jobs:
 
       - name: Configure Git for private modules
         run: |
-          git config --global url."https://x-access-token:${{ secrets.TOKEN }}@github.com/".insteadOf "https://github.com/"
-          git config --global url."https://x-access-token:${{ secrets.TOKEN }}@github.com/".insteadOf "git@github.com:"
+          echo "machine github.com login x-access-token password ${{ secrets.TOKEN }}" > ~/.netrc
+          chmod 600 ~/.netrc
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25'
+          go-version: '1.24'
           cache: false
 
       - name: Write version file
