@@ -10,19 +10,24 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GOPRIVATE: "github.com/diaphora-ai/*,github.com/theirish81/*"
+      GONOSUMDB: "github.com/diaphora-ai/*,github.com/theirish81/*"
+      GOFLAGS: "-mod=mod"
     steps:
       - uses: actions/checkout@v3
+
       - name: Configure Git for private modules
         run: |
           git config --global url."https://x-access-token:${{ secrets.TOKEN }}@github.com/".insteadOf "https://github.com/"
           git config --global url."https://x-access-token:${{ secrets.TOKEN }}@github.com/".insteadOf "git@github.com:"
-      - name: Configure GOPRIVATE
-        run: |
-          echo "GOPRIVATE=github.com/diaphora-ai/*,github.com/theirish81/*" >> $GITHUB_ENV
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.25.4'
+          go-version: '1.25'
+          cache: false
+
       - name: Write version file
         working-directory: cli
         run: |
@@ -31,6 +36,7 @@ jobs:
 
           const version = "${GITHUB_REF_NAME}"
           EOF
+
       - name: Build
         working-directory: cli
         run: |
@@ -39,6 +45,7 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -o target/frags.exe -v .
           GOOS=darwin GOARCH=amd64 go build -o target/frags-darwin-amd64 -v .
           GOOS=darwin GOARCH=arm64 go build -o target/frags-darwin-arm64 -v .
+
       - name: GitHub Releases
         uses: fnkr/github-action-ghr@v1.3
         env:
