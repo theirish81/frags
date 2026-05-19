@@ -40,9 +40,6 @@ func ParseDurationOrDefault(durationStr *string, defaultDuration time.Duration) 
 	return parsedDuration
 }
 
-// StrPtr returns a pointer to a string
-func StrPtr(s string) *string { return &s }
-
 func Ptr[T any](t T) *T { return &t }
 
 // ToConcreteValue returns the concrete value of a reflect.Value It gives up after 5 levels of indirection as a

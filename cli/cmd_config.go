@@ -42,20 +42,27 @@ setup.`,
 			cmd.PrintErrln(err)
 			return
 		}
-		mcpTools, _, toolDefinitions, functions, err := connectMcpAndCollections(cmd.Context(), toolsConfig, log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
-		if err != nil {
-			cmd.PrintErrln(err)
-			return
-		}
-		defer func() {
-			_ = mcpTools.Close()
-		}()
-		toolsText, _ := yaml.Marshal(toolDefinitions)
-		fmt.Println("==== TOOLS CONFIG ====")
-		fmt.Println(string(toolsText))
+		if tools {
+			mcpTools, _, toolDefinitions, functions, err := connectMcpAndCollections(cmd.Context(), toolsConfig, log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			defer func() {
+				_ = mcpTools.Close()
+			}()
+			toolsText, _ := yaml.Marshal(toolDefinitions)
+			fmt.Println("==== TOOLS CONFIG ====")
+			fmt.Println(string(toolsText))
 
-		functionsText, _ := yaml.Marshal(functions)
-		fmt.Println("==== FUNCTIONS CONFIG ====")
-		fmt.Println(string(functionsText))
+			functionsText, _ := yaml.Marshal(functions)
+			fmt.Println("==== FUNCTIONS CONFIG ====")
+			fmt.Println(string(functionsText))
+		}
+
 	},
+}
+
+func init() {
+	configCmd.Flags().BoolVarP(&tools, "show-tools", "", false, "Show tools")
 }

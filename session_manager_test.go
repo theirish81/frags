@@ -33,26 +33,24 @@ func TestNewSessionManagerValidate(t *testing.T) {
 		err := validator.New().Struct(mgr)
 		assert.Error(t, err)
 
-		mgr.Sessions = map[string]Session{}
+		mgr.Sessions = NewSessions()
 		assert.Error(t, err)
 	})
 	t.Run("has sessions. No prompt", func(t *testing.T) {
 		mgr := SessionManager{
-			Sessions: map[string]Session{
-				"foo": {},
-			},
+			Sessions: NewSessions(),
 		}
+		mgr.Sessions.Set("foo", Session{})
 		err := validator.New().Struct(mgr)
 		assert.NoError(t, err)
 	})
 	t.Run("has sessions. Has prompt", func(t *testing.T) {
 		mgr := SessionManager{
-			Sessions: map[string]Session{
-				"foo": {
-					Prompt: "foo",
-				},
-			},
+			Sessions: NewSessions(),
 		}
+		mgr.Sessions.Set("foo", Session{
+			Prompt: "foo",
+		})
 		err := validator.New().Struct(mgr)
 		assert.NoError(t, err)
 	})
@@ -124,4 +122,23 @@ func TestSession_RenderPrePrompts(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, sx, 1)
 	assert.Equal(t, "foobar baz", sx[0])
+}
+
+func TestSessionManager_ComputeRequiredResources(t *testing.T) {
+	s := NewSessionManager()
+	s.Sessions.Set("foo", Session{
+		Resources: []Resource{
+			{
+				Identifier: "bar.txt",
+			},
+		},
+	})
+	s.Sessions.Set("pluto", Session{
+		Resources: []Resource{
+			{
+				Identifier: "duck.txt",
+			},
+		},
+	})
+	assert.Equal(t, []string{"bar.txt", "duck.txt"}, s.ComputeRequiredResources())
 }

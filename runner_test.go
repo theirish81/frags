@@ -79,7 +79,7 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 	ai := NewDummyAi()
 	runner := NewRunner[map[string]string](mgr, resources.NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
 	runner.dataStructure = &map[string]string{}
-	res, err := runner.loadSessionResources(util.NewFragsContext(time.Minute), "s1", mgr.Sessions["s1"])
+	res, err := runner.loadSessionResources(util.NewFragsContext(time.Minute), "s1", mgr.Sessions.Get("s1"))
 	assert.NoError(t, err)
 	assert.Equal(t, "stuff.csv", res[0].Identifier)
 	assert.Equal(t, util.MediaJson, res[0].MediaType)
@@ -108,7 +108,7 @@ func TestRunner_RunAllFunctionCalls(t *testing.T) {
 				return "val1", nil
 			},
 			In:  util.Ptr[FunctionCallDestination](VarsFunctionCallDestination),
-			Var: util.StrPtr("f1"),
+			Var: util.Ptr("f1"),
 		},
 		{
 			Name: "f2",
@@ -117,7 +117,7 @@ func TestRunner_RunAllFunctionCalls(t *testing.T) {
 			},
 			Args: map[string]any{"f1": "{{.vars.f1}}"},
 			In:   util.Ptr[FunctionCallDestination](VarsFunctionCallDestination),
-			Var:  util.StrPtr("f2"),
+			Var:  util.Ptr("f2"),
 		},
 	}
 	outVars := make(map[string]any, 0)

@@ -21,20 +21,24 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
+	fmlCompiler "github.com/theirish81/fml/compiler"
+	fmlParser "github.com/theirish81/fml/parser"
 	"github.com/theirish81/frags"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/util"
+	"gopkg.in/yaml.v3"
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run <path/to/plan.yaml>",
-	Short: "Run a frags plan from a YAML file.",
-	Long:  `Run a frags plan from a YAML file. This is frags CLI core functionality.`,
+	Use:   "run <path/to/plan.yaml|.fml>",
+	Short: "Run a frags plan from a YAML or FML file.",
+	Long:  `Run a frags plan from a YAML or FML file. This is frags CLI core functionality.`,
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// validate flags and input
@@ -57,6 +61,22 @@ var runCmd = &cobra.Command{
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
+		}
+		if path.Ext(args[0]) == ".fml" {
+			parser, _ := fmlParser.NewParser()
+			parsedFml, err := parser.ParseString(args[0], string(planData))
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			planYaml, err := fmlCompiler.New(parsedFml).Compile()
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			if planData, err = yaml.Marshal(planYaml); err != nil {
+				cmd.PrintErrln(err)
+			}
 		}
 		sm := frags.NewSessionManager()
 		if err := sm.FromYAML(planData); err != nil {

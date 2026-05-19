@@ -39,8 +39,8 @@ func TestExternalFunction_Run(t *testing.T) {
 	runner.sessionManager.Transformers = &Transformers{
 		{
 			Name:            "t1",
-			OnFunctionInput: util.StrPtr("f1"),
-			Expr:            util.StrPtr("{\"yay\": args.foo}"),
+			OnFunctionInput: util.Ptr("f1"),
+			Expr:            util.Ptr("{\"yay\": args.foo}"),
 		},
 	}
 	res, err := efc.ListByCollection("c1").Get("f1").Run(util.NewFragsContext(1*time.Minute), map[string]any{"foo": "bar"}, &runner)

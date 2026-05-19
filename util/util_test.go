@@ -28,13 +28,13 @@ import (
 
 func TestParseDurationOrDefault(t *testing.T) {
 	t.Run("valid duration", func(t *testing.T) {
-		assert.Equal(t, 10*time.Second, ParseDurationOrDefault(StrPtr("10s"), 60*time.Second))
+		assert.Equal(t, 10*time.Second, ParseDurationOrDefault(Ptr("10s"), 60*time.Second))
 	})
 	t.Run("nil duration", func(t *testing.T) {
 		assert.Equal(t, 60*time.Second, ParseDurationOrDefault(nil, 60*time.Second))
 	})
 	t.Run("wrong duration", func(t *testing.T) {
-		assert.Equal(t, 60*time.Second, ParseDurationOrDefault(StrPtr("foo"), 60*time.Second))
+		assert.Equal(t, 60*time.Second, ParseDurationOrDefault(Ptr("foo"), 60*time.Second))
 	})
 }
 

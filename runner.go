@@ -150,7 +150,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 		opt(&opts)
 	}
 	status := NewSafeMap[string, SessionStatus]()
-	for k, _ := range sessionManager.Sessions {
+	for k, _ := range sessionManager.Sessions.Iter() {
 		status.Store(k, queuedSessionStatus)
 	}
 	return Runner[T]{
@@ -268,7 +268,7 @@ func (r *Runner[T]) checkToolsRequirements() error {
 func (r *Runner[T]) scanSessions(ctx *util.FragsContext) error {
 	r.wg = sync.WaitGroup{}
 	// listing all the sessions still in queued state
-	for k, s := range r.ListQueued() {
+	for k, s := range r.ListQueued().Iter() {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -382,10 +382,10 @@ func (r *Runner[T]) runSession(ctx *util.FragsContext, sessionID string, session
 
 // ListQueued returns a list of queued sessions
 func (r *Runner[T]) ListQueued() Sessions {
-	sessions := make(Sessions)
+	sessions := NewSessions()
 	for k, v := range r.status.Iter() {
 		if v == queuedSessionStatus {
-			sessions[k] = r.sessionManager.Sessions[k]
+			sessions.Set(k, r.sessionManager.Sessions.Get(k))
 		}
 	}
 	return sessions

@@ -18,11 +18,11 @@
 package frags
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/scoper"
+	"github.com/theirish81/frags/util"
 )
 
 // contextualizePrompt adds the current context to the prompt. This includes the already extracted context, if enabled,
@@ -63,10 +63,10 @@ func (r *Runner[T]) contextualizePrompt(prompt string, preCallContext *scoper.Kn
 // preCallCtx returns a string representation of a function call and its result, formatting it in a way that it can be
 // correctly read by the LLM. Its main purpose is to be inserted in the prompt as part of the context.
 func preCallCtx(call FunctionCaller, res any) *scoper.KnowledgeNode {
-	data, _ := json.Marshal(res)
 	descr := ""
 	if call.Description != nil {
 		descr = *call.Description
 	}
-	return scoper.Node("CallResult", string(data)).Name(call.Name).Description(descr).ContentType("application/json")
+	return scoper.Node("CallResult", util.MustJsonString(res)).Name(call.Name).Description(descr).
+		ContentType("application/json")
 }

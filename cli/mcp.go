@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
@@ -91,10 +90,9 @@ func toCallResult(data any, rootObjectName string, sx *schema.Schema) *mcp.CallT
 	if sx != nil {
 		output["response_schema"] = sx
 	}
-	content, _ := json.Marshal(output)
 	return &mcp.CallToolResult{StructuredContent: output, Content: []mcp.Content{
 		&mcp.TextContent{
-			Text: string(content),
+			Text: util.MustJsonString(output),
 		},
 	}}
 }

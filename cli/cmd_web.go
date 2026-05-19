@@ -171,7 +171,7 @@ safe environments.`,
 				result, err := execute(ctx, sm, req.Parameters, req.ToolsOrDefault(toolsConfig), loader, streamerLogger)
 				time.Sleep(100 * time.Millisecond)
 				if err != nil {
-					return streamer.Finish(log.NewEvent(log.ErrorEventType, log.AppComponent).WithErr(err).WithLevel("err"))
+					return streamer.Finish(log.NewEvent(log.ErrorEventType, log.AppComponent).WithContent(result).WithErr(err).WithLevel("err"))
 				}
 				output, _, err := dataOrRenderTemplate(c, req, sm, result)
 				if err != nil {

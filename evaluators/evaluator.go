@@ -19,7 +19,6 @@ package evaluators
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -188,8 +187,7 @@ func EvaluateMapValues(args map[string]any, scope EvalScope) (map[string]any, er
 // templateFuncs are the functions available in the templates.
 var templateFuncs = template.FuncMap{
 	"json": func(v any) string {
-		json, _ := json.MarshalIndent(v, "", " ")
-		return string(json)
+		return util.MustJsonIndentString(v)
 	},
 }
 
