@@ -9,14 +9,9 @@ jobs:
   build-and-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v3
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.25.4'
       - name: Configure Git for private modules
         run: |
           git config --global url."https://x-access-token:${{ secrets.TOKEN }}@github.com/".insteadOf "https://github.com/"
@@ -24,6 +19,10 @@ jobs:
       - name: Configure GOPRIVATE
         run: |
           echo "GOPRIVATE=github.com/diaphora-ai/*,github.com/theirish81/*" >> $GITHUB_ENV
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25.4'
       - name: Write version file
         working-directory: cli
         run: |
