@@ -42,14 +42,19 @@ func (k *KnowledgeNode) MarshalXML(e *xml.Encoder, start xml.StartElement) error
 	if k.ContentTypeAttr != "" {
 		start.Attr = append(start.Attr, xml.Attr{Name: xml.Name{Local: "contentType"}, Value: k.ContentTypeAttr})
 	}
-	_ = e.EncodeToken(start)
 	if k.Content != "" {
-		_ = e.EncodeToken(xml.Directive("[CDATA[ " + k.Content + " ]]"))
+		_ = e.EncodeElement(struct {
+			S string `xml:",innerxml"`
+		}{
+			S: "<![CDATA[ " + k.Content + " ]]>",
+		}, start)
+	} else {
+		_ = e.EncodeToken(start)
+		for _, child := range k.Children {
+			_ = child.MarshalXML(e, xml.StartElement{})
+		}
+		_ = e.EncodeToken(start.End())
 	}
-	for _, child := range k.Children {
-		_ = child.MarshalXML(e, xml.StartElement{})
-	}
-	_ = e.EncodeToken(start.End())
 	return nil
 }
 
