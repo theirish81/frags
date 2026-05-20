@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/theirish81/frags/util"
 )
 
 type EventType string
@@ -137,12 +136,7 @@ func (e Event) WithFunction(function string) Event {
 	return e
 }
 func (e Event) WithContent(content any) Event {
-	switch content.(type) {
-	case string, int, float32, float64, bool:
-		e.Content = &content
-	default:
-		e.Content = util.Ptr[any](util.MustJsonString(content))
-	}
+	e.Content = &content
 	return e
 }
 
