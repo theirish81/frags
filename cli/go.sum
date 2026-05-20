@@ -205,8 +205,8 @@ github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7 h1:JbaOgonMdFmcF
 github.com/theirish81/doauth v0.0.0-20260427082048-18b593885cb7/go.mod h1:njnhj5eJQ+3Kxe4PDiJL5gTHJkWa3TfBOmtZ3X5a7/E=
 github.com/theirish81/fml v0.0.0-20260518072458-d482778e399e h1:EVwUIBJAkWozDfy5k3F2uJZEIq5l3L5DiSL7x3PB8hI=
 github.com/theirish81/fml v0.0.0-20260518072458-d482778e399e/go.mod h1:H73S0GEeH7bV1xrsKeY4/NuRzNBtgVGPxzuwZ/3JyuU=
-github.com/theirish81/frags v0.30.0-rc0 h1:eJ7eEZmJLTRK+xQ8FXo0MnRdgGKw9jJdFpM5YTNFJHk=
-github.com/theirish81/frags v0.30.0-rc0/go.mod h1:zRCGxrfLtBcBNbx6bdUctPy42wKLJnXiL0KGCkDkKB4=
+github.com/theirish81/frags v0.30.0-rc2 h1:oBD+UNAakWRUm6VCF1cZKAgeZdsXjBXbP16LWSxZR7E=
+github.com/theirish81/frags v0.30.0-rc2/go.mod h1:zRCGxrfLtBcBNbx6bdUctPy42wKLJnXiL0KGCkDkKB4=
 github.com/theirish81/frags/anthropic v0.25.0-rc1 h1:UYt1BPULLj5PBTjuXY810k/a6hfJeITPwnUuq9arcnw=
 github.com/theirish81/frags/anthropic v0.25.0-rc1/go.mod h1:DWkVOSoU2edJzR4Vu7U4DLulDwUWMP1YXcgTazVsye8=
 github.com/theirish81/frags/chatgpt v0.25.0 h1:kkSsBzcaaXJpg3S1/lVUmmxUEK6PiiSaAaTac3xGfn0=
