@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/util"
 )
@@ -31,7 +32,7 @@ func TestExternalFunction_Run(t *testing.T) {
 	ef := ExternalFunction{
 		Name:       "f1",
 		Collection: "c1",
-		Func: func(ctx *util.FragsContext, args map[string]any) (any, error) {
+		Func: func(ctx *fctx.FragsContext, args map[string]any) (any, error) {
 			return args, nil
 		},
 	}
@@ -43,7 +44,7 @@ func TestExternalFunction_Run(t *testing.T) {
 			Expr:            util.Ptr("{\"yay\": args.foo}"),
 		},
 	}
-	res, err := efc.ListByCollection("c1").Get("f1").Run(util.NewFragsContext(1*time.Minute), map[string]any{"foo": "bar"}, &runner)
+	res, err := efc.ListByCollection("c1").Get("f1").Run(fctx.NewFragsContext(1*time.Minute), map[string]any{"foo": "bar"}, &runner)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]any{"yay": "bar"}, res)
 }

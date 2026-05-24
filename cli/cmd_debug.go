@@ -26,6 +26,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/scriptengines"
@@ -105,7 +106,7 @@ var debugScriptCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		res, err := runner.ScriptEngine().RunCode(util.WithFragsContext(cmd.Context(), 15*time.Minute), string(code), data, runner)
+		res, err := runner.ScriptEngine().RunCode(fctx.WithFragsContext(cmd.Context(), 15*time.Minute), string(code), data, runner)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
@@ -144,7 +145,7 @@ var debugTransformerCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		res, err := transformer.Transform(util.WithFragsContext(cmd.Context(), 15*time.Minute), data, runner)
+		res, err := transformer.Transform(fctx.WithFragsContext(cmd.Context(), 15*time.Minute), data, runner)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return

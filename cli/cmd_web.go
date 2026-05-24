@@ -35,6 +35,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/util"
@@ -139,7 +140,7 @@ safe environments.`,
 		e.HideBanner = true
 		e.HTTPErrorHandler = errorHandler
 		e.POST("/execute", func(c echo.Context) error {
-			ctx := util.WithFragsContext(c.Request().Context(), 15*time.Minute)
+			ctx := fctx.WithFragsContext(c.Request().Context(), 15*time.Minute)
 			defer ctx.Cancel(nil)
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {
@@ -230,7 +231,7 @@ carefully and use this mode only in development or safe environments.`,
 		e.HTTPErrorHandler = errorHandler
 		initMCP(e)
 		e.POST("/run/:file", func(c echo.Context) error {
-			ctx := util.WithFragsContext(c.Request().Context(), 15*time.Minute)
+			ctx := fctx.WithFragsContext(c.Request().Context(), 15*time.Minute)
 			defer ctx.Cancel(nil)
 			req := executeRequest{}
 			if err := c.Bind(&req); err != nil {

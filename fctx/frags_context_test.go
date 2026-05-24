@@ -15,31 +15,26 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package util
+package fctx
 
 import (
-	"reflect"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseDurationOrDefault(t *testing.T) {
-	t.Run("valid duration", func(t *testing.T) {
-		assert.Equal(t, 10*time.Second, ParseDurationOrDefault(Ptr("10s"), 60*time.Second))
+func TestFragsContext(t *testing.T) {
+	t.Run("cancel error propagation", func(t *testing.T) {
+		ctx := NewFragsContext(10 * time.Second)
+		ctx.Cancel(errors.New("test error"))
+		assert.Equal(t, "context canceled: test error", ctx.Err().Error())
 	})
-	t.Run("nil duration", func(t *testing.T) {
-		assert.Equal(t, 60*time.Second, ParseDurationOrDefault(nil, 60*time.Second))
+	t.Run("test timeout", func(t *testing.T) {
+		ctx := NewFragsContext(10 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
+		assert.Error(t, ctx.Err())
+		assert.Equal(t, "context deadline exceeded", ctx.Err().Error())
 	})
-	t.Run("wrong duration", func(t *testing.T) {
-		assert.Equal(t, 60*time.Second, ParseDurationOrDefault(Ptr("foo"), 60*time.Second))
-	})
-}
-
-func TestToConcreteValue(t *testing.T) {
-	v1 := 6
-	v2 := &v1
-	v3 := &v2
-	assert.Equal(t, 6, ToConcreteValue(reflect.ValueOf(v3)).Interface())
 }

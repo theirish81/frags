@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"maps"
 
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/schema"
 	"github.com/theirish81/frags/util"
@@ -32,7 +33,7 @@ import (
 // Description is the function description
 // Schema is the input schema for the function.
 type ExternalFunction struct {
-	Func         func(ctx *util.FragsContext, data map[string]any) (any, error) `yaml:"-"`
+	Func         func(ctx *fctx.FragsContext, data map[string]any) (any, error) `yaml:"-"`
 	Name         string                                                         `yaml:"name"`
 	Collection   string                                                         `yaml:"collection"`
 	Description  string                                                         `yaml:"description"`
@@ -45,7 +46,7 @@ func (f ExternalFunction) String() string {
 }
 
 // Run runs the function, applying any transformers defined in the runner.
-func (f ExternalFunction) Run(ctx *util.FragsContext, args map[string]any, runner ExportableRunner) (any, error) {
+func (f ExternalFunction) Run(ctx *fctx.FragsContext, args map[string]any, runner ExportableRunner) (any, error) {
 	ax, err := runner.Transformers().FilterOnFunctionInput(f.Name).Transform(ctx, maps.Clone(args), runner)
 	if err != nil {
 		return nil, err

@@ -24,6 +24,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/theirish81/frags"
 	"github.com/theirish81/frags/evaluators"
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/scriptengines"
@@ -33,7 +34,7 @@ import (
 )
 
 // execute executes the plan using the specified parameters
-func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[string]any, toolConfig ExtendedToolsConfig,
+func execute(ctx *fctx.FragsContext, sm frags.SessionManager, paramsMap map[string]any, toolConfig ExtendedToolsConfig,
 	rl resources.ResourceLoader, logger *log.StreamerLogger) (*util.ProgMap, error) {
 	// parameters can only be strings via CLI, so we tell the parameter validator to enable loose type checking,
 	// that is, if a string contains a number, it will be parsed as a number if the schema expects it

@@ -115,44 +115,6 @@ func (e CtxError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Err1.Error(), e.Err2.Error())
 }
 
-type FragsContext struct {
-	context.Context
-	ProgramError error
-	cancel       context.CancelFunc
-}
-
-func NewFragsContext(timeout time.Duration) *FragsContext {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	return &FragsContext{Context: ctx, cancel: cancel}
-}
-
-func WithFragsContext(ctx context.Context, timeout time.Duration) *FragsContext {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	return &FragsContext{Context: ctx, cancel: cancel}
-}
-
-func (f *FragsContext) Cancel(err error) {
-	if err != nil {
-		f.ProgramError = err
-	}
-	f.cancel()
-}
-
-func (f *FragsContext) Child(timeout time.Duration) *FragsContext {
-	ctx, cancel := context.WithTimeout(f, timeout)
-	return &FragsContext{Context: ctx, cancel: cancel}
-}
-
-func (f *FragsContext) Err() error {
-	if f.Context.Err() == nil {
-		return nil
-	}
-	if f.ProgramError == nil {
-		return f.Context.Err()
-	}
-	return &CtxError{Err1: f.Context.Err(), Err2: f.ProgramError}
-}
-
 // IndentMultilineString adds a specified number of tabs to each line of a string.
 func IndentMultilineString(text string, numTabs int) string {
 	if text == "" {

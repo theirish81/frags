@@ -21,17 +21,17 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/schema"
-	"github.com/theirish81/frags/util"
 )
 
 // Ai is an interface for AI models.
 type Ai interface {
-	Ask(ctx *util.FragsContext, text string, schema *schema.Schema, tools ToolDefinitions, runner ExportableRunner, resources ...resources.ResourceData) ([]byte, error)
+	Ask(ctx *fctx.FragsContext, text string, schema *schema.Schema, tools ToolDefinitions, runner ExportableRunner, resources ...resources.ResourceData) ([]byte, error)
 	New() Ai
 	SetFunctions(functions ExternalFunctions)
-	RunFunction(ctx *util.FragsContext, functionCall FunctionCaller, runner ExportableRunner) (any, error)
+	RunFunction(ctx *fctx.FragsContext, functionCall FunctionCaller, runner ExportableRunner) (any, error)
 	SetSystemPrompt(systemPrompt string)
 }
 
@@ -48,7 +48,7 @@ type DummyAi struct {
 }
 
 // Ask returns a dummy response for testing purposes.
-func (d *DummyAi) Ask(_ *util.FragsContext, text string, schema *schema.Schema, _ ToolDefinitions, _ ExportableRunner, resources ...resources.ResourceData) ([]byte, error) {
+func (d *DummyAi) Ask(_ *fctx.FragsContext, text string, schema *schema.Schema, _ ToolDefinitions, _ ExportableRunner, resources ...resources.ResourceData) ([]byte, error) {
 	d.History = append(d.History, dummyHistoryItem{Text: text, Schema: schema, Resources: resources})
 	out := map[string]string{}
 	if schema != nil {
@@ -62,7 +62,7 @@ func (d *DummyAi) Ask(_ *util.FragsContext, text string, schema *schema.Schema, 
 
 func (d *DummyAi) SetFunctions(_ ExternalFunctions) {}
 func (d *DummyAi) SetSystemPrompt(_ string)         {}
-func (d *DummyAi) RunFunction(_ *util.FragsContext, _ FunctionCaller, _ ExportableRunner) (any, error) {
+func (d *DummyAi) RunFunction(_ *fctx.FragsContext, _ FunctionCaller, _ ExportableRunner) (any, error) {
 	return nil, nil
 }
 

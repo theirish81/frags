@@ -27,11 +27,11 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/theirish81/doauth"
+	fctx "github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/httpfactory"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/mcpauth"
 	"github.com/theirish81/frags/schema"
-	"github.com/theirish81/frags/util"
 )
 
 // McpTools returns  McpTool instances for each server configuration
@@ -221,7 +221,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (ExternalFunctions, error) {
 			Description: t.Description,
 			Collection:  c.Name,
 			Schema:      t.InputSchema,
-			Func: func(ctx *util.FragsContext, data map[string]any) (any, error) {
+			Func: func(ctx *fctx.FragsContext, data map[string]any) (any, error) {
 				return c.Run(ctx, t.Name, data)
 			},
 		}
@@ -230,7 +230,7 @@ func (c *McpTool) AsFunctions(ctx context.Context) (ExternalFunctions, error) {
 }
 
 // Run runs a tool on the server
-func (c *McpTool) Run(ctx *util.FragsContext, name string, arguments any) (any, error) {
+func (c *McpTool) Run(ctx *fctx.FragsContext, name string, arguments any) (any, error) {
 	res, err := c.session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      name,
 		Arguments: arguments,

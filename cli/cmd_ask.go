@@ -24,6 +24,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/schema"
@@ -93,7 +94,7 @@ so it's subject to the limitations imposed by generating structured output.`,
 				},
 			},
 		}
-		ctx := util.WithFragsContext(cmd.Context(), 15*time.Minute)
+		ctx := fctx.WithFragsContext(cmd.Context(), 15*time.Minute)
 		defer ctx.Cancel(nil)
 		out, err := execute(ctx, mgr, make(map[string]any), toolsConfig,
 			resources.NewFileResourceLoader("./"), log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))

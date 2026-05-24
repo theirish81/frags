@@ -29,9 +29,9 @@ import (
 	fmlCompiler "github.com/theirish81/fml/compiler"
 	fmlParser "github.com/theirish81/fml/parser"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
-	"github.com/theirish81/frags/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -93,7 +93,7 @@ var runCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
-		ctx := util.WithFragsContext(cmd.Context(), 15*time.Minute)
+		ctx := fctx.WithFragsContext(cmd.Context(), 15*time.Minute)
 		defer ctx.Cancel(nil)
 		result, err := execute(ctx, sm, paramsMap, toolsConfig,
 			resources.NewFileResourceLoader(filepath.Dir(args[0])), streamerLogger)

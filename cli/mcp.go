@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/theirish81/frags"
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/schema"
@@ -67,7 +68,7 @@ func initMCP(e *echo.Echo) {
 				return nil, nil, err
 			}
 
-			res, err := execute(util.WithFragsContext(ctx, 10*time.Minute), sm, args.Parameters, toolsConfig, resources.NewDummyResourceLoader(), log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
+			res, err := execute(fctx.WithFragsContext(ctx, 10*time.Minute), sm, args.Parameters, toolsConfig, resources.NewDummyResourceLoader(), log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
 			if err != nil {
 				return nil, nil, err
 			}

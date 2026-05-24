@@ -21,6 +21,7 @@ import (
 	"github.com/blues/jsonata-go"
 	"github.com/jmespath/go-jmespath"
 	"github.com/theirish81/frags/evaluators"
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/util"
 )
@@ -48,7 +49,7 @@ type Transformer struct {
 	Func             TransformerCallbackFunc `yaml:"-" json:"-"`
 }
 
-type TransformerCallbackFunc func(ctx *util.FragsContext, data any, runner ExportableRunner) (any, error)
+type TransformerCallbackFunc func(ctx *fctx.FragsContext, data any, runner ExportableRunner) (any, error)
 
 type Transformers []Transformer
 
@@ -84,7 +85,7 @@ func (t Transformers) FilterOnResource(name string) Transformers {
 }
 
 // Transform applies the transformation to the given data
-func (t Transformer) Transform(ctx *util.FragsContext, data any, runner ExportableRunner) (any, error) {
+func (t Transformer) Transform(ctx *fctx.FragsContext, data any, runner ExportableRunner) (any, error) {
 	runner.Logger().Debug(log.NewEvent(log.StartEventType, log.TransformerComponent).WithTransformer(t.Name))
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -148,7 +149,7 @@ func (t Transformer) Transform(ctx *util.FragsContext, data any, runner Exportab
 }
 
 // Transform applies all the transformations to the given data
-func (t Transformers) Transform(ctx *util.FragsContext, data any, runner ExportableRunner) (any, error) {
+func (t Transformers) Transform(ctx *fctx.FragsContext, data any, runner ExportableRunner) (any, error) {
 	tmp := data
 	var err error
 	for _, tx := range t {

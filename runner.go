@@ -29,6 +29,7 @@ import (
 	"github.com/avast/retry-go/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/theirish81/frags/evaluators"
+	"github.com/theirish81/frags/fctx"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/scoper"
@@ -38,7 +39,7 @@ import (
 
 type ExportableRunner interface {
 	Transformers() *Transformers
-	RunFunction(ctx *util.FragsContext, name string, args map[string]any) (any, error)
+	RunFunction(ctx *fctx.FragsContext, name string, args map[string]any) (any, error)
 	ScriptEngine() ScriptEngine
 	Logger() *log.StreamerLogger
 }
@@ -172,7 +173,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 }
 
 // Run runs the runner against an optional collection fo parameters
-func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
+func (r *Runner[T]) Run(ctx *fctx.FragsContext, params any) (*T, error) {
 	// you cannot invoke Run if an existing Run is in progress
 	if r.running {
 		return nil, errors.New("this frags instance is running")
@@ -265,7 +266,7 @@ func (r *Runner[T]) checkToolsRequirements() error {
 
 // scanSessions keeps scanning sessions until completion, sending tasks to workers and orchestrating priority and
 // concurrency
-func (r *Runner[T]) scanSessions(ctx *util.FragsContext) error {
+func (r *Runner[T]) scanSessions(ctx *fctx.FragsContext) error {
 	r.wg = sync.WaitGroup{}
 	// listing all the sessions still in queued state
 	for k, s := range r.ListQueued().Iter() {
@@ -309,7 +310,7 @@ func (r *Runner[T]) scanSessions(ctx *util.FragsContext) error {
 }
 
 // runSession runs a session.
-func (r *Runner[T]) runSession(ctx *util.FragsContext, sessionID string, session Session) error {
+func (r *Runner[T]) runSession(ctx *fctx.FragsContext, sessionID string, session Session) error {
 	if session.Vars == nil {
 		session.Vars = make(map[string]any)
 	}
@@ -391,7 +392,7 @@ func (r *Runner[T]) ListQueued() Sessions {
 	return sessions
 }
 
-func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
+func (r *Runner[T]) runPrePrompts(ctx *fctx.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
 	scope evaluators.EvalScope, preCallContext *scoper.KnowledgeNode, resources resources.ResourceDataItems) error {
 	r.logger.Info(log.NewEvent(log.StartEventType, log.PrePromptComponent).WithSession(sessionID).WithIteration(iteratorIdx))
 	// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
@@ -446,7 +447,7 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 	return nil
 }
 
-func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
+func (r *Runner[T]) runPrompt(ctx *fctx.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
 	scope evaluators.EvalScope, aiContext *scoper.KnowledgeNode, promptResources resources.ResourceDataItems) error {
 	if len(session.Prompt) == 0 {
 		return errors.New("runPrompt called on a session without a prompt")
@@ -540,7 +541,7 @@ func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, s
 }
 
 // loadSessionResources loads resources for a session.
-func (r *Runner[T]) loadSessionResources(ctx *util.FragsContext, sessionID string, session Session) (resources.ResourceDataItems, error) {
+func (r *Runner[T]) loadSessionResources(ctx *fctx.FragsContext, sessionID string, session Session) (resources.ResourceDataItems, error) {
 	sessionResources := make(resources.ResourceDataItems, 0)
 	for _, resource := range session.Resources {
 		if ctx.Err() != nil {
@@ -606,7 +607,7 @@ func (r *Runner[T]) resourcesDataToVars(resources resources.ResourceDataItems) m
 }
 
 // runSessionWorker runs a session worker.
-func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) {
+func (r *Runner[T]) runSessionWorker(mainContext *fctx.FragsContext, index int) {
 	for t := range r.sessionChan {
 		// if the main context has been cancelled, we discard any message that may be on the channel to drive
 		// the runner to its demise as soon as possible
@@ -682,7 +683,7 @@ func (r *Runner[T]) ListFailedSessions() []string {
 	return failedSessions
 }
 
-func (r *Runner[T]) RunFunction(ctx *util.FragsContext, name string, args map[string]any) (any, error) {
+func (r *Runner[T]) RunFunction(ctx *fctx.FragsContext, name string, args map[string]any) (any, error) {
 	f, ok := r.ExternalFunctions[name]
 	if ok {
 		return f.Run(ctx, args, r)
