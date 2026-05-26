@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/samber/lo"
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/schema"
@@ -121,10 +120,11 @@ func (s *Session) RenderNextPhasePrompt(scope evaluators.EvalScope) (string, err
 
 // Resource defines a resource to load, with an identifier and a map of parameters
 type Resource struct {
-	Identifier string                         `json:"identifier" yaml:"identifier" validate:"required,min=1"`
-	Params     map[string]string              `json:"params" yaml:"params"`
-	In         *resources.ResourceDestination `json:"in" yaml:"in" validate:"omitempty,oneof=ai vars prePrompt prompt"`
-	Var        *string                        `json:"var" yaml:"var"`
+	Identifier  string                         `json:"identifier" yaml:"identifier" validate:"required,min=1"`
+	Description string                         `json:"description" yaml:"description"`
+	Params      map[string]string              `json:"params" yaml:"params"`
+	In          *resources.ResourceDestination `json:"in" yaml:"in" validate:"omitempty,oneof=ai vars prePrompt prompt"`
+	Var         *string                        `json:"var" yaml:"var"`
 }
 
 // RequiredTool allows the plan writer to define what tools are certainly required, and allow for the runner to check
@@ -285,12 +285,10 @@ func (s *SessionManager) initNullSchema() {
 	}
 }
 
-func (s *SessionManager) ComputeRequiredResources() []string {
-	res := make([]string, 0)
+func (s *SessionManager) ComputeRequiredResources() []Resource {
+	res := make([]Resource, 0)
 	for _, session := range s.Sessions.Iter() {
-		res = append(res, lo.Map[Resource, string](session.Resources, func(item Resource, index int) string {
-			return item.Identifier
-		})...)
+		res = append(res, session.Resources...)
 	}
 	return res
 }
