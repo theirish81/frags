@@ -13,8 +13,8 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/fml v0.0.0-20260518072458-d482778e399e
-	github.com/theirish81/frags v0.30.0-rc2
+	github.com/theirish81/fml v0.0.0-20260529080524-aeb6abb4658a
+	github.com/theirish81/frags v0.30.0-rc4
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
 	github.com/theirish81/frags/gemini v0.28.1
@@ -25,7 +25,7 @@ require (
 	github.com/theirish81/fragsfunctions/postgres v0.6.1
 	github.com/theirish81/sesat2 v0.0.0-20260511100810-8e377902d6c0
 	github.com/theirish81/zealql v0.0.0-20260513085909-eb2e76a09b48
-	google.golang.org/genai v1.56.0
+	google.golang.org/genai v1.58.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
