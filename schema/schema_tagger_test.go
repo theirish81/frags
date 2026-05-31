@@ -38,17 +38,17 @@ func TestStructToSchema_BasicTypes(t *testing.T) {
 	schema := StructToSchema(BasicStruct{})
 
 	assert.NotNil(t, schema)
-	assert.Equal(t, "object", schema.Type)
+	assert.Equal(t, Type("object"), schema.Type)
 	assert.Len(t, schema.Properties, 7)
 	assert.Len(t, schema.Required, 7)
 
-	assert.Equal(t, "string", schema.Properties["Name"].Type)
-	assert.Equal(t, "integer", schema.Properties["Age"].Type)
-	assert.Equal(t, "number", schema.Properties["Height"].Type)
-	assert.Equal(t, "boolean", schema.Properties["Active"].Type)
-	assert.Equal(t, "integer", schema.Properties["Count"].Type)
-	assert.Equal(t, "integer", schema.Properties["Score"].Type)
-	assert.Equal(t, "number", schema.Properties["Ratio"].Type)
+	assert.Equal(t, Type("string"), schema.Properties["Name"].Type)
+	assert.Equal(t, Type("integer"), schema.Properties["Age"].Type)
+	assert.Equal(t, Type("number"), schema.Properties["Height"].Type)
+	assert.Equal(t, Type("boolean"), schema.Properties["Active"].Type)
+	assert.Equal(t, Type("integer"), schema.Properties["Count"].Type)
+	assert.Equal(t, Type("integer"), schema.Properties["Score"].Type)
+	assert.Equal(t, Type("number"), schema.Properties["Ratio"].Type)
 }
 
 // Test JSON tags
@@ -222,17 +222,17 @@ func TestStructToSchema_ArrayTypes(t *testing.T) {
 
 	assert.NotNil(t, schema)
 
-	assert.Equal(t, "array", schema.Properties["Tags"].Type)
-	assert.Equal(t, "string", schema.Properties["Tags"].Items.Type)
+	assert.Equal(t, Type("array"), schema.Properties["Tags"].Type)
+	assert.Equal(t, Type("string"), schema.Properties["Tags"].Items.Type)
 
-	assert.Equal(t, "array", schema.Properties["Numbers"].Type)
-	assert.Equal(t, "integer", schema.Properties["Numbers"].Items.Type)
+	assert.Equal(t, Type("array"), schema.Properties["Numbers"].Type)
+	assert.Equal(t, Type("integer"), schema.Properties["Numbers"].Items.Type)
 
-	assert.Equal(t, "array", schema.Properties["Flags"].Type)
-	assert.Equal(t, "boolean", schema.Properties["Flags"].Items.Type)
+	assert.Equal(t, Type("array"), schema.Properties["Flags"].Type)
+	assert.Equal(t, Type("boolean"), schema.Properties["Flags"].Items.Type)
 
-	assert.Equal(t, "array", schema.Properties["Scores"].Type)
-	assert.Equal(t, "number", schema.Properties["Scores"].Items.Type)
+	assert.Equal(t, Type("array"), schema.Properties["Scores"].Type)
+	assert.Equal(t, Type("number"), schema.Properties["Scores"].Items.Type)
 }
 
 // Test nested structs
@@ -251,17 +251,17 @@ func TestStructToSchema_NestedStructs(t *testing.T) {
 	schema := StructToSchema(Person{})
 
 	assert.NotNil(t, schema)
-	assert.Equal(t, "object", schema.Type)
+	assert.Equal(t, Type("object"), schema.Type)
 
 	// Check nested address
 	addressSchema := schema.Properties["address"]
 	assert.NotNil(t, addressSchema)
-	assert.Equal(t, "object", addressSchema.Type)
+	assert.Equal(t, Type("object"), addressSchema.Type)
 	assert.Len(t, addressSchema.Properties, 3)
 
-	assert.Equal(t, "string", addressSchema.Properties["street"].Type)
-	assert.Equal(t, "string", addressSchema.Properties["city"].Type)
-	assert.Equal(t, "string", addressSchema.Properties["zip"].Type)
+	assert.Equal(t, Type("string"), addressSchema.Properties["street"].Type)
+	assert.Equal(t, Type("string"), addressSchema.Properties["city"].Type)
+	assert.Equal(t, Type("string"), addressSchema.Properties["zip"].Type)
 
 	assert.Contains(t, addressSchema.Required, "street")
 	assert.Contains(t, addressSchema.Required, "city")
@@ -285,13 +285,13 @@ func TestStructToSchema_ArrayOfStructs(t *testing.T) {
 	assert.NotNil(t, schema)
 
 	tagsSchema := schema.Properties["tags"]
-	assert.Equal(t, "array", tagsSchema.Type)
+	assert.Equal(t, Type("array"), tagsSchema.Type)
 	assert.NotNil(t, tagsSchema.Items)
-	assert.Equal(t, "object", tagsSchema.Items.Type)
+	assert.Equal(t, Type("object"), tagsSchema.Items.Type)
 
 	assert.Len(t, tagsSchema.Items.Properties, 2)
-	assert.Equal(t, "string", tagsSchema.Items.Properties["name"].Type)
-	assert.Equal(t, "string", tagsSchema.Items.Properties["value"].Type)
+	assert.Equal(t, Type("string"), tagsSchema.Items.Properties["name"].Type)
+	assert.Equal(t, Type("string"), tagsSchema.Items.Properties["value"].Type)
 }
 
 // Test map types
@@ -305,8 +305,8 @@ func TestStructToSchema_MapTypes(t *testing.T) {
 
 	assert.NotNil(t, schema)
 
-	assert.Equal(t, "object", schema.Properties["Metadata"].Type)
-	assert.Equal(t, "object", schema.Properties["Counters"].Type)
+	assert.Equal(t, Type("object"), schema.Properties["Metadata"].Type)
+	assert.Equal(t, Type("object"), schema.Properties["Counters"].Type)
 }
 
 // Test unexported fields are ignored
@@ -338,10 +338,10 @@ func TestStructToSchema_PointerToStruct(t *testing.T) {
 	schema := StructToSchema(&TestStruct{})
 
 	assert.NotNil(t, schema)
-	assert.Equal(t, "object", schema.Type)
+	assert.Equal(t, Type("object"), schema.Type)
 	assert.Len(t, schema.Properties, 2)
-	assert.Equal(t, "string", schema.Properties["Name"].Type)
-	assert.Equal(t, "integer", schema.Properties["Age"].Type)
+	assert.Equal(t, Type("string"), schema.Properties["Name"].Type)
+	assert.Equal(t, Type("integer"), schema.Properties["Age"].Type)
 }
 
 // Test complex real-world example
@@ -360,20 +360,20 @@ func TestStructToSchema_ComplexExample(t *testing.T) {
 	schema := StructToSchema(User{})
 
 	assert.NotNil(t, schema)
-	assert.Equal(t, "object", schema.Type)
+	assert.Equal(t, Type("object"), schema.Type)
 	assert.Len(t, schema.Properties, 8)
 	assert.Len(t, schema.Required, 8)
 
 	// Verify ID
-	assert.Equal(t, "integer", schema.Properties["id"].Type)
+	assert.Equal(t, Type("integer"), schema.Properties["id"].Type)
 
 	// Verify Username with pattern
-	assert.Equal(t, "string", schema.Properties["username"].Type)
+	assert.Equal(t, Type("string"), schema.Properties["username"].Type)
 	assert.Equal(t, "Unique username", schema.Properties["username"].Description)
 	assert.Equal(t, "^[a-zA-Z0-9_]+$", schema.Properties["username"].Pattern)
 
 	// Verify Email with format
-	assert.Equal(t, "string", schema.Properties["email"].Type)
+	assert.Equal(t, Type("string"), schema.Properties["email"].Type)
 	assert.Equal(t, "email", schema.Properties["email"].Format)
 
 	// Verify Role with enum
@@ -386,13 +386,13 @@ func TestStructToSchema_ComplexExample(t *testing.T) {
 	assert.True(t, *schema.Properties["token"].Nullable)
 
 	// Verify Tags array
-	assert.Equal(t, "array", schema.Properties["tags"].Type)
-	assert.Equal(t, "string", schema.Properties["tags"].Items.Type)
+	assert.Equal(t, Type("array"), schema.Properties["tags"].Type)
+	assert.Equal(t, Type("string"), schema.Properties["tags"].Items.Type)
 
 	// Verify nullable Score
 	assert.NotNil(t, schema.Properties["score"].Nullable)
 	assert.True(t, *schema.Properties["score"].Nullable)
-	assert.Equal(t, "number", schema.Properties["score"].Type)
+	assert.Equal(t, Type("number"), schema.Properties["score"].Type)
 }
 
 // Test nil input
@@ -438,6 +438,6 @@ func (i *FooVal) GenerateSchema() *Schema {
 
 func TestInterfaceImplementation(t *testing.T) {
 	schema := StructToSchema(interfacedTagger{})
-	assert.Equal(t, "string", schema.Properties["foo"].OneOf[0].Type)
-	assert.Equal(t, "array", schema.Properties["foo"].OneOf[1].Type)
+	assert.Equal(t, Type("string"), schema.Properties["foo"].OneOf[0].Type)
+	assert.Equal(t, Type("array"), schema.Properties["foo"].OneOf[1].Type)
 }

@@ -120,9 +120,7 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 		ct = textContentType
 		genAiSchema = nil
 	} else {
-		if err := copier.CopyWithOption(genAiSchema, sx, copier.Option{
-			Converters: d.SchemaConverters(),
-		}); err != nil {
+		if err := sx.CopyTo(genAiSchema); err != nil {
 			return nil, err
 		}
 	}
@@ -241,9 +239,7 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) 
 					pSchema = tool.InputSchema
 				}
 				genAiPSchema := &genai.Schema{}
-				if err := copier.CopyWithOption(genAiPSchema, pSchema, copier.Option{
-					Converters: d.SchemaConverters(),
-				}); err != nil {
+				if err := pSchema.CopyTo(genAiPSchema); err != nil {
 					return nil, err
 				}
 				description := fx.Description
@@ -261,18 +257,16 @@ func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]*genai.Tool, error) 
 				var genAiInputSchema *genai.Schema
 				if v.Schema != nil {
 					genAiInputSchema = &genai.Schema{}
-					if err := copier.CopyWithOption(genAiInputSchema, v.Schema, copier.Option{
-						Converters: d.SchemaConverters(),
-					}); err != nil {
+
+					if err := v.Schema.CopyTo(genAiInputSchema); err != nil {
 						return nil, err
 					}
 				}
 				var genAiOutputSchema *genai.Schema
 				if v.OutputSchema != nil {
 					genAiOutputSchema = &genai.Schema{}
-					_ = copier.CopyWithOption(genAiOutputSchema, v.OutputSchema, copier.Option{
-						Converters: d.SchemaConverters(),
-					})
+
+					_ = v.OutputSchema.CopyTo(genAiOutputSchema)
 				}
 				if tool.Allowlist == nil || slices.Contains(*tool.Allowlist, k) {
 					fd = append(fd, &genai.FunctionDeclaration{

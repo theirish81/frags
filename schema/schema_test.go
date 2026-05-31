@@ -42,13 +42,13 @@ func TestSchema_GetPhase(t *testing.T) {
 	}
 	px1, err := s.GetPhase(0)
 	assert.Nil(t, err)
-	assert.Equal(t, String, px1.Properties["p1"].Type)
+	assert.Equal(t, Type(String), px1.Properties["p1"].Type)
 	assert.Len(t, px1.Properties, 1)
 	assert.Equal(t, []string{"p1"}, px1.Required)
 
 	px2, err := s.GetPhase(1)
 	assert.Nil(t, err)
-	assert.Equal(t, Integer, px2.Properties["p2"].Type)
+	assert.Equal(t, Type(Integer), px2.Properties["p2"].Type)
 	assert.Len(t, px2.Properties, 1)
 	assert.Equal(t, make([]string, 0), px2.Required)
 }
@@ -71,13 +71,13 @@ func TestSchema_GetContext(t *testing.T) {
 
 	px1, err := s.GetSession("foo")
 	assert.Nil(t, err)
-	assert.Equal(t, String, px1.Properties["p1"].Type)
+	assert.Equal(t, Type(String), px1.Properties["p1"].Type)
 	assert.Len(t, px1.Properties, 1)
 	assert.Equal(t, []string{"p1"}, px1.Required)
 
 	px2, err := s.GetSession("bar")
 	assert.Nil(t, err)
-	assert.Equal(t, Integer, px2.Properties["p2"].Type)
+	assert.Equal(t, Type(Integer), px2.Properties["p2"].Type)
 	assert.Len(t, px2.Properties, 1)
 	assert.Equal(t, make([]string, 0), px2.Required)
 }
@@ -173,12 +173,12 @@ func TestSchema_Resolve(t *testing.T) {
 	assert.NoError(t, err)
 
 	personSchema := schema.Properties["person"]
-	assert.Equal(t, Object, personSchema.Type)
+	assert.Equal(t, Type(Object), personSchema.Type)
 	assert.NotNil(t, personSchema.Properties["address"])
 
 	addressSchema := personSchema.Properties["address"]
-	assert.Equal(t, Object, addressSchema.Type)
-	assert.Equal(t, String, addressSchema.Properties["street"].Type)
+	assert.Equal(t, Type(Object), addressSchema.Type)
+	assert.Equal(t, Type(String), addressSchema.Properties["street"].Type)
 }
 
 func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
@@ -203,7 +203,7 @@ func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
 	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.NotNil(t, schema.AnyOf[0])
-	assert.Equal(t, Object, schema.AnyOf[0].Type)
+	assert.Equal(t, Type(Object), schema.AnyOf[0].Type)
 }
 
 func TestSessionManager_ResolveSchema_Items(t *testing.T) {
@@ -229,7 +229,7 @@ func TestSessionManager_ResolveSchema_Items(t *testing.T) {
 	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.NotNil(t, schema.Items)
-	assert.Equal(t, Object, schema.Items.Type)
+	assert.Equal(t, Type(Object), schema.Items.Type)
 }
 
 func TestSessionManager_ResolveSchema_Circular(t *testing.T) {
@@ -306,10 +306,10 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 
 	addressSchema := schema.Properties["shipping_address"]
 	assert.Nil(t, addressSchema.Ref)
-	assert.Equal(t, Object, addressSchema.Type)
+	assert.Equal(t, Type(Object), addressSchema.Type)
 	assert.Equal(t, phase, addressSchema.XPhase)
 	assert.Equal(t, session, *addressSchema.XSession)
-	assert.Equal(t, String, addressSchema.Properties["street"].Type)
+	assert.Equal(t, Type(String), addressSchema.Properties["street"].Type)
 }
 
 func TestSchema_UnmarshalYAML(t *testing.T) {
@@ -395,4 +395,29 @@ func TestSchema_Resolve2(t *testing.T) {
 	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.Equal(t, "I love this", schema.Properties["t1"].XUI["title"], "I love this")
+}
+
+func TestSchema_CopyFrom(t *testing.T) {
+	type Source struct {
+		Type []string
+	}
+
+	s := &Schema{}
+	err := s.CopyFrom(Source{Type: []string{"string", "null"}})
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s.Type)
+}
+
+func TestSchema_CopyTo(t *testing.T) {
+	type Destination struct {
+		Type string
+		Enum []string
+	}
+
+	s := &Schema{Type: Type("object"), Enum: []any{"a", "b", "c"}}
+	dst := &Destination{}
+	err := s.CopyTo(dst)
+	assert.NoError(t, err)
+	assert.Equal(t, "object", dst.Type)
+	assert.Equal(t, []string{"a", "b", "c"}, dst.Enum)
 }

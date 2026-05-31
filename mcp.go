@@ -169,9 +169,8 @@ func (c *McpTool) ConnectStreamableHttp(ctx context.Context, logger *log.Streame
 	}
 
 	c.session, err = c.client.Connect(ctx, &mcp.StreamableClientTransport{
-		Endpoint:   c.serverConfig.Url,
-		HTTPClient: httpClient,
-		// TODO this must become the default. Check docs
+		Endpoint:             c.serverConfig.Url,
+		HTTPClient:           httpClient,
 		DisableStandaloneSSE: true,
 	}, nil)
 	return err

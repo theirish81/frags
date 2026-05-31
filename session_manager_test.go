@@ -140,5 +140,9 @@ func TestSessionManager_ComputeRequiredResources(t *testing.T) {
 			},
 		},
 	})
-	assert.Equal(t, []string{"bar.txt", "duck.txt"}, s.ComputeRequiredResources())
+	assert.Equal(t, []Resource{{
+		Identifier: "bar.txt",
+	}, {
+		Identifier: "duck.txt",
+	}}, s.ComputeRequiredResources())
 }
