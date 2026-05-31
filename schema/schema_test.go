@@ -18,8 +18,10 @@
 package schema
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/assert"
 	"github.com/theirish81/frags/util"
 	"gopkg.in/yaml.v3"
@@ -42,13 +44,13 @@ func TestSchema_GetPhase(t *testing.T) {
 	}
 	px1, err := s.GetPhase(0)
 	assert.Nil(t, err)
-	assert.Equal(t, String, px1.Properties["p1"].Type)
+	assert.Equal(t, Type(String), px1.Properties["p1"].Type)
 	assert.Len(t, px1.Properties, 1)
 	assert.Equal(t, []string{"p1"}, px1.Required)
 
 	px2, err := s.GetPhase(1)
 	assert.Nil(t, err)
-	assert.Equal(t, Integer, px2.Properties["p2"].Type)
+	assert.Equal(t, Type(Integer), px2.Properties["p2"].Type)
 	assert.Len(t, px2.Properties, 1)
 	assert.Equal(t, make([]string, 0), px2.Required)
 }
@@ -71,13 +73,13 @@ func TestSchema_GetContext(t *testing.T) {
 
 	px1, err := s.GetSession("foo")
 	assert.Nil(t, err)
-	assert.Equal(t, String, px1.Properties["p1"].Type)
+	assert.Equal(t, Type(String), px1.Properties["p1"].Type)
 	assert.Len(t, px1.Properties, 1)
 	assert.Equal(t, []string{"p1"}, px1.Required)
 
 	px2, err := s.GetSession("bar")
 	assert.Nil(t, err)
-	assert.Equal(t, Integer, px2.Properties["p2"].Type)
+	assert.Equal(t, Type(Integer), px2.Properties["p2"].Type)
 	assert.Len(t, px2.Properties, 1)
 	assert.Equal(t, make([]string, 0), px2.Required)
 }
@@ -173,12 +175,12 @@ func TestSchema_Resolve(t *testing.T) {
 	assert.NoError(t, err)
 
 	personSchema := schema.Properties["person"]
-	assert.Equal(t, Object, personSchema.Type)
+	assert.Equal(t, Type(Object), personSchema.Type)
 	assert.NotNil(t, personSchema.Properties["address"])
 
 	addressSchema := personSchema.Properties["address"]
-	assert.Equal(t, Object, addressSchema.Type)
-	assert.Equal(t, String, addressSchema.Properties["street"].Type)
+	assert.Equal(t, Type(Object), addressSchema.Type)
+	assert.Equal(t, Type(String), addressSchema.Properties["street"].Type)
 }
 
 func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
@@ -203,7 +205,7 @@ func TestSessionManager_ResolveSchema_AnyOf(t *testing.T) {
 	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.NotNil(t, schema.AnyOf[0])
-	assert.Equal(t, Object, schema.AnyOf[0].Type)
+	assert.Equal(t, Type(Object), schema.AnyOf[0].Type)
 }
 
 func TestSessionManager_ResolveSchema_Items(t *testing.T) {
@@ -229,7 +231,7 @@ func TestSessionManager_ResolveSchema_Items(t *testing.T) {
 	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.NotNil(t, schema.Items)
-	assert.Equal(t, Object, schema.Items.Type)
+	assert.Equal(t, Type(Object), schema.Items.Type)
 }
 
 func TestSessionManager_ResolveSchema_Circular(t *testing.T) {
@@ -306,10 +308,10 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 
 	addressSchema := schema.Properties["shipping_address"]
 	assert.Nil(t, addressSchema.Ref)
-	assert.Equal(t, Object, addressSchema.Type)
+	assert.Equal(t, Type(Object), addressSchema.Type)
 	assert.Equal(t, phase, addressSchema.XPhase)
 	assert.Equal(t, session, *addressSchema.XSession)
-	assert.Equal(t, String, addressSchema.Properties["street"].Type)
+	assert.Equal(t, Type(String), addressSchema.Properties["street"].Type)
 }
 
 func TestSchema_UnmarshalYAML(t *testing.T) {
@@ -395,4 +397,241 @@ func TestSchema_Resolve2(t *testing.T) {
 	err := schema.Resolve(schemas)
 	assert.NoError(t, err)
 	assert.Equal(t, "I love this", schema.Properties["t1"].XUI["title"], "I love this")
+}
+
+func TestType_PlainString_JSON(t *testing.T) {
+	s := &Schema{}
+	err := json.Unmarshal([]byte(`{"type":"string"}`), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s.Type)
+	assert.Nil(t, s.Nullable)
+}
+
+func TestType_PlainString_YAML(t *testing.T) {
+	s := &Schema{}
+	err := yaml.Unmarshal([]byte("type: string\n"), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s.Type)
+	assert.Nil(t, s.Nullable)
+}
+
+func TestType_ArrayNullLast_JSON(t *testing.T) {
+	s := &Schema{}
+	err := json.Unmarshal([]byte(`{"type":["string","null"]}`), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s.Type)
+	assert.Equal(t, util.Ptr(true), s.Nullable)
+}
+
+func TestType_ArrayNullLast_YAML(t *testing.T) {
+	s := &Schema{}
+	err := yaml.Unmarshal([]byte("type:\n  - string\n  - null\n"), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s.Type)
+	assert.Equal(t, util.Ptr(true), s.Nullable)
+}
+
+func TestType_ArrayNullFirst_JSON(t *testing.T) {
+	s := &Schema{}
+	err := json.Unmarshal([]byte(`{"type":["null","integer"]}`), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("integer"), s.Type)
+	assert.Equal(t, util.Ptr(true), s.Nullable)
+}
+
+func TestType_ArrayNullFirst_YAML(t *testing.T) {
+	s := &Schema{}
+	err := yaml.Unmarshal([]byte("type:\n  - null\n  - integer\n"), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("integer"), s.Type)
+	assert.Equal(t, util.Ptr(true), s.Nullable)
+}
+
+func TestType_ArrayOnlyNull_JSON(t *testing.T) {
+	s := &Schema{}
+	err := json.Unmarshal([]byte(`{"type":["null"]}`), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type(""), s.Type)
+	assert.Equal(t, util.Ptr(true), s.Nullable)
+}
+
+func TestType_ArrayOnlyNull_YAML(t *testing.T) {
+	s := &Schema{}
+	err := yaml.Unmarshal([]byte("type:\n  - null\n"), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type(""), s.Type)
+	assert.Equal(t, util.Ptr(true), s.Nullable)
+}
+
+func TestType_ArrayPicksFirstNonNull_JSON(t *testing.T) {
+	// when multiple non-null types are present, the first one wins
+	s := &Schema{}
+	err := json.Unmarshal([]byte(`{"type":["object","string","null"]}`), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("object"), s.Type)
+	assert.Equal(t, util.Ptr(true), s.Nullable)
+}
+
+func TestType_ArrayPicksFirstNonNull_YAML(t *testing.T) {
+	s := &Schema{}
+	err := yaml.Unmarshal([]byte("type:\n  - object\n  - string\n  - null\n"), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("object"), s.Type)
+	assert.Equal(t, util.Ptr(true), s.Nullable)
+}
+
+func TestType_NestedPropertyArray_JSON(t *testing.T) {
+	s := &Schema{}
+	err := json.Unmarshal([]byte(`{
+		"type": "object",
+		"properties": {
+			"name": {"type": ["string","null"]},
+			"age":  {"type": "integer"}
+		}
+	}`), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s.Properties["name"].Type)
+	assert.Equal(t, util.Ptr(true), s.Properties["name"].Nullable)
+	assert.Equal(t, Type("integer"), s.Properties["age"].Type)
+	assert.Nil(t, s.Properties["age"].Nullable)
+}
+
+func TestType_NestedPropertyArray_YAML(t *testing.T) {
+	s := &Schema{}
+	err := yaml.Unmarshal([]byte(`
+type: object
+properties:
+  name:
+    type:
+      - string
+      - null
+  age:
+    type: integer
+`), s)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s.Properties["name"].Type)
+	assert.Equal(t, util.Ptr(true), s.Properties["name"].Nullable)
+	assert.Equal(t, Type("integer"), s.Properties["age"].Type)
+	assert.Nil(t, s.Properties["age"].Nullable)
+}
+
+func TestType_MarshalAlwaysEmitsString_JSON(t *testing.T) {
+	s := &Schema{}
+	err := json.Unmarshal([]byte(`{"type":["string","null"]}`), s)
+	assert.NoError(t, err)
+
+	out, err := json.Marshal(s)
+	assert.NoError(t, err)
+
+	s2 := &Schema{}
+	err = json.Unmarshal(out, s2)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s2.Type)
+}
+
+func TestType_MarshalAlwaysEmitsString_YAML(t *testing.T) {
+	s := &Schema{}
+	err := yaml.Unmarshal([]byte("type:\n  - string\n  - null\n"), s)
+	assert.NoError(t, err)
+
+	out, err := yaml.Marshal(s)
+	assert.NoError(t, err)
+
+	s2 := &Schema{}
+	err = yaml.Unmarshal(out, s2)
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s2.Type)
+}
+
+func TestFromAny_MapstructureTypeArray(t *testing.T) {
+	data := map[string]any{
+		"type": []any{"object", "null"},
+		"properties": map[string]any{
+			"name": map[string]any{
+				"type": []any{"string", "null"},
+			},
+			"age": map[string]any{
+				"type": "integer",
+			},
+		},
+	}
+
+	s, err := FromAny(data)
+	assert.NoError(t, err)
+
+	assert.Equal(t, Type("object"), s.Type)
+	assert.Equal(t, util.Ptr(true), s.Nullable)
+
+	assert.Equal(t, Type("string"), s.Properties["name"].Type)
+	assert.Equal(t, util.Ptr(true), s.Properties["name"].Nullable)
+
+	assert.Equal(t, Type("integer"), s.Properties["age"].Type)
+	assert.Nil(t, s.Properties["age"].Nullable)
+}
+
+func TestFromAny_CopierTypeConverter(t *testing.T) {
+	type SourceSchema struct {
+		Type       []string
+		Nullable   *bool
+		Properties map[string]SourceSchema
+	}
+
+	src := SourceSchema{
+		Type: []string{"object", "null"},
+		Properties: map[string]SourceSchema{
+			"name": {Type: []string{"string", "null"}},
+			"age":  {Type: []string{"integer"}},
+		},
+	}
+
+	dst := &Schema{}
+	err := copier.CopyWithOption(dst, src, copier.Option{
+		Converters: CopyConverters(),
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, Type("object"), dst.Type)
+	assert.Equal(t, Type("string"), dst.Properties["name"].Type)
+	assert.Equal(t, Type("integer"), dst.Properties["age"].Type)
+}
+
+func TestCopyConverter_StringToType(t *testing.T) {
+	type SourceSchema struct {
+		Type string
+	}
+
+	src := SourceSchema{Type: "object"}
+	dst := &Schema{}
+
+	err := copier.CopyWithOption(dst, src, copier.Option{
+		Converters: CopyConverters(),
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, Type("object"), dst.Type)
+}
+
+func TestSchema_CopyFrom(t *testing.T) {
+	type Source struct {
+		Type []string
+	}
+
+	s := &Schema{}
+	err := s.CopyFrom(Source{Type: []string{"string", "null"}})
+	assert.NoError(t, err)
+	assert.Equal(t, Type("string"), s.Type)
+}
+
+func TestSchema_CopyTo(t *testing.T) {
+	type Destination struct {
+		Type string
+		Enum []string
+	}
+
+	s := &Schema{Type: Type("object"), Enum: []any{"a", "b", "c"}}
+	dst := &Destination{}
+	err := s.CopyTo(dst)
+	assert.NoError(t, err)
+	assert.Equal(t, "object", dst.Type)
+	assert.Equal(t, []string{"a", "b", "c"}, dst.Enum)
 }

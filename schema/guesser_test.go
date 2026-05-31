@@ -23,7 +23,7 @@ func TestScalars(t *testing.T) {
 	}
 	for _, c := range cases {
 		s := GuessSchema(c.in)
-		if s.Type != c.wantType {
+		if s.Type != Type(c.wantType) {
 			t.Errorf("GuessSchema(%v): got type %q, want %q", c.in, s.Type, c.wantType)
 		}
 	}

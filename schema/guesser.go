@@ -216,7 +216,7 @@ func groupByType(schemas []*Schema) map[string][]*Schema {
 				t = "unknown"
 			}
 		}
-		groups[t] = append(groups[t], s)
+		groups[string(t)] = append(groups[string(t)], s)
 	}
 	return groups
 }

@@ -37,6 +37,8 @@ const Number = "number"
 const Boolean = "boolean"
 const Array = "array"
 
+type Type string
+
 // Schema represents a JSON schema with x-phase and x-session extensions.
 type Schema struct {
 	OneOf            []*Schema          `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
@@ -61,7 +63,7 @@ type Schema struct {
 	PropertyOrdering []string           `json:"propertyOrdering,omitempty" yaml:"propertyOrdering,omitempty"`
 	Required         []string           `json:"required,omitempty" yaml:"required,omitempty"`
 	Title            string             `json:"title,omitempty" yaml:"title,omitempty"`
-	Type             string             `json:"type,omitempty" yaml:"type,omitempty"`
+	Type             Type               `json:"type,omitempty" yaml:"type,omitempty"`
 	XPhase           int                `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
 	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
 	Ref              *string            `json:"$ref,omitempty" yaml:"$ref,omitempty"`
@@ -95,14 +97,47 @@ func (s Schema) MarshalJSON() ([]byte, error) {
 }
 
 func (s *Schema) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, (*schemaAlias)(s)); err != nil {
-		return err
-	}
-
+	// Pre-process the "type" field: it may be a string or an array of strings.
+	// We resolve it to a single string here, before the alias decode sees it,
+	// so that Type stays a plain string throughout the rest of the codebase.
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
+	if typeRaw, ok := raw["type"]; ok {
+		var single string
+		if err := json.Unmarshal(typeRaw, &single); err != nil {
+			// Not a string — try array.
+			var arr []string
+			if err := json.Unmarshal(typeRaw, &arr); err != nil {
+				return fmt.Errorf("schema type: expected string or array of strings: %w", err)
+			}
+			for _, t := range arr {
+				if t == "null" {
+					tr := true
+					s.Nullable = &tr
+				} else if s.Type == "" {
+					s.Type = Type(t)
+				}
+			}
+			// Replace the array with the resolved scalar so the alias decode
+			// below can handle it normally as a string.
+			resolved, err := json.Marshal(s.Type)
+			if err != nil {
+				return err
+			}
+			raw["type"] = resolved
+			data, err = json.Marshal(raw)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := json.Unmarshal(data, (*schemaAlias)(s)); err != nil {
+		return err
+	}
+
 	for k, v := range raw {
 		if !strings.HasPrefix(k, "x-ui-") {
 			continue
@@ -140,7 +175,7 @@ func FromAny(data any) (*Schema, error) {
 			return &schema, err
 		}
 	default:
-		err := copier.Copy(&schema, typed)
+		err := schema.CopyFrom(typed)
 		return &schema, err
 	}
 	return &schema, errors.New("cannot convert schema")
@@ -257,6 +292,36 @@ func (s Schema) MarshalYAML() (any, error) {
 }
 
 func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
+	// Pre-process the "type" field: it may be a scalar or a sequence of strings.
+	// We resolve it to a single scalar here, before the alias decode sees it,
+	// so that Type stays a plain string throughout the rest of the codebase.
+	if value.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			if value.Content[i].Value != "type" {
+				continue
+			}
+			val := value.Content[i+1]
+			if val.Kind == yaml.SequenceNode {
+				for _, item := range val.Content {
+					if item.Value == "null" {
+						tr := true
+						s.Nullable = &tr
+					} else if s.Type == "" {
+						s.Type = Type(item.Value)
+					}
+				}
+				// Replace the sequence node with a plain scalar so the
+				// alias decode below sees a normal string.
+				value.Content[i+1] = &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Tag:   "!!str",
+					Value: string(s.Type),
+				}
+			}
+			break
+		}
+	}
+
 	if err := value.Decode((*schemaAlias)(s)); err != nil {
 		return err
 	}
@@ -422,4 +487,76 @@ func (s *Schema) resolve(schema *Schema, schemas map[string]Schema, visited map[
 	}
 
 	return nil
+}
+
+// UnmarshalMapstructure is necessary here because of type behaving both as a string or array of strings
+func (s *Schema) UnmarshalMapstructure(data any) error {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("schema: mapstructure marshal: %w", err)
+	}
+	return json.Unmarshal(b, s)
+}
+
+func CopyConverters() []copier.TypeConverter {
+	return []copier.TypeConverter{
+		{
+			SrcType: []any{},
+			DstType: []string{},
+			Fn: func(src any) (any, error) {
+				s := src.([]any)
+				res := make([]string, len(s))
+				for i, v := range s {
+					res[i] = fmt.Sprint(v)
+				}
+				return res, nil
+			},
+		},
+		{
+			SrcType: []any{},
+			DstType: Type(""),
+			Fn: func(src any) (any, error) {
+				arr, ok := src.([]any)
+				if !ok {
+					return Type(""), fmt.Errorf("schema type: expected []any, got %T", src)
+				}
+				for _, item := range arr {
+					if s, ok := item.(string); ok && s != "null" {
+						return Type(s), nil
+					}
+				}
+				return Type(""), nil
+			},
+		},
+		{
+			SrcType: []string{},
+			DstType: Type(""),
+			Fn: func(src any) (any, error) {
+				arr, ok := src.([]string)
+				if !ok {
+					return Type(""), fmt.Errorf("schema type: expected []any, got %T", src)
+				}
+				for _, item := range arr {
+					if item != "null" {
+						return Type(item), nil
+					}
+				}
+				return Type(""), nil
+			},
+		},
+	}
+}
+
+// CopyFrom copies src into this Schema with the correct type converters.
+func (s *Schema) CopyFrom(src any) error {
+	return copier.CopyWithOption(s, src, copier.Option{
+		Converters: CopyConverters(),
+	})
+}
+
+// CopyTo copies this Schema into dst with the correct type converters.
+func (s *Schema) CopyTo(dst any) error {
+	return copier.CopyWithOption(dst, s, copier.Option{
+		Converters: CopyConverters(),
+	})
 }
