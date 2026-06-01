@@ -81,15 +81,6 @@ func TestNewSessionManagerValidate(t *testing.T) {
 
 }
 
-func TestSessionManager_initNullSchema(t *testing.T) {
-	mgr := NewSessionManager()
-	mgr.SetSession("foo", Session{Prompt: "foo"})
-	mgr.SetSession("bar", Session{Prompt: "bar"})
-	mgr.initNullSchema()
-	assert.NotNil(t, mgr.Schema.Properties["foo"])
-	assert.NotNil(t, mgr.Schema.Properties["bar"])
-}
-
 func TestParametersConfig_Validate(t *testing.T) {
 	cfg := ParametersConfig{
 		Parameters: Parameters{

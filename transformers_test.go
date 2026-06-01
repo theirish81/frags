@@ -22,8 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blues/jsonata-go"
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/util"
@@ -37,7 +35,7 @@ func TestTransformer_Transform(t *testing.T) {
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), map[string]any{
 			"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-		}, &Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
+		}, &Runner{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
 	})
@@ -48,7 +46,7 @@ func TestTransformer_Transform(t *testing.T) {
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), map[string]any{
 			"result": map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-		}, &Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
+		}, &Runner{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]any{"result": map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
@@ -61,7 +59,7 @@ func TestTransformer_Transform(t *testing.T) {
 			"result": []map[string]any{
 				{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
 			},
-		}, &Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
+		}, &Runner{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
 		assert.Nil(t, err)
 		assert.Equal(t, util.AnyToResultMap([]any{map[string]any{"first_name": "John", "last_name": "Doe"}}), res)
 	})
@@ -71,7 +69,7 @@ func TestTransformer_Transform(t *testing.T) {
 			Jsonata: util.Ptr(`{"first_name":first_name,"last_name":last_name}`),
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), map[string]any{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-			&Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
+			&Runner{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
 	})
@@ -82,7 +80,7 @@ func TestTransformer_Transform(t *testing.T) {
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), []map[string]any{
 			{"first_name": "John", "last_name": "Doe", "address": "123 Main St"},
-		}, &Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
+		}, &Runner{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
 		assert.Nil(t, err)
 		assert.Equal(t, []any{map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
@@ -94,7 +92,7 @@ func TestTransformer_Transform(t *testing.T) {
 			Parser:  &px,
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), `{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}`,
-			&Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
+			&Runner{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
 		assert.Nil(t, err)
 		assert.Equal(t, map[string]any{"first_name": "John", "last_name": "Doe"}, res)
 	})
@@ -106,7 +104,7 @@ func TestTransformer_Transform(t *testing.T) {
 			Parser:  &px,
 		}
 		res, err := tx.Transform(util.NewFragsContext(time.Minute), `[{"first_name": "John", "last_name": "Doe", "address": "123 Main St"}]`,
-			&Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
+			&Runner{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
 		assert.Nil(t, err)
 		assert.Equal(t, []any{map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
@@ -117,35 +115,9 @@ func TestTransformer_Transform(t *testing.T) {
 			Jsonata: util.Ptr(`$[].{"first_name":$[0], "last_name":$[1] }`),
 			Parser:  &px,
 		}
-		res, err := tx.Transform(util.NewFragsContext(time.Minute), `John,Doe`, &Runner[any]{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
+		res, err := tx.Transform(util.NewFragsContext(time.Minute), `John,Doe`, &Runner{logger: log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)})
 		assert.Nil(t, err)
 		assert.Equal(t, []any{map[string]any{"first_name": "John", "last_name": "Doe"}}, res)
 	})
 
-}
-
-func TestTransformer_Transform2(t *testing.T) {
-	data := s1{
-		S2: s2{
-			P1: 1,
-			P2: 2,
-		},
-	}
-	script, err := jsonata.Compile(`
-{
-  	"s2": {
-		"p1": S2.P1 * 2
-		}
-}
-`)
-	assert.Nil(t, err)
-	res, err := script.Eval(data)
-	assert.Nil(t, err)
-	sx := s1{}
-	dec, _ := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		TagName: "json",
-		Result:  &sx,
-	})
-	assert.Nil(t, dec.Decode(res))
-	assert.Equal(t, float64(2), sx.S2.P1)
 }

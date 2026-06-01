@@ -52,7 +52,7 @@ type FunctionCallerCallbackFunc func(ctx *util.FragsContext, data map[string]any
 type FunctionCallers []FunctionCaller
 
 // RunAllFunctionCallers runs all the function calls in the given collection.
-func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCallers, inputScope evaluators.EvalScope, outputVars evaluators.Vars) (*scoper.KnowledgeNode, error) {
+func (r *Runner) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCallers, inputScope evaluators.EvalScope, outputVars evaluators.Vars) (*scoper.KnowledgeNode, error) {
 	vx := make(map[string]any)
 	if len(fc) == 0 {
 		return nil, nil
@@ -98,7 +98,7 @@ func (r *Runner[T]) RunAllFunctionCallers(ctx *util.FragsContext, fc FunctionCal
 }
 
 // runFunctionCaller runs a FunctionCaller object, evaluating the arguments if needed.
-func (r *Runner[T]) runFunctionCaller(ctx *util.FragsContext, fc FunctionCaller, scope evaluators.EvalScope) (any, error) {
+func (r *Runner) runFunctionCaller(ctx *util.FragsContext, fc FunctionCaller, scope evaluators.EvalScope) (any, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}

@@ -25,7 +25,7 @@ import (
 )
 
 func TestRunner_CheckDependencies(t *testing.T) {
-	rx := Runner[map[string]any]{
+	rx := Runner{
 		status: &SafeMap[string, SessionStatus]{
 			data: map[string]SessionStatus{
 				"foo": queuedSessionStatus,
@@ -36,7 +36,7 @@ func TestRunner_CheckDependencies(t *testing.T) {
 				"bam": committedSessionStatus,
 			},
 		},
-		dataStructure: &map[string]any{
+		dataStructure: map[string]any{
 			"foo": "bar",
 		},
 	}

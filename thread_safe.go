@@ -23,15 +23,22 @@ import (
 )
 
 // safeUnmarshalDataStructure unmarshals data into the runner's data structure in a thread-safe manner.
-func (r *Runner[T]) safeUnmarshalDataStructure(data []byte) error {
+func (r *Runner) safeUnmarshalDataStructure(data []byte) error {
 	r.marshalingMutex.Lock()
 	defer r.marshalingMutex.Unlock()
-	return MergeJSONInto(r.dataStructure, data)
+	return r.dataStructure.MergeJSON(data)
+}
+
+func (r *Runner) safeMergeDataStructure(data any) error {
+	r.marshalingMutex.Lock()
+	defer r.marshalingMutex.Unlock()
+	dataBytes, _ := json.Marshal(data)
+	return r.dataStructure.MergeJSON(dataBytes)
 }
 
 // safeMarshalDataStructure marshals the runner's data structure in a thread-safe manner. Note that the output
 // could either be JSON or K format, depending on the runner's configuration.
-func (r *Runner[T]) safeMarshalDataStructure(indent bool) ([]byte, error) {
+func (r *Runner) safeMarshalDataStructure(indent bool) ([]byte, error) {
 	r.marshalingMutex.Lock()
 	defer r.marshalingMutex.Unlock()
 	if indent {

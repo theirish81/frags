@@ -104,6 +104,12 @@ func (d *Ai) New() frags.Ai {
 // Ask performs a query against the Gemini API, according to the Frags interface
 func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools frags.ToolDefinitions,
 	runner frags.ExportableRunner, rx ...resources.ResourceData) ([]byte, error) {
+	if len(text) == 0 {
+		if sx == nil && len(d.content) > 0 {
+			return []byte(joinParts(d.content[len(d.content)-1].Parts)), nil
+		}
+		return nil, fmt.Errorf("no prompt provided but was required")
+	}
 	parts := make([]*genai.Part, 0)
 	for _, resource := range rx {
 		runner.Logger().Debug(log.NewEvent(log.LoadEventType, log.AiComponent).WithResource(resource.Identifier).WithEngine(engine))

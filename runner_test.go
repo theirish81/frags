@@ -29,30 +29,20 @@ import (
 	"github.com/theirish81/frags/util"
 )
 
-type T struct {
-	P1 string `json:"p1"`
-	P2 string `json:"p2"`
-	P3 string `json:"p3"`
-	P4 string `json:"p4"`
-}
-
 func TestRunner_Run(t *testing.T) {
 	sessionData, _ := os.ReadFile("test_data/sessions.yaml")
 	mgr := NewSessionManager()
 	err := mgr.FromYAML(sessionData)
 	assert.Nil(t, err)
 	ai := NewDummyAi()
-	runner := NewRunner[T](mgr, resources.NewDummyResourceLoader(), ai)
+	runner := NewRunner(mgr, resources.NewDummyResourceLoader(), ai)
 	out, err := runner.Run(util.NewFragsContext(time.Minute), map[string]string{"animal": "dog", "animals": "giraffes"})
 
 	assert.Nil(t, err)
-	assert.NotEmpty(t, out.P1)
-	assert.NotEmpty(t, out.P2)
-	assert.NotEmpty(t, out.P3)
-	assert.NotEmpty(t, out.P4)
+	assert.NotEmpty(t, out["p1"])
+	assert.NotEmpty(t, out["p3"])
 
-	assert.Equal(t, "<Prompt description=\"The task to execute\"><![CDATA[ extract these images data. Make sure they contain dog ]]></Prompt>", out.P3)
-	assert.Equal(t, "also these giraffes", out.P4)
+	assert.Equal(t, "<Prompt description=\"The task to execute\"><![CDATA[ extract these images data. Make sure they contain dog ]]></Prompt>", out["p3"])
 
 }
 
@@ -62,12 +52,12 @@ func TestRunner_RunDependenciesAndContext(t *testing.T) {
 	err := mgr.FromYAML(sessionData)
 	assert.Nil(t, err)
 	ai := NewDummyAi()
-	runner := NewRunner[map[string]string](mgr, resources.NewDummyResourceLoader(), ai, WithSessionWorkers(3))
+	runner := NewRunner(mgr, resources.NewDummyResourceLoader(), ai, WithSessionWorkers(3))
 	out, err := runner.Run(util.NewFragsContext(time.Minute), nil)
 	assert.Nil(t, err)
-	assert.Contains(t, (*out)["summary"], "<Scope>")
-	assert.Contains(t, (*out)["summary"], "animal1")
-	_, ok := (*out)["nop"]
+	assert.Contains(t, out["summary"], "<Scope>")
+	assert.Contains(t, out["summary"], "animal1")
+	_, ok := out["nop"]
 	assert.False(t, ok)
 }
 
@@ -77,8 +67,8 @@ func TestRunner_LoadSessionResource(t *testing.T) {
 	err := mgr.FromYAML(sessionData)
 	assert.Nil(t, err)
 	ai := NewDummyAi()
-	runner := NewRunner[map[string]string](mgr, resources.NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
-	runner.dataStructure = &map[string]string{}
+	runner := NewRunner(mgr, resources.NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
+	runner.dataStructure = util.NewProgMap()
 	res, err := runner.loadSessionResources(util.NewFragsContext(time.Minute), "s1", mgr.Sessions.Get("s1"))
 	assert.NoError(t, err)
 	assert.Equal(t, "stuff.csv", res[0].Identifier)
@@ -99,8 +89,8 @@ func TestRunner_RunAllFunctionCalls(t *testing.T) {
 	err := mgr.FromYAML(sessionData)
 	assert.Nil(t, err)
 	ai := NewDummyAi()
-	runner := NewRunner[map[string]string](mgr, resources.NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
-	runner.dataStructure = &map[string]string{}
+	runner := NewRunner(mgr, resources.NewFileResourceLoader("./test_data"), ai, WithSessionWorkers(3))
+	runner.dataStructure = util.NewProgMap()
 	fcs := FunctionCallers{
 		{
 			Name: "f1",

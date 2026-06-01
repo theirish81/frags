@@ -89,7 +89,6 @@ so it's subject to the limitations imposed by generating structured output.`,
 					Type:        schema.String,
 					Description: "the answer to the prompt",
 					XSession:    util.Ptr("default"),
-					XPhase:      0,
 				},
 			},
 		}
@@ -101,7 +100,7 @@ so it's subject to the limitations imposed by generating structured output.`,
 			cmd.PrintErrln(err)
 			return
 		}
-		fmt.Println((*out)["answer"])
+		fmt.Println(out["answer"])
 	},
 }
 

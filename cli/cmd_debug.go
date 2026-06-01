@@ -38,18 +38,21 @@ var debugCmd = &cobra.Command{
 	Short: "Debug related commands",
 }
 
-func initDebugEnv(ctx context.Context) (*frags.Runner[util.ProgMap], error) {
+func initDebugEnv(ctx context.Context) (*frags.Runner, error) {
 	ai, err := initAi()
 	toolsConfig, err := readToolsFile()
 	if err != nil {
 		return nil, err
 	}
-	_, _, _, functions, err := connectMcpAndCollections(ctx, toolsConfig, log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
+	tools, _, _, functions, err := connectMcpAndCollections(ctx, toolsConfig, log.NewStreamerLogger(slog.Default(), nil, log.InfoChannelLevel))
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = tools.Close()
+	}()
 	ai.SetFunctions(functions)
-	runner := frags.NewRunner[util.ProgMap](frags.NewSessionManager(), resources.NewFileResourceLoader("."), ai,
+	runner := frags.NewRunner(frags.NewSessionManager(), resources.NewFileResourceLoader("."), ai,
 		frags.WithLogger(log.NewStreamerLogger(slog.Default(), nil, log.DebugChannelLevel)),
 		frags.WithScriptEngine(scriptengines.NewJavascriptScriptingEngine()),
 		frags.WithExternalFunctions(functions),

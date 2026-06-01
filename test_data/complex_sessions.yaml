@@ -1,13 +1,10 @@
 sessions:
   session_one:
     prompt: /nothink retrieve these pieces of information about {{ .params.butterfly_type }} butterflies. Respond in JSON using the provided JSON schema
-    nextPhasePrompt: /nothink retrieve also these pieces of information.  Respond in JSON using the provided JSON schema
   session_two:
     prompt: /nothink  retrieve these pieces of information about {{ .params.sparrow_type }} sparrows. Respond in JSON using the provided JSON schema
-    nextPhasePrompt: /nothink retrieve also these pieces of information. Respond in JSON using the provided JSON schema
   session_three:
     prompt: /nothink  given the provided document, extract these pieces of information. Respond in JSON using the provided JSON schema
-    nextPhasePrompt: /nothink also these pieces of information. Respond in JSON using the provided JSON schema
     context: true
     dependsOn:
       - session: session_one
@@ -24,7 +21,6 @@ schema:
     butterfly_base_data:
       type: object
       x-session: session_one
-      x-phase: 0
       required:
         - kingdom
         - class
@@ -42,7 +38,6 @@ schema:
     butterfly_text_data:
       type: object
       x-session: session_one
-      x-phase: 1
       required:
         - etymology
         - taxonomy
@@ -56,7 +51,6 @@ schema:
     sparrow_base_data:
       type: object
       x-session: session_two
-      x-phase: 0
       required:
         - kingdom
         - class
@@ -74,7 +68,6 @@ schema:
     sparrow_text_data:
       type: object
       x-session: session_two
-      x-phase: 1
       required:
         - etymology
         - taxonomy
@@ -88,10 +81,8 @@ schema:
     story_summary:
       type: string
       x-session: session_three
-      x-phase: 0
       description: the summary of the story
     story_moral:
       type: string
       x-session: session_three
-      x-phase: 1
       description: the moral of the story

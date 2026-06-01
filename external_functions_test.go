@@ -27,7 +27,7 @@ import (
 )
 
 func TestExternalFunction_Run(t *testing.T) {
-	runner := NewRunner[util.ProgMap](NewSessionManager(), resources.NewDummyResourceLoader(), NewDummyAi())
+	runner := NewRunner(NewSessionManager(), resources.NewDummyResourceLoader(), NewDummyAi())
 	ef := ExternalFunction{
 		Name:       "f1",
 		Collection: "c1",

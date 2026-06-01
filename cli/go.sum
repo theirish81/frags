@@ -207,6 +207,7 @@ github.com/theirish81/fml v0.0.0-20260529080524-aeb6abb4658a h1:TInVmbDrx3m3Usqp
 github.com/theirish81/fml v0.0.0-20260529080524-aeb6abb4658a/go.mod h1:H73S0GEeH7bV1xrsKeY4/NuRzNBtgVGPxzuwZ/3JyuU=
 github.com/theirish81/frags v0.30.0-rc4 h1:MU8WoUvA7WmXu2GZ47NtwaQztfDtGcQdaVQy4quOtc8=
 github.com/theirish81/frags v0.30.0-rc4/go.mod h1:zRCGxrfLtBcBNbx6bdUctPy42wKLJnXiL0KGCkDkKB4=
+github.com/theirish81/frags v0.30.0-rc5/go.mod h1:zRCGxrfLtBcBNbx6bdUctPy42wKLJnXiL0KGCkDkKB4=
 github.com/theirish81/frags/anthropic v0.25.0-rc1 h1:UYt1BPULLj5PBTjuXY810k/a6hfJeITPwnUuq9arcnw=
 github.com/theirish81/frags/anthropic v0.25.0-rc1/go.mod h1:DWkVOSoU2edJzR4Vu7U4DLulDwUWMP1YXcgTazVsye8=
 github.com/theirish81/frags/chatgpt v0.25.0 h1:kkSsBzcaaXJpg3S1/lVUmmxUEK6PiiSaAaTac3xGfn0=

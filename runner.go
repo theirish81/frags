@@ -31,6 +31,7 @@ import (
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
+	"github.com/theirish81/frags/schema"
 	"github.com/theirish81/frags/scoper"
 	"github.com/theirish81/frags/util"
 	"github.com/theirish81/zealql"
@@ -44,12 +45,12 @@ type ExportableRunner interface {
 }
 
 // Runner is a struct that runs a session manager.
-type Runner[T any] struct {
+type Runner struct {
 	sessionManager    SessionManager
 	status            *SafeMap[string, SessionStatus]
 	resourceLoader    resources.ResourceLoader
 	ai                Ai
-	dataStructure     *T
+	dataStructure     util.ProgMap
 	params            any
 	marshalingMutex   sync.Mutex
 	statusMutex       sync.Mutex
@@ -139,7 +140,7 @@ func WithInternalDatabase(db *zealql.Database) RunnerOption {
 }
 
 // NewRunner creates a new runner.
-func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.ResourceLoader, ai Ai, options ...RunnerOption) Runner[T] {
+func NewRunner(sessionManager SessionManager, resourceLoader resources.ResourceLoader, ai Ai, options ...RunnerOption) Runner {
 	opts := RunnerOptions{
 		sessionWorkers: 1,
 		logger: log.NewStreamerLogger(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -153,7 +154,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 	for k, _ := range sessionManager.Sessions.Iter() {
 		status.Store(k, queuedSessionStatus)
 	}
-	return Runner[T]{
+	return Runner{
 		sessionManager:    sessionManager,
 		status:            status,
 		resourceLoader:    resourceLoader,
@@ -172,7 +173,7 @@ func NewRunner[T any](sessionManager SessionManager, resourceLoader resources.Re
 }
 
 // Run runs the runner against an optional collection fo parameters
-func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
+func (r *Runner) Run(ctx *util.FragsContext, params any) (util.ProgMap, error) {
 	// you cannot invoke Run if an existing Run is in progress
 	if r.running {
 		return nil, errors.New("this frags instance is running")
@@ -205,10 +206,7 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 	r.vars.Apply(r.sessionManager.Vars)
 
 	// the dataStructure is instantiated. This is a more complex task than it seems, with generics
-	r.dataStructure = util.InitDataStructure[T]()
-
-	// if the sessionManager has no schema, we come up with one based on the sessions.
-	r.sessionManager.initNullSchema()
+	r.dataStructure = util.NewProgMap()
 
 	// we resolve all the $refs
 	if err := r.sessionManager.Schema.Resolve(r.sessionManager.Components.Schemas); err != nil {
@@ -249,14 +247,14 @@ func (r *Runner[T]) Run(ctx *util.FragsContext, params any) (*T, error) {
 	}
 	return r.dataStructure, nil
 }
-func (r *Runner[T]) checkParametersRequirements() error {
+func (r *Runner) checkParametersRequirements() error {
 	if r.sessionManager.Parameters == nil || len(r.sessionManager.Parameters.Parameters) == 0 {
 		return nil
 	}
 	return r.sessionManager.Parameters.Validate(r.params)
 }
 
-func (r *Runner[T]) checkToolsRequirements() error {
+func (r *Runner) checkToolsRequirements() error {
 	if r.sessionManager.RequiredTools != nil {
 		return r.sessionManager.RequiredTools.Check(r.ToolsDefinitions)
 	}
@@ -265,7 +263,7 @@ func (r *Runner[T]) checkToolsRequirements() error {
 
 // scanSessions keeps scanning sessions until completion, sending tasks to workers and orchestrating priority and
 // concurrency
-func (r *Runner[T]) scanSessions(ctx *util.FragsContext) error {
+func (r *Runner) scanSessions(ctx *util.FragsContext) error {
 	r.wg = sync.WaitGroup{}
 	// listing all the sessions still in queued state
 	for k, s := range r.ListQueued().Iter() {
@@ -309,7 +307,7 @@ func (r *Runner[T]) scanSessions(ctx *util.FragsContext) error {
 }
 
 // runSession runs a session.
-func (r *Runner[T]) runSession(ctx *util.FragsContext, sessionID string, session Session) error {
+func (r *Runner) runSession(ctx *util.FragsContext, sessionID string, session Session) error {
 	if session.Vars == nil {
 		session.Vars = make(map[string]any)
 	}
@@ -370,18 +368,16 @@ func (r *Runner[T]) runSession(ctx *util.FragsContext, sessionID string, session
 				return err
 			}
 		}
-		if session.HasPrompt() {
-			pResources := append(localResources, sessionResources.FilterPromptResources()...)
-			if err := r.runPrompt(ctx, ai, sessionID, session, itIdx, scope, aiContext, pResources); err != nil {
-				return err
-			}
+		pResources := append(localResources, sessionResources.FilterPromptResources()...)
+		if err := r.runPrompt(ctx, ai, sessionID, session, itIdx, scope, aiContext, pResources); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 // ListQueued returns a list of queued sessions
-func (r *Runner[T]) ListQueued() Sessions {
+func (r *Runner) ListQueued() Sessions {
 	sessions := NewSessions()
 	for k, v := range r.status.Iter() {
 		if v == queuedSessionStatus {
@@ -391,7 +387,7 @@ func (r *Runner[T]) ListQueued() Sessions {
 	return sessions
 }
 
-func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
+func (r *Runner) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
 	scope evaluators.EvalScope, preCallContext *scoper.KnowledgeNode, resources resources.ResourceDataItems) error {
 	r.logger.Info(log.NewEvent(log.StartEventType, log.PrePromptComponent).WithSession(sessionID).WithIteration(iteratorIdx))
 	// a PrePrompt is a special prompt that runs before the first phase of the session, if present. This kind
@@ -446,101 +442,88 @@ func (r *Runner[T]) runPrePrompts(ctx *util.FragsContext, ai Ai, sessionID strin
 	return nil
 }
 
-func (r *Runner[T]) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
+func (r *Runner) runPrompt(ctx *util.FragsContext, ai Ai, sessionID string, session Session, iteratorIdx int,
 	scope evaluators.EvalScope, aiContext *scoper.KnowledgeNode, promptResources resources.ResourceDataItems) error {
-	if len(session.Prompt) == 0 {
-		return errors.New("runPrompt called on a session without a prompt")
-	}
-	sessionSchema, err := r.sessionManager.Schema.GetSession(sessionID)
-	if err != nil {
-		return err
-	}
-	// For each phase...
-	for idx, phaseIndex := range sessionSchema.GetPhaseIndexes() {
-		// ...we retry the prompt a number of times, depending on the session's attempts.
-		err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
-			if ctx.Err() != nil {
-				r.logger.Info(log.NewEvent(log.ErrorEventType, log.PromptComponent).
-					WithMessage("context cancelled").WithSession(sessionID).WithPhase(phaseIndex).
-					WithIteration(iteratorIdx).WithErr(ctx.Err()))
-				return ctx.Err()
-			}
-			r.logger.Info(log.NewEvent(log.StartEventType, log.PromptComponent).WithSession(sessionID).WithPhase(phaseIndex).
-				WithIteration(iteratorIdx))
-			phaseSchema, err := sessionSchema.GetPhase(phaseIndex)
-			if err != nil {
-				r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
-					WithMessage("failed to get phase schema").WithErr(err).WithSession(sessionID).
-					WithPhase(phaseIndex).WithIteration(iteratorIdx))
-				return err
-			}
-			var data []byte
-			if idx == 0 {
-				prompt, err := session.RenderPrompt(scope)
-				if err != nil {
-					r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
-						WithMessage("failed to render prompt").WithErr(err).WithSession(sessionID).
-						WithPhase(phaseIndex).WithIteration(iteratorIdx))
-					return err
-				}
-				// as this is the first phase, and there was no prePrompt, we contextualize the prompt with Frags
-				// context or preCalls, if so configured.
-				if !session.HasPrePrompt() {
-					prompt, err = r.contextualizePrompt(prompt, aiContext, session, scope)
-					if err != nil {
-						r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
-							WithMessage("failed to contextualize prompt").WithErr(err).WithSession(sessionID).
-							WithPhase(phaseIndex).WithIteration(iteratorIdx))
-						return err
-					}
-				}
-				// finally, we ask the LLM for an answer. Notice we pass NO TOOLS, as only  the prePrompt is allowed
-				// to use tools.
-				data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r, promptResources...)
-				if err != nil {
-					r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).WithMessage("error asking prompt").
-						WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
-					return err
-				}
-				// we reset localResources because they've already been introduced in the context by this prompt and
-				// we don't want subsequent phases to load them again.
-				promptResources = make(resources.ResourceDataItems, 0)
-			} else {
-				// subsequent phases. All context data has been already loaded, we can live peacefully.
-				prompt, err := session.RenderNextPhasePrompt(scope)
-				if err != nil {
-					r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
-						WithMessage("failed to render prompt").WithErr(err).WithSession(sessionID).
-						WithPhase(phaseIndex).WithIteration(iteratorIdx))
-					return err
-				}
-				data, err = ai.Ask(ctx, prompt, &phaseSchema, ToolDefinitions{}, r)
-				if err != nil {
-					r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).WithMessage("error asking prompt").
-						WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
-					return err
-				}
-			}
-			// regardless of the phase, data is returned and is ideally structured. We can now unmarshal it to
-			// the runner data structure.
-			if err := r.safeUnmarshalDataStructure(data); err != nil {
-				r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).WithMessage("failed to unmarshal data").
-					WithErr(err).WithSession(sessionID).WithPhase(phaseIndex).WithIteration(iteratorIdx))
-				return err
-			}
-			r.logger.Info(log.NewEvent(log.EndEventType, log.PromptComponent).WithSession(sessionID).WithPhase(phaseIndex).
-				WithIteration(iteratorIdx))
-			return nil
-		})
+	var sessionSchema *schema.Schema
+	// previously every plan was required to have a schema. With the introduction of sub-agent mode, a schema
+	// may not be required, and while the final output is going to be structured, when the schema is absent
+	// the agent is allowed to free
+	if r.sessionManager.Schema != nil {
+		var err error
+		sessionSchema, err = r.sessionManager.Schema.GetSession(sessionID)
 		if err != nil {
+			r.logger.Info(log.NewEvent(log.ErrorEventType, log.PromptComponent).
+				WithMessage("sessionID not found, switching to subagent mode").WithSession(sessionID))
+		}
+	}
+
+	// ...we retry the prompt a number of times, depending on the session's attempts.
+	err := retry.New(retry.Attempts(uint(session.Attempts)), retry.Delay(time.Second*5), retry.Context(ctx)).Do(func() error {
+		if ctx.Err() != nil {
+			r.logger.Info(log.NewEvent(log.ErrorEventType, log.PromptComponent).
+				WithMessage("context cancelled").WithSession(sessionID).
+				WithIteration(iteratorIdx).WithErr(ctx.Err()))
+			return ctx.Err()
+		}
+		r.logger.Info(log.NewEvent(log.StartEventType, log.PromptComponent).WithSession(sessionID).
+			WithIteration(iteratorIdx))
+		var data []byte
+		prompt, err := session.RenderPrompt(scope)
+		if err != nil {
+			r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
+				WithMessage("failed to render prompt").WithErr(err).WithSession(sessionID).
+				WithIteration(iteratorIdx))
 			return err
 		}
+		// as this is the first phase, and there was no prePrompt, we contextualize the prompt with Frags
+		// context or preCalls, if so configured.
+		if !session.HasPrePrompt() {
+			prompt, err = r.contextualizePrompt(prompt, aiContext, session, scope)
+			if err != nil {
+				r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).
+					WithMessage("failed to contextualize prompt").WithErr(err).WithSession(sessionID).
+					WithIteration(iteratorIdx))
+				return err
+			}
+		}
+		// finally, we ask the LLM for an answer. Notice we pass NO TOOLS, as only  the prePrompt is allowed
+		// to use tools.
+		data, err = ai.Ask(ctx, prompt, sessionSchema, ToolDefinitions{}, r, promptResources...)
+		if err != nil {
+			r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).WithMessage("error asking prompt").
+				WithErr(err).WithSession(sessionID).WithIteration(iteratorIdx))
+			return err
+		}
+		// we reset localResources because they've already been introduced in the context by this prompt and
+		// we don't want subsequent phases to load them again.
+		promptResources = make(resources.ResourceDataItems, 0)
+		if sessionSchema != nil {
+			// regardless data is returned and is ideally structured, considering a schema.
+			// was provided. We can unmarshal it in the runner data structure.
+			if err := r.safeUnmarshalDataStructure(data); err != nil {
+				r.logger.Err(log.NewEvent(log.ErrorEventType, log.PromptComponent).WithMessage("failed to unmarshal data").
+					WithErr(err).WithSession(sessionID).WithIteration(iteratorIdx))
+				return err
+			}
+		} else {
+			// however, if the schema was not provided, we are in the "subagent" mode and data is just plain
+			// text. So we are going to add that data to the output in an array of text
+			if err := r.safeMergeDataStructure(map[string]any{sessionID: []any{string(data)}}); err != nil {
+				return err
+			}
+		}
+		r.logger.Info(log.NewEvent(log.EndEventType, log.PromptComponent).WithSession(sessionID).
+			WithIteration(iteratorIdx))
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 // loadSessionResources loads resources for a session.
-func (r *Runner[T]) loadSessionResources(ctx *util.FragsContext, sessionID string, session Session) (resources.ResourceDataItems, error) {
+func (r *Runner) loadSessionResources(ctx *util.FragsContext, sessionID string, session Session) (resources.ResourceDataItems, error) {
 	sessionResources := make(resources.ResourceDataItems, 0)
 	for _, resource := range session.Resources {
 		if ctx.Err() != nil {
@@ -586,7 +569,7 @@ func (r *Runner[T]) loadSessionResources(ctx *util.FragsContext, sessionID strin
 	return sessionResources, nil
 }
 
-func (r *Runner[T]) resourcesDataToVars(resources resources.ResourceDataItems) map[string]any {
+func (r *Runner) resourcesDataToVars(resources resources.ResourceDataItems) map[string]any {
 	res := make(map[string]any)
 	for _, resourceData := range resources {
 		vx := ""
@@ -606,7 +589,7 @@ func (r *Runner[T]) resourcesDataToVars(resources resources.ResourceDataItems) m
 }
 
 // runSessionWorker runs a session worker.
-func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) {
+func (r *Runner) runSessionWorker(mainContext *util.FragsContext, index int) {
 	for t := range r.sessionChan {
 		// if the main context has been cancelled, we discard any message that may be on the channel to drive
 		// the runner to its demise as soon as possible
@@ -656,14 +639,14 @@ func (r *Runner[T]) runSessionWorker(mainContext *util.FragsContext, index int) 
 }
 
 // SetStatus sets the status of a session (thread-safe)
-func (r *Runner[T]) SetStatus(sessionID string, status SessionStatus) {
+func (r *Runner) SetStatus(sessionID string, status SessionStatus) {
 	r.statusMutex.Lock()
 	defer r.statusMutex.Unlock()
 	r.status.Store(sessionID, status)
 }
 
 // IsCompleted returns true if all sessions are completed
-func (r *Runner[T]) IsCompleted() bool {
+func (r *Runner) IsCompleted() bool {
 	for _, s := range r.status.Iter() {
 		if s == queuedSessionStatus {
 			return false
@@ -672,7 +655,7 @@ func (r *Runner[T]) IsCompleted() bool {
 	return true
 }
 
-func (r *Runner[T]) ListFailedSessions() []string {
+func (r *Runner) ListFailedSessions() []string {
 	failedSessions := make([]string, 0)
 	for id, s := range r.status.Iter() {
 		if s == failedSessionStatus {
@@ -682,7 +665,7 @@ func (r *Runner[T]) ListFailedSessions() []string {
 	return failedSessions
 }
 
-func (r *Runner[T]) RunFunction(ctx *util.FragsContext, name string, args map[string]any) (any, error) {
+func (r *Runner) RunFunction(ctx *util.FragsContext, name string, args map[string]any) (any, error) {
 	f, ok := r.ExternalFunctions[name]
 	if ok {
 		return f.Run(ctx, args, r)
@@ -690,18 +673,18 @@ func (r *Runner[T]) RunFunction(ctx *util.FragsContext, name string, args map[st
 	return nil, fmt.Errorf("function %s not found", name)
 }
 
-func (r *Runner[T]) Logger() *log.StreamerLogger {
+func (r *Runner) Logger() *log.StreamerLogger {
 	return r.logger
 }
 
-func (r *Runner[T]) Transformers() *Transformers {
+func (r *Runner) Transformers() *Transformers {
 	if r.sessionManager.Transformers == nil {
 		return &Transformers{}
 	}
 	return r.sessionManager.Transformers
 }
 
-func (r *Runner[T]) ScriptEngine() ScriptEngine {
+func (r *Runner) ScriptEngine() ScriptEngine {
 	if r.scriptEngine == nil {
 		r.logger.Warn(log.NewEvent(log.GenericEventType, log.RunnerComponent).
 			WithMessage(fmt.Sprintf("no script engine provided, using dummy engine")))
@@ -711,10 +694,10 @@ func (r *Runner[T]) ScriptEngine() ScriptEngine {
 }
 
 // newEvalScope returns a new scope for evaluating expressions.
-func (r *Runner[T]) newEvalScope() evaluators.EvalScope {
+func (r *Runner) newEvalScope() evaluators.EvalScope {
 	scope := evaluators.EvalScope{
 		evaluators.ParamsAttr:     r.params,
-		evaluators.ContextAttr:    *r.dataStructure,
+		evaluators.ContextAttr:    r.dataStructure,
 		evaluators.ComponentsAttr: r.sessionManager.Components,
 		evaluators.VarsAttr:       make(map[string]any),
 		evaluators.IteratorAttr:   nil,
@@ -723,6 +706,6 @@ func (r *Runner[T]) newEvalScope() evaluators.EvalScope {
 	return scope.WithVars(r.vars)
 }
 
-func (r *Runner[T]) DB() *zealql.Database {
+func (r *Runner) DB() *zealql.Database {
 	return r.db
 }
