@@ -5,7 +5,7 @@ go 1.25.4
 require (
 	cloud.google.com/go/auth v0.9.3
 	github.com/anthropics/anthropic-sdk-go v1.27.1
-	github.com/diaphora-ai/apicp v0.0.0-20260505121239-726c7aeb6f2f
+	github.com/diaphora-ai/apicp v0.0.0-20260531093414-16718d25d8d0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/jsonschema-go v0.4.3
 	github.com/labstack/echo/v4 v4.15.1
@@ -13,8 +13,8 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/fml v0.0.0-20260529080524-aeb6abb4658a
-	github.com/theirish81/frags v0.30.0-rc4
+	github.com/theirish81/fml v0.0.0-20260601170317-d8bdb44a74b7
+	github.com/theirish81/frags v0.30.0-rc5
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
 	github.com/theirish81/frags/gemini v0.28.1
@@ -112,6 +112,3 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.50.1 // indirect
 )
-
-replace github.com/theirish81/frags v0.30.0-rc4 => ../
-replace github.com/theirish81/frags/gemini v0.28.1 => ../gemini
