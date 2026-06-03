@@ -13,7 +13,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/fml v0.0.0-20260529080524-aeb6abb4658a
+	github.com/theirish81/fml v0.0.0-20260603131900-df8706f374b5
 	github.com/theirish81/frags v0.30.0-rc5
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
@@ -114,4 +114,5 @@ require (
 )
 
 replace github.com/theirish81/frags v0.30.0-rc5 => ../
+
 replace github.com/theirish81/frags/gemini v0.28.1 => ../gemini
