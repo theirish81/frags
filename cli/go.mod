@@ -13,11 +13,11 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/theirish81/fml v0.0.0-20260603131900-df8706f374b5
-	github.com/theirish81/frags v0.30.0-rc5
+	github.com/theirish81/fml v0.1.0
+	github.com/theirish81/frags v1.0.0-rc0
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
-	github.com/theirish81/frags/gemini v0.28.1
+	github.com/theirish81/frags/gemini v1.0.0-rc0
 	github.com/theirish81/frags/ollama v0.25.0
 	github.com/theirish81/fragsfunctions/data v0.7.0
 	github.com/theirish81/fragsfunctions/fs v0.7.0
@@ -112,7 +112,3 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.50.1 // indirect
 )
-
-replace github.com/theirish81/frags v0.30.0-rc5 => ../
-
-replace github.com/theirish81/frags/gemini v0.28.1 => ../gemini
