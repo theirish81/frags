@@ -190,9 +190,6 @@ func (s Schema) MarshalYAML() (any, error) {
 	if s.Type != "" {
 		add("type", s.Type)
 	}
-	if s.XPhase != 0 {
-		add("x-phase", s.XPhase)
-	}
 	if s.XSession != nil {
 		add("x-session", s.XSession)
 	}

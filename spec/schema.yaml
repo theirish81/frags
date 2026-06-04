@@ -217,11 +217,6 @@ definitions:
           produce structured content, according to the linked schema. It supports the Golang's template/text format to
           refer to the available scope.
         minLength: 3
-      nextPhasePrompt:
-        description: |-
-          used in multi-phased session. This is a possibility, but not something we will necessarily support in
-          the future.
-        type: string
       resources:
         type: array
         description: |-
@@ -482,8 +477,6 @@ definitions:
         type: string
       type:
         type: string
-      x-phase:
-        type: integer
       x-session:
         type: string
       $ref:

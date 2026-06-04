@@ -3,7 +3,6 @@
 sessions:
   s1:
     prompt: obtain and organize the required information about lions
-    nextPhasePrompt: also these pieces of information
 schema:
   type: object
   required:
@@ -12,7 +11,6 @@ schema:
   properties:
     classification:
       x-session: s1
-      x-phase: 0
       description: the classification of the animal
       type: object
       required:
@@ -53,7 +51,6 @@ schema:
     other_family_members:
       type: array
       x-session: s1
-      x-phase: 1
       description: other animals of the same family
       items:
         type: string

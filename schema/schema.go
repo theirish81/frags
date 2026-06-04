@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -38,7 +37,7 @@ const Array = "array"
 
 type Type string
 
-// Schema represents a JSON schema with x-phase and x-session extensions.
+// Schema represents a JSON schema with x-session extensions.
 type Schema struct {
 	OneOf            []*Schema          `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
 	AnyOf            []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
@@ -63,7 +62,6 @@ type Schema struct {
 	Required         []string           `json:"required,omitempty" yaml:"required,omitempty"`
 	Title            string             `json:"title,omitempty" yaml:"title,omitempty"`
 	Type             Type               `json:"type,omitempty" yaml:"type,omitempty"`
-	XPhase           int                `json:"x-phase,omitempty" yaml:"x-phase,omitempty"`
 	XSession         *string            `json:"x-session,omitempty" yaml:"x-session,omitempty"`
 	Ref              *string            `json:"$ref,omitempty" yaml:"$ref,omitempty"`
 	XUI              map[string]any     `json:"-" yaml:"-"`
@@ -100,39 +98,6 @@ func (s *Schema) FromYAML(data []byte) error {
 	return yaml.Unmarshal(data, s)
 }
 
-// GetPhase returns a Schema for a specific phase.
-func (s *Schema) GetPhase(phase int) (Schema, error) {
-	clonedSchema := *s
-	if !slices.Contains(s.GetPhaseIndexes(), phase) {
-		return clonedSchema, errors.New("phase not found")
-	}
-	px := make(map[string]*Schema)
-	req := make([]string, 0)
-	for k, v := range clonedSchema.Properties {
-		if v.XPhase == phase {
-			px[k] = v
-			if slices.Contains(clonedSchema.Required, k) {
-				req = append(req, k)
-			}
-		}
-	}
-	clonedSchema.Properties = px
-	clonedSchema.Required = req
-	return clonedSchema, nil
-}
-
-// GetPhaseIndexes returns the indexes of all phases in the schema.
-func (s *Schema) GetPhaseIndexes() []int {
-	idx := make([]int, 0)
-	for _, v := range s.Properties {
-		if !slices.Contains(idx, v.XPhase) {
-			idx = append(idx, v.XPhase)
-		}
-	}
-	sort.Ints(idx)
-	return idx
-}
-
 // GetSessionsIDs returns the IDs of all sessions in the schema.
 func (s *Schema) GetSessionsIDs() []string {
 	sessions := make([]string, 0)
@@ -147,10 +112,10 @@ func (s *Schema) GetSessionsIDs() []string {
 }
 
 // GetSession returns a Schema for a specific session.
-func (s *Schema) GetSession(sessionID string) (Schema, error) {
+func (s *Schema) GetSession(sessionID string) (*Schema, error) {
 	clonedSchema := *s
 	if !slices.Contains(s.GetSessionsIDs(), sessionID) {
-		return clonedSchema, errors.New("sessionID not found")
+		return nil, errors.New("sessionID not found")
 	}
 	px := make(map[string]*Schema)
 	req := make([]string, 0)
@@ -164,7 +129,7 @@ func (s *Schema) GetSession(sessionID string) (Schema, error) {
 	}
 	clonedSchema.Properties = px
 	clonedSchema.Required = req
-	return clonedSchema, nil
+	return &clonedSchema, nil
 }
 
 // Resolve resolves all the references in the schema.
@@ -187,12 +152,10 @@ func (s *Schema) resolve(schema *Schema, schemas map[string]Schema, visited map[
 			defer func() { delete(visited, ref) }()
 			schemaName := strings.TrimPrefix(ref, "#/components/schemas/")
 			if resolvedSchema, ok := schemas[schemaName]; ok {
-				originalXPhase := schema.XPhase
 				originalXSession := schema.XSession
 
 				*schema = resolvedSchema
 
-				schema.XPhase = originalXPhase
 				schema.XSession = originalXSession
 				schema.Ref = nil
 

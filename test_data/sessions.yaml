@@ -1,12 +1,10 @@
 sessions:
   session_one:
     prompt: extract these pieces of information
-    nextPhasePrompt: also these
     resources:
       - identifier: doc.pdf
   session_two:
     prompt: extract these images data. Make sure they contain {{ .params.animal }}
-    nextPhasePrompt: also these {{ .params.animals }}
     resources:
       - identifier: img.pdf
 schema:
@@ -18,17 +16,7 @@ schema:
   properties:
     p1:
       x-session: session_one
-      x-phase: 0
-      type: string
-    p2:
-      x-session: session_one
-      x-phase: 1
       type: string
     p3:
       x-session: session_two
-      x-phase: 0
-      type: string
-    p4:
-      x-session: session_two
-      x-phase: 1
       type: string

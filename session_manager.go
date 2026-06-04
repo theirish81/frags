@@ -25,19 +25,17 @@ import (
 	"github.com/theirish81/frags/evaluators"
 	"github.com/theirish81/frags/resources"
 	"github.com/theirish81/frags/schema"
-	"github.com/theirish81/frags/util"
 	"gopkg.in/yaml.v3"
 )
 
 // Session defines an LLM session, with its own context.
-// Each session has a Prompt, a NextPhasePrompt for the phases after the first, and a list of resources to load.
+// Each session has a Prompt, and a list of resources to load.
 // Each session may also have a PrePrompt, that is an LLM interaction that happens before the main one, produces
 // no structured data, and has the sole purpose to enrich the context and get it ready. This is mostly useful for
 // situations in which we need to use an extraction functionality that poorly harmonizes with a structured output.
 // PreCalls defines a list of functions to call before the main interaction.
 // PrePrompt is the prompt that will be called before the main interaction. This is mainly for context enrichment
 // Prompt defines the main interaction.
-// NextPhasePrompt defines the prompt that will be called after the main interaction.
 // Resources configure resource loaders to load files for the session.
 // Timeout defines the maximum time the session can run for.
 // DependsOn defines a list of sessions that must be completed before this session can start, and expressions defining
@@ -49,18 +47,17 @@ import (
 // len(IterateOn) times. Use an github.com/expr-lang/expr expression.
 // Vars defines variables that are local to the session.
 type Session struct {
-	PreCalls        FunctionCallers `json:"preCalls,omitempty" yaml:"preCalls" validate:"omitempty,dive"`
-	PrePrompt       PrePrompt       `json:"prePrompt,omitempty" yaml:"prePrompt,omitempty"`
-	Prompt          string          `json:"prompt,omitempty" yaml:"prompt,omitempty" validate:"omitempty,min=3"`
-	NextPhasePrompt string          `json:"nextPhasePrompt,omitempty" yaml:"nextPhasePrompt,omitempty"`
-	Resources       []Resource      `json:"resources,omitempty" yaml:"resources,omitempty" validate:"dive"`
-	Timeout         *string         `json:"timeout,omitempty" yaml:"timeout,omitempty"`
-	DependsOn       Dependencies    `json:"dependsOn,omitempty" yaml:"dependsOn,omitempty"`
-	Context         *ContextConfig  `json:"context" yaml:"context"`
-	Attempts        int             `json:"attempts,omitempty" yaml:"attempts,omitempty"`
-	Tools           ToolDefinitions `json:"tools,omitempty" yaml:"tools,omitempty"`
-	IterateOn       *string         `json:"iterateOn,omitempty" yaml:"iterateOn,omitempty"`
-	Vars            map[string]any  `json:"vars,omitempty" yaml:"vars,omitempty"`
+	PreCalls  FunctionCallers `json:"preCalls,omitempty" yaml:"preCalls" validate:"omitempty,dive"`
+	PrePrompt PrePrompt       `json:"prePrompt,omitempty" yaml:"prePrompt,omitempty"`
+	Prompt    string          `json:"prompt,omitempty" yaml:"prompt,omitempty" validate:"omitempty,min=3"`
+	Resources []Resource      `json:"resources,omitempty" yaml:"resources,omitempty" validate:"dive"`
+	Timeout   *string         `json:"timeout,omitempty" yaml:"timeout,omitempty"`
+	DependsOn Dependencies    `json:"dependsOn,omitempty" yaml:"dependsOn,omitempty"`
+	Context   *ContextConfig  `json:"context" yaml:"context"`
+	Attempts  int             `json:"attempts,omitempty" yaml:"attempts,omitempty"`
+	Tools     ToolDefinitions `json:"tools,omitempty" yaml:"tools,omitempty"`
+	IterateOn *string         `json:"iterateOn,omitempty" yaml:"iterateOn,omitempty"`
+	Vars      map[string]any  `json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 
 type PrePrompt []string
@@ -111,11 +108,6 @@ func (s *Session) HasPrompt() bool {
 // RenderPrompt renders the prompt (which may contain Go templates), with the given scope
 func (s *Session) RenderPrompt(scope evaluators.EvalScope) (string, error) {
 	return evaluators.EvaluateTemplate(s.Prompt, scope)
-}
-
-// RenderNextPhasePrompt renders the next phase prompt (which may contain Go templat es), with the given scope
-func (s *Session) RenderNextPhasePrompt(scope evaluators.EvalScope) (string, error) {
-	return evaluators.EvaluateTemplate(s.NextPhasePrompt, scope)
 }
 
 // Resource defines a resource to load, with an identifier and a map of parameters
@@ -263,26 +255,6 @@ func (s *SessionManager) SetSchema(schema schema.Schema) {
 // FromYAML unmarshals a YAML document into the SessionManager.
 func (s *SessionManager) FromYAML(data []byte) error {
 	return yaml.Unmarshal(data, s)
-}
-
-// initNullSchema initializes the schema if it is nil
-func (s *SessionManager) initNullSchema() {
-	if s.Schema == nil {
-		sx := schema.Schema{
-			Type:       schema.Object,
-			Properties: map[string]*schema.Schema{},
-			Required:   make([]string, 0),
-		}
-		for k, _ := range s.Sessions.Data {
-			sx.Properties[k] = &schema.Schema{
-				Type:     schema.String,
-				XSession: util.Ptr(k),
-				XPhase:   0,
-			}
-			sx.Required = append(sx.Required, k)
-		}
-		s.Schema = &sx
-	}
 }
 
 func (s *SessionManager) ComputeRequiredResources() []Resource {

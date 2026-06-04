@@ -34,7 +34,7 @@ import (
 
 // execute executes the plan using the specified parameters
 func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[string]any, toolConfig ExtendedToolsConfig,
-	rl resources.ResourceLoader, logger *log.StreamerLogger) (*util.ProgMap, error) {
+	rl resources.ResourceLoader, logger *log.StreamerLogger) (util.ProgMap, error) {
 	// parameters can only be strings via CLI, so we tell the parameter validator to enable loose type checking,
 	// that is, if a string contains a number, it will be parsed as a number if the schema expects it
 	sm.Parameters.SetLooseType(true)
@@ -72,7 +72,7 @@ func execute(ctx *util.FragsContext, sm frags.SessionManager, paramsMap map[stri
 		workers = 1
 	}
 
-	runner := frags.NewRunner[util.ProgMap](
+	runner := frags.NewRunner(
 		sm,
 		rl,
 		ai,

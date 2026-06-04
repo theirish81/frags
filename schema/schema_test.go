@@ -25,34 +25,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestSchema_GetPhase(t *testing.T) {
-	s := Schema{
-		Description: "this is a test",
-		Required:    []string{"p1"},
-		Properties: map[string]*Schema{
-			"p1": {
-				Type:   String,
-				XPhase: 0,
-			},
-			"p2": {
-				Type:   Integer,
-				XPhase: 1,
-			},
-		},
-	}
-	px1, err := s.GetPhase(0)
-	assert.Nil(t, err)
-	assert.Equal(t, Type(String), px1.Properties["p1"].Type)
-	assert.Len(t, px1.Properties, 1)
-	assert.Equal(t, []string{"p1"}, px1.Required)
-
-	px2, err := s.GetPhase(1)
-	assert.Nil(t, err)
-	assert.Equal(t, Type(Integer), px2.Properties["p2"].Type)
-	assert.Len(t, px2.Properties, 1)
-	assert.Equal(t, make([]string, 0), px2.Required)
-}
-
 func TestSchema_GetContext(t *testing.T) {
 	s := Schema{
 		Description: "this is a test",
@@ -80,61 +52,6 @@ func TestSchema_GetContext(t *testing.T) {
 	assert.Equal(t, Type(Integer), px2.Properties["p2"].Type)
 	assert.Len(t, px2.Properties, 1)
 	assert.Equal(t, make([]string, 0), px2.Required)
-}
-
-func TestSchema_GetContextGetPhaseCombined(t *testing.T) {
-	ctxFoo := "foo"
-	ctxBar := "bar"
-	s := Schema{
-		Description: "this is a test",
-		Required:    []string{"p1"},
-		Properties: map[string]*Schema{
-			"p1": {
-				Type:     String,
-				XSession: &ctxFoo,
-				XPhase:   0,
-			},
-			"p2": {
-				Type:     Integer,
-				XSession: &ctxFoo,
-				XPhase:   1,
-			},
-			"p3": {
-				Type:     String,
-				XSession: &ctxBar,
-				XPhase:   0,
-			},
-			"p4": {
-				Type:     Integer,
-				XSession: &ctxBar,
-				XPhase:   1,
-			},
-		},
-	}
-	c1, _ := s.GetSession(ctxFoo)
-	assert.Len(t, c1.Properties, 2)
-	assert.Contains(t, c1.Properties, "p1")
-	assert.Contains(t, c1.Properties, "p2")
-	assert.NotContains(t, c1.Properties, "p3")
-	phase0, _ := c1.GetPhase(0)
-	assert.Len(t, phase0.Properties, 1)
-	assert.Contains(t, phase0.Properties, "p1")
-	assert.NotContains(t, phase0.Properties, "p2")
-
-	c2, _ := s.GetSession(ctxBar)
-	assert.Len(t, c1.Properties, 2)
-	assert.Contains(t, c2.Properties, "p3")
-	assert.Contains(t, c2.Properties, "p4")
-	assert.NotContains(t, c2.Properties, "p1")
-	phase0, _ = c2.GetPhase(0)
-	assert.Len(t, phase0.Properties, 1)
-	assert.Contains(t, phase0.Properties, "p3")
-	assert.NotContains(t, phase0.Properties, "p4")
-
-	phase1, _ := c2.GetPhase(1)
-	assert.Len(t, phase1.Properties, 1)
-	assert.Contains(t, phase1.Properties, "p4")
-	assert.NotContains(t, phase1.Properties, "p3")
 }
 
 func TestSchema_Resolve(t *testing.T) {
@@ -278,7 +195,6 @@ func TestSessionManager_ResolveSchema_NotFound(t *testing.T) {
 
 func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 	ref := "#/components/schemas/Address"
-	phase := 1
 	session := "test_session"
 
 	schemas := map[string]Schema{
@@ -295,7 +211,6 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 		Properties: map[string]*Schema{
 			"shipping_address": {
 				Ref:      &ref,
-				XPhase:   phase,
 				XSession: &session,
 			},
 		},
@@ -307,7 +222,6 @@ func TestSessionManager_ResolveSchema_PreserveXFields(t *testing.T) {
 	addressSchema := schema.Properties["shipping_address"]
 	assert.Nil(t, addressSchema.Ref)
 	assert.Equal(t, Type(Object), addressSchema.Type)
-	assert.Equal(t, phase, addressSchema.XPhase)
 	assert.Equal(t, session, *addressSchema.XSession)
 	assert.Equal(t, Type(String), addressSchema.Properties["street"].Type)
 }

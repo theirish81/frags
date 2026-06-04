@@ -44,7 +44,7 @@ const (
 )
 
 // CheckDependencies checks whether a session can start, cannot start yet, or will never start
-func (r *Runner[T]) CheckDependencies(dependencies Dependencies) (DependencyCheckResult, error) {
+func (r *Runner) CheckDependencies(dependencies Dependencies) (DependencyCheckResult, error) {
 	if dependencies == nil {
 		return DependencyCheckPassed, nil
 	}

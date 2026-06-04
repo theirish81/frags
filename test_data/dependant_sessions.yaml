@@ -19,21 +19,17 @@ schema:
   properties:
     animal1:
       x-session: session_one
-      x-phase: 0
       type: string
       description: what does the dog say?
     animal2:
       x-session: session_two
-      x-phase: 0
       type: string
       description: what does the cat say?
     summary:
       x-session: end_session
-      x-phase: 0
       type: string
       description: what do the animals say?
     nop:
       x-session: nop_session
-      x-phase: 0
       type: string
       description: this should not be here

@@ -379,13 +379,13 @@ func apiKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func dataOrRenderTemplate(c echo.Context, req executeRequest, sm frags.SessionManager, data *util.ProgMap) (any, bool, error) {
+func dataOrRenderTemplate(c echo.Context, req executeRequest, sm frags.SessionManager, data util.ProgMap) (any, bool, error) {
 	if c.Request().Header.Get("Accept") == "text/markdown" && req.Template != "" {
 		res, err := renderTemplate(req.Template, data)
 		return string(res), true, err
 	}
 	if c.QueryParam("schema") == "true" {
-		data = &util.ProgMap{
+		data = util.ProgMap{
 			"result": data,
 			"schema": sm.Schema,
 		}
@@ -393,7 +393,7 @@ func dataOrRenderTemplate(c echo.Context, req executeRequest, sm frags.SessionMa
 	return data, false, nil
 }
 
-func dataOrRenderLoadedTemplate(c echo.Context, sm frags.SessionManager, data *util.ProgMap) (any, bool, error) {
+func dataOrRenderLoadedTemplate(c echo.Context, sm frags.SessionManager, data util.ProgMap) (any, bool, error) {
 	if c.Request().Header.Get("Accept") == "text/markdown" {
 		fileRef, err := safePath(c.Param("file"))
 		if err != nil {
@@ -407,7 +407,7 @@ func dataOrRenderLoadedTemplate(c echo.Context, sm frags.SessionManager, data *u
 		return string(res), true, err
 	}
 	if c.QueryParam("schema") == "true" {
-		data = &util.ProgMap{
+		data = util.ProgMap{
 			"result": data,
 			"schema": sm.Schema,
 		}

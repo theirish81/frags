@@ -131,7 +131,6 @@ sessions:
   ## Basic data
   basic_extraction:
     prompt: extract the patient details details from the attached discharge note
-    nextPhasePrompt: also these visit details
     resources:
       - identifier: discharge.pdf
   ## Medications
@@ -142,7 +141,6 @@ sessions:
   # Follow up instructions
   follow_up_extraction:
     prompt: extract the discharge plan details from the attached discharge plan
-    nextPhasePrompt: also these details
     resources:
       - identifier: discharge.pdf
   ## Appointments
@@ -189,7 +187,6 @@ schema:
     patient_info:
       type: object
       x-session: basic_extraction
-      x-phase: 0
       required:
         - patient_name
         - dob
@@ -204,38 +201,30 @@ schema:
           type: integer
     visit_info:
       x-session: basic_extraction
-      x-phase: 1
       $ref: '#/components/schemas/visit_info'
     diagnosis:
       x-session: basic_extraction
-      x-phase: 2
       $ref: '#/components/schemas/diagnosis'
     medications:
       x-session: medication_extraction
-      x-phase: 0
       type: array
       items:
         $ref: "#/components/schemas/medication"
     follow_up_instructions_for_patient:
       x-session: follow_up_extraction
-      x-phase: 0
       $ref: "#/components/schemas/follow_up_instructions"
     follow_up_instructions_for_doctor:
       x-session: follow_up_extraction
-      x-phase: 1
       $ref: "#/components/schemas/follow_up_instructions"
     appointments:
       x-session: appointments_extraction
-      x-phase: 0
       $ref: "#/components/schemas/appointments"
     medication_explanation:
       x-session: medication_explanation
-      x-phase: 0
       description: the explanation of the medications, provided in a language understandable by non medical professionals
       $ref: "#/components/schemas/medication_explanation"
     glossary:
       x-session: glossary_generation
-      x-phase: 0
       $ref: "#/components/schemas/glossary"
     italian:
       type: object
