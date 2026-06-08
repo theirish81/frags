@@ -14,7 +14,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/theirish81/fml v0.1.0
-	github.com/theirish81/frags v1.0.0-rc0
+	github.com/theirish81/frags v1.0.0-rc1
 	github.com/theirish81/frags/anthropic v0.25.0-rc1
 	github.com/theirish81/frags/chatgpt v0.25.0
 	github.com/theirish81/frags/gemini v1.0.0-rc0
