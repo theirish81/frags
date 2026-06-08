@@ -92,6 +92,13 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	// Many LLMs will not like a type: array with a missing "items" and explode with fireworks.
+	// The explosion will happen as soon as the LLM sees it, so it's a blocker.
+	// Given this is a rare event, we decided to cover that case and convert it to items -> type: string
+	// Not perfect, but close enough, I guess.
+	if s.Type == "array" && s.Items == nil {
+		s.Items = &Schema{Type: "string"}
+	}
 	for k, v := range raw {
 		if !strings.HasPrefix(k, "x-ui-") {
 			continue
@@ -250,7 +257,13 @@ func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
 	if err := value.Decode((*schemaAlias)(s)); err != nil {
 		return err
 	}
-
+	// Many LLMs will not like a type: array with a missing "items" and explode with fireworks.
+	// The explosion will happen as soon as the LLM sees it, so it's a blocker.
+	// Given this is a rare event, we decided to cover that case and convert it to items -> type: string
+	// Not perfect, but close enough, I guess.
+	if s.Type == "array" && s.Items == nil {
+		s.Items = &Schema{Type: "string"}
+	}
 	if value.Kind != yaml.MappingNode {
 		return nil
 	}
