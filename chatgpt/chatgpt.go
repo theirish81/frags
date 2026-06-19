@@ -19,10 +19,15 @@ package chatgpt
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"slices"
+	"strings"
 	"sync"
+	"time"
 
+	"github.com/avast/retry-go/v5"
 	"github.com/theirish81/frags"
 	"github.com/theirish81/frags/log"
 	"github.com/theirish81/frags/resources"
@@ -45,12 +50,16 @@ type Ai struct {
 	uploadMutex  *sync.Mutex
 }
 type Config struct {
-	Model string `yaml:"model" json:"model"`
+	Model      string        `yaml:"model" json:"model"`
+	Attempts   int           `yaml:"attempts" json:"attempts"`
+	RetryDelay time.Duration `yaml:"retryDelay" json:"retryDelay"`
 }
 
 func DefaultConfig() Config {
 	return Config{
-		Model: defaultModel,
+		Model:      defaultModel,
+		Attempts:   3,
+		RetryDelay: 2 * time.Second,
 	}
 }
 
@@ -125,14 +134,41 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 	d.content = append(d.content, msg)
 	keepGoing := true
 	out := ""
+	counter := 0
 	for keepGoing {
+		counter++
+		if counter >= 10 {
+			return nil, errors.New("loop detected. Too many iterations")
+		}
+
 		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(d.content[len(d.content)-1]).WithEngine(engine))
 		req := NewResponseRequest(d.config.Model, d.content, d.systemPrompt, chatGptTools, sx)
 
-		response, err := d.httpClient.PostResponses(ctx, req)
-		if err != nil {
+		var response Response
+		if d.config.Attempts <= 0 {
+			d.config.Attempts = 1
+		}
+
+		if err = retry.New(retry.Attempts(uint(d.config.Attempts)), retry.Delay(d.config.RetryDelay), retry.Context(ctx),
+			retry.DelayType(retry.BackOffDelay), retry.RetryIf(func(err error) bool {
+				errStr := err.Error()
+				if strings.Contains(errStr, "429") || strings.Contains(errStr, "500") || strings.Contains(errStr, "502") || strings.Contains(errStr, "503") || strings.Contains(errStr, "504") || strings.Contains(errStr, "timeout") {
+					return true
+				}
+				var netErr net.Error
+				if errors.As(err, &netErr) {
+					return true
+				}
+				return false
+			}), retry.OnRetry(func(attempt uint, err error) {
+				runner.Logger().Info(log.NewEvent(log.GenericEventType, log.AiComponent).WithMessage("ChatGPT infrastructure is overloaded, retrying...").WithEngine(engine).WithErr(err).WithIteration(int(attempt)))
+			})).Do(func() error {
+			response, err = d.httpClient.PostResponses(ctx, req)
+			return err
+		}); err != nil {
 			return nil, err
 		}
+
 		for _, item := range response.Output {
 			d.content = append(d.content, item)
 		}
@@ -145,10 +181,13 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 			runner.Logger().Debug(log.NewEvent(log.EndEventType, log.AiComponent).WithMessage("generated content").WithContent(content).WithEngine(engine))
 			out = content.First().Text
 			keepGoing = false
+			if strings.Contains(out, "[FATAL]") {
+				err = errors.New(out)
+			}
 		}
 
 	}
-	return []byte(out), nil
+	return []byte(out), err
 }
 
 func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]ChatGptTool, error) {
@@ -198,16 +237,27 @@ func (d *Ai) SetFunctions(functions frags.ExternalFunctions) {
 	d.Functions = functions
 }
 
+type FunctionResponseMap map[string]any
+
+func NewFunctionResponseMap(data any, err error) FunctionResponseMap {
+	res := FunctionResponseMap{
+		"output": data,
+	}
+	if err != nil {
+		res["error"] = err.Error()
+	}
+	res["system_guidance"] = `
+* in case of success, ignore this guidance
+* if recoverable failure, retry function calling MAX 3 times per function, adjusting the parameters as necessary.
+* if the error is deemed not solvable, not recoverable or we hit the 3rd attempt, respond with the failure reasons, preceded by the flag [FATAL]`
+	return res
+}
+
 func (d *Ai) handleFunctionCalls(ctx *util.FragsContext, responseMessage Response, runner frags.ExportableRunner) error {
 	for _, fc := range responseMessage.FunctionCalls() {
 		res, err := d.RunFunction(ctx, frags.FunctionCaller{Name: fc.Name, Args: fc.Arguments.GetMap()}, runner)
-		if err != nil {
-			return err
-		}
-		data, err := json.Marshal(res)
-		if err != nil {
-			return err
-		}
+		data, _ := json.Marshal(NewFunctionResponseMap(res, err))
+
 		d.content = append(d.content, Message{
 			Type:   PartTypeFunctionCallOutput,
 			CallID: fc.CallID,
