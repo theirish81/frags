@@ -20,7 +20,6 @@ package anthropic
 import (
 	"encoding/json"
 
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/theirish81/frags/schema"
 )
 
@@ -125,26 +124,6 @@ func SchemaToClaudeMap(s *schema.Schema) map[string]any {
 	return m
 }
 
-func FlattenFromTo[T any](input map[string]any) T {
-	data, _ := json.Marshal(input)
-	t := new(T)
-	_ = json.Unmarshal(data, t)
-	return *t
-}
-
-func decodeAnyToJsonMap(input any) map[string]any {
-	out := make(map[string]any)
-	if input == nil {
-		return out
-	}
-	dec, _ := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		TagName: "json",
-		Result:  &out,
-	})
-	_ = dec.Decode(input)
-	return out
-}
-
 func decodeRawJsonMessageToMap(input json.RawMessage) map[string]any {
 	inputMap := make(map[string]any)
 	if input == nil || len(input) == 0 {
@@ -153,4 +132,20 @@ func decodeRawJsonMessageToMap(input json.RawMessage) map[string]any {
 	inputBytes, _ := json.Marshal(input)
 	_ = json.Unmarshal(inputBytes, &inputMap)
 	return inputMap
+}
+
+type FunctionResponseMap map[string]any
+
+func NewFunctionResponseMap(data any, err error) FunctionResponseMap {
+	res := FunctionResponseMap{
+		"output": data,
+	}
+	if err != nil {
+		res["error"] = err.Error()
+	}
+	res["system_guidance"] = `
+* in case of success, ignore this guidance
+* if recoverable failure, retry function calling MAX 3 times per function, adjusting the parameters as necessary.
+* if the error is deemed not solvable, not recoverable or we hit the 3rd attempt, respond with the failure reasons, preceded by the flag [FATAL]`
+	return res
 }

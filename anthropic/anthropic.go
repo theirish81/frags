@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/avast/retry-go/v5"
 	"github.com/jinzhu/copier"
 	"github.com/theirish81/frags"
@@ -108,6 +107,17 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 	blocks = append(blocks, anthropic.NewTextBlock(text))
 	newMsg := anthropic.NewUserMessage(blocks...)
 
+	if text == "" && sx == nil && len(d.content) > 0 {
+		lastMsg := d.content[len(d.content)-1]
+		out := ""
+		for _, block := range lastMsg.Content {
+			if block.OfText != nil {
+				out += block.OfText.Text
+			}
+		}
+		return []byte(out), nil
+	}
+
 	tx, err := d.configureTools(tools)
 	runner.Logger().Debug(log.NewEvent(log.GenericEventType, log.AiComponent).WithEngine(engine).WithMessage("configured tools").WithContent(tools))
 	if err != nil {
@@ -118,8 +128,13 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 
 	keepGoing := true
 	out := ""
+	counter := 0
 
 	for keepGoing {
+		counter++
+		if counter >= 10 {
+			return nil, errors.New("loop detected. Too many iterations")
+		}
 		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithEngine(engine))
 		var res *anthropic.Message
 
@@ -186,52 +201,44 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 			continue
 		}
 
-		// this ugly workaround is to allow internet search results to work. It seems that there's a problem in the SDK
-		// in which Base64 content (typical for search results) poorly converts into history items.
-		contentRaw := res.JSON.Content.Raw()
-		msgJSON := fmt.Sprintf(`{"role":"assistant","content":%s}`, contentRaw)
-		var msg anthropic.MessageParam
-		param.SetJSON([]byte(msgJSON), &msg)
-
-		// adding this mess to history
-		d.content = append(d.content, msg)
+		// adding assistant response to history
+		assistantParams := make([]anthropic.ContentBlockParamUnion, len(res.Content))
+		for i, block := range res.Content {
+			assistantParams[i] = block.ToParam()
+		}
+		d.content = append(d.content, anthropic.NewAssistantMessage(assistantParams...))
 
 		hasToolCalls := false
-		toolResultBlocks := make([]map[string]any, 0)
+		var toolResultBlocks []anthropic.ContentBlockParamUnion
+
+		// temporary storage for text in this turn
+		currentTurnText := ""
 
 		for _, block := range res.Content {
 			if block.Type == "text" {
-				out += block.Text
+				currentTurnText += block.Text
 			} else if block.Type == "tool_use" {
 				hasToolCalls = true
 				fres, ferr := d.RunFunction(ctx, frags.FunctionCaller{Name: block.Name, Args: decodeRawJsonMessageToMap(block.Input)}, runner)
-				if ferr != nil {
-					return nil, ferr
-				}
 
-				fresBytes, _ := json.Marshal(fres)
-				toolResultBlocks = append(toolResultBlocks, map[string]any{
-					"type":        "tool_result",
-					"tool_use_id": block.ID,
-					"content":     string(fresBytes),
-					"is_error":    false,
-				})
+				fresBytes, _ := json.Marshal(NewFunctionResponseMap(fres, ferr))
+				toolResultBlocks = append(toolResultBlocks, anthropic.NewToolResultBlock(block.ID, string(fresBytes), ferr != nil))
 			}
 		}
 
 		if hasToolCalls {
-
-			d.content = append(d.content, FlattenFromTo[anthropic.MessageParam](map[string]any{
-				"role":    "user",
-				"content": toolResultBlocks,
-			}))
+			d.content = append(d.content, anthropic.NewUserMessage(toolResultBlocks...))
 			keepGoing = true
 		} else {
 			keepGoing = false
+			out = currentTurnText
 			runner.Logger().Debug(log.NewEvent(log.EndEventType, log.AiComponent).WithMessage("generated content").WithEngine(engine).WithContent(out))
+			if strings.Contains(out, "[FATAL]") {
+				err = errors.New(out)
+			}
 		}
 	}
-	return []byte(out), nil
+	return []byte(out), err
 }
 
 func (d *Ai) configureTools(tools frags.ToolDefinitions) ([]anthropic.ToolUnionParam, error) {
