@@ -95,6 +95,9 @@ func (c *HttpClient) FileUpload(ctx context.Context, filename string, content []
 	fd := FileDescriptor{}
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
+	defer func() {
+		_ = writer.Close()
+	}()
 	if err := writer.WriteField("purpose", "assistants"); err != nil {
 		return fd, err
 	}

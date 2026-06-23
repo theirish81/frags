@@ -50,9 +50,10 @@ type Ai struct {
 	uploadMutex  *sync.Mutex
 }
 type Config struct {
-	Model      string        `yaml:"model" json:"model"`
-	Attempts   int           `yaml:"attempts" json:"attempts"`
-	RetryDelay time.Duration `yaml:"retryDelay" json:"retryDelay"`
+	Model         string        `yaml:"model" json:"model"`
+	Attempts      int           `yaml:"attempts" json:"attempts"`
+	RetryDelay    time.Duration `yaml:"retryDelay" json:"retryDelay"`
+	ThinkingLevel *string       `yaml:"thinkingLevel" json:"thinkingLevel"`
 }
 
 func DefaultConfig() Config {
@@ -143,6 +144,11 @@ func (d *Ai) Ask(ctx *util.FragsContext, text string, sx *schema.Schema, tools f
 
 		runner.Logger().Debug(log.NewEvent(log.StartEventType, log.AiComponent).WithMessage("generating content").WithContent(d.content[len(d.content)-1]).WithEngine(engine))
 		req := NewResponseRequest(d.config.Model, d.content, d.systemPrompt, chatGptTools, sx)
+		if d.config.ThinkingLevel != nil {
+			req.Reasoning = &ReasoningConfig{
+				Effort: *d.config.ThinkingLevel,
+			}
+		}
 
 		var response Response
 		if d.config.Attempts <= 0 {
