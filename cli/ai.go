@@ -67,9 +67,15 @@ func initAi() (frags.Ai, error) {
 			NumPredict:  cfg.NumPredict,
 		}), nil
 	case engineChatgpt:
-		return chatgpt.NewAI(cfg.ChatGptBaseURL, cfg.ChatGptApiKey, chatgpt.Config{
-			Model: cfg.Model,
-		}), nil
+		gptCfg := chatgpt.Config{
+			Model:      cfg.Model,
+			Attempts:   3,
+			RetryDelay: 3 * time.Second,
+		}
+		if cfg.ThinkingLevel != "" {
+			gptCfg.ThinkingLevel = util.Ptr(cfg.ThinkingLevel)
+		}
+		return chatgpt.NewAI(cfg.ChatGptBaseURL, cfg.ChatGptApiKey, gptCfg), nil
 	case engineAnthropic:
 		return anthropic.NewAI(newAnthropicClient(), anthropic.Config{
 			Temperature: cfg.Temperature,

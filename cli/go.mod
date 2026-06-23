@@ -16,7 +16,7 @@ require (
 	github.com/theirish81/fml v0.1.2
 	github.com/theirish81/frags v1.0.0-rc1
 	github.com/theirish81/frags/anthropic v1.0.0-rc2
-	github.com/theirish81/frags/chatgpt v1.0.0-rc2
+	github.com/theirish81/frags/chatgpt v1.0.0-rc3
 	github.com/theirish81/frags/gemini v1.0.0-rc0
 	github.com/theirish81/frags/ollama v0.25.0
 	github.com/theirish81/fragsfunctions/data v0.7.0
