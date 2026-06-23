@@ -18,6 +18,9 @@
 package chatgpt
 
 import (
+	"bytes"
+	"encoding/json"
+
 	"github.com/theirish81/frags/schema"
 )
 
@@ -33,15 +36,20 @@ type Text struct {
 	Format *ResponseFormat `json:"format,omitempty"`
 }
 
+type ReasoningConfig struct {
+	Effort string `json:"effort,omitempty"`
+}
+
 // ResponseRequest represents a request to the Responses API
 type ResponseRequest struct {
-	Model              string        `json:"model"`
-	Instructions       string        `json:"instructions"`
-	Input              Messages      `json:"input"`
-	Text               *Text         `json:"text,omitempty"`
-	Tools              []ChatGptTool `json:"tools,omitempty"`
-	Modalities         []string      `json:"modalities,omitempty"`
-	PreviousResponseID string        `json:"previous_response_id,omitempty"`
+	Model              string           `json:"model"`
+	Instructions       string           `json:"instructions"`
+	Input              Messages         `json:"input"`
+	Text               *Text            `json:"text,omitempty"`
+	Tools              []ChatGptTool    `json:"tools,omitempty"`
+	Modalities         []string         `json:"modalities,omitempty"`
+	PreviousResponseID string           `json:"previous_response_id,omitempty"`
+	Reasoning          *ReasoningConfig `json:"reasoning,omitempty"`
 }
 
 func NewResponseRequest(model string, input []Message, instructions string, tools []ChatGptTool, schema *schema.Schema) ResponseRequest {
@@ -65,13 +73,20 @@ func NewResponseRequest(model string, input []Message, instructions string, tool
 
 // Message represents an input item in the Responses API
 type Message struct {
-	Role      string       `json:"role,omitempty"`
-	CallID    string       `json:"call_id,omitempty"`
-	Content   ContentParts `json:"content,omitempty"`
-	Type      string       `json:"type,omitempty"`
-	Name      string       `json:"name,omitempty"`
-	Arguments *ArgsUnion   `json:"arguments,omitempty"`
-	Output    any          `json:"output,omitempty"`
+	ID               string       `json:"id,omitempty"`
+	Role             string       `json:"role,omitempty"`
+	CallID           string       `json:"call_id,omitempty"`
+	Content          ContentParts `json:"content,omitempty"`
+	Type             string       `json:"type,omitempty"`
+	Name             string       `json:"name,omitempty"`
+	Arguments        *ArgsUnion   `json:"arguments,omitempty"`
+	Output           any          `json:"output,omitempty"`
+	Status           string       `json:"status,omitempty"`
+	Summary          any          `json:"summary,omitempty"`
+	DurationMs       any          `json:"duration_ms,omitempty"`
+	EncryptedContent string       `json:"encrypted_content,omitempty"`
+	Action           any          `json:"action,omitempty"`
+	Results          any          `json:"results,omitempty"`
 }
 
 func NewUserMessage(text string) Message {
@@ -95,9 +110,74 @@ func (m *Messages) Last() Message {
 // ContentPart represents a part of content (text, image, file)
 type ContentPart struct {
 	Type     string `json:"type"`
-	Text     string `json:"text,omitempty"`
+	Text     string `json:"-"`
 	ImageURL string `json:"image_url,omitempty"`
 	FileID   string `json:"file_id,omitempty"`
+	TextObj  any    `json:"-"`
+}
+
+func (c *ContentPart) UnmarshalJSON(data []byte) error {
+	type Alias ContentPart
+	var aux struct {
+		Alias
+		Text json.RawMessage `json:"text,omitempty"`
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	c.Type = aux.Type
+	c.ImageURL = aux.ImageURL
+	c.FileID = aux.FileID
+
+	if len(aux.Text) > 0 {
+		aux.Text = bytes.TrimSpace(aux.Text)
+		if len(aux.Text) > 0 && aux.Text[0] == '{' {
+			// It is a structured text object (containing value and annotations)
+			var obj any
+			if err := json.Unmarshal(aux.Text, &obj); err != nil {
+				return err
+			}
+			c.TextObj = obj
+
+			// Extract the value as string for Text field backwards compatibility
+			var textVal struct {
+				Value string `json:"value"`
+			}
+			_ = json.Unmarshal(aux.Text, &textVal)
+			c.Text = textVal.Value
+		} else {
+			// It is a plain string
+			var s string
+			if err := json.Unmarshal(aux.Text, &s); err != nil {
+				return err
+			}
+			c.Text = s
+		}
+	}
+	return nil
+}
+
+func (c ContentPart) MarshalJSON() ([]byte, error) {
+	type Alias ContentPart
+
+	// If this is a non-text type and contains no text content, serialize without 'text' field entirely.
+	isTextType := c.Type == "text" || c.Type == "input_text" || c.Type == "output_text" || c.Type == ""
+	if !isTextType && c.TextObj == nil && c.Text == "" {
+		return json.Marshal(Alias(c))
+	}
+
+	var textVal any = c.Text
+	if c.TextObj != nil {
+		textVal = c.TextObj
+	}
+
+	return json.Marshal(struct {
+		Alias
+		Text any `json:"text"`
+	}{
+		Alias: Alias(c),
+		Text:  textVal,
+	})
 }
 
 type ContentParts []ContentPart
